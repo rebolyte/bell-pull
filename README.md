@@ -5,11 +5,12 @@ A modern API built with Deno, Hono web framework, and Cap'n Web RPC system featu
 ## Features
 
 - **Deno Runtime**: Modern, secure JavaScript/TypeScript runtime
-- **Hono Framework**: Lightweight, fast web framework with HTML templating
+- **Hono Framework**: Lightweight, fast web framework with JSX support
 - **Cap'n Web**: Schema-free RPC with object-capability security
 - **AlpineJS**: Lightweight reactive frontend framework
-- **TypeScript**: Full type safety
-- **Interactive Dashboard**: Beautiful UI demonstrating RPC calls
+- **TypeScript**: Full type safety with shared types across frontend/backend
+- **Interactive Dashboard**: Beautiful UI demonstrating typed RPC calls
+- **Type Sharing**: Single source of truth for types used in both JSX and services
 
 ## Prerequisites
 
@@ -50,11 +51,12 @@ The server will start on `http://localhost:8000` by default.
 ├── src/
 │   ├── main.ts              # Application entry point
 │   ├── routes/
-│   │   └── api.ts           # API routes
+│   │   └── api.tsx          # API routes with JSX
 │   ├── services/
 │   │   └── example-rpc.ts   # RPC service implementation
 │   ├── middleware/          # Custom middleware (future)
-│   ├── types/               # TypeScript type definitions
+│   ├── types/
+│   │   └── shared.ts        # Shared types (frontend + backend)
 │   └── utils/
 │       └── capnweb-setup.ts # Cap'n Web utilities
 └── README.md
@@ -77,6 +79,8 @@ The server will start on `http://localhost:8000` by default.
    - **RPC Calculator**: Add numbers via RPC calls
    - **RPC Greeting**: Send personalized greetings
    - **Batch Processing**: Process arrays through RPC
+   - **User Creation**: Create users with typed RPC (demonstrates type sharing)
+   - **Todo Manager**: Full CRUD operations with complex types
 
 ## API Endpoints
 
@@ -91,10 +95,21 @@ The server will start on `http://localhost:8000` by default.
 
 ### RPC Endpoints
 
+**Basic RPC:**
 - `POST /api/rpc` - Generic RPC endpoint (send `{method, args}`)
 - `GET /api/rpc/hello/:name` - Hello RPC method
 - `POST /api/rpc/add` - Add two numbers (send `{a, b}`)
+- `POST /api/rpc/multiply` - Multiply with typed result (send `{a, b}`)
 - `POST /api/rpc/batch` - Process batch items (send `{items}`)
+
+**User Management (Typed):**
+- `POST /api/rpc/user/create` - Create user (send `{name, email}`)
+- `GET /api/rpc/user/:userId` - Get user info
+
+**Todo Management (Typed):**
+- `POST /api/rpc/todo/create` - Create todo (send `{userId, title, priority}`)
+- `GET /api/rpc/todos/:userId` - Get all todos for user
+- `POST /api/rpc/todo/toggle` - Toggle todo completion (send `{todoId}`)
 
 ## Usage Examples
 
@@ -121,25 +136,95 @@ curl -X POST http://localhost:8000/api/rpc/batch \
   -d '{"items": ["hello", "world", "test"]}'
 ```
 
-## AlpineJS Integration
+## Shared Types Between Frontend and Backend
 
-The dashboard demonstrates how to use AlpineJS with Hono's HTML templating:
+One of the key features of this setup is **type sharing** between the frontend JSX components and backend RPC services. This ensures type safety across your entire stack.
+
+### How It Works
+
+**1. Define shared types** (`src/types/shared.ts`):
+```typescript
+export type User = {
+  id: string;
+  name: string;
+  email: string;
+  createdAt: Date;
+  preferences: UserPreferences;
+};
+
+export type UserPreferences = {
+  theme: "light" | "dark";
+  notifications: boolean;
+  language: string;
+};
+
+export interface ExampleRpcMethods {
+  getUserInfo(userId: string): Promise<User>;
+  createUser(name: string, email: string): Promise<User>;
+}
+```
+
+**2. Use types in backend service** (`src/services/example-rpc.ts`):
+```typescript
+import type { User, ExampleRpcMethods } from "../types/shared.ts";
+
+export class ExampleRpcService implements ExampleRpcMethods {
+  async getUserInfo(userId: string): Promise<User> {
+    // TypeScript ensures we return the correct shape
+    return { /* ... */ };
+  }
+}
+```
+
+**3. Use types in frontend** (`src/routes/api.tsx`):
+```typescript
+import type { User } from "../types/shared.ts";
+
+api.get("/rpc/user/:userId", async (c) => {
+  const userId = c.req.param("userId");
+  const user: User = await rpcService.getUserInfo(userId);
+  return c.json(user);  // Type-safe!
+});
+```
+
+### Benefits
+
+✅ **Compile-time safety**: Catch type errors before runtime
+✅ **Single source of truth**: Types defined once, used everywhere
+✅ **Refactoring confidence**: Change a type and see all usages update
+✅ **IDE autocomplete**: Full IntelliSense support across frontend and backend
+✅ **Documentation**: Types serve as inline documentation
+
+### Available RPC Methods
+
+The dashboard demonstrates these typed RPC methods:
+
+- **User Management**
+  - `createUser(name, email)` → Returns typed `User`
+  - `getUserInfo(userId)` → Returns typed `User`
+  - `updateUserPreferences(userId, prefs)` → Updates with type safety
+
+- **Todo Management**
+  - `getTodos(userId)` → Returns typed `Todo[]`
+  - `createTodo(userId, title, priority)` → Returns typed `Todo`
+  - `toggleTodo(todoId)` → Returns typed `Todo`
+
+- **Math Operations**
+  - `add(a, b)` → Returns `number`
+  - `multiply(a, b)` → Returns typed `CalculationResult`
+
+All types are defined in `src/types/shared.ts` and used consistently across the application.
+
+## AlpineJS with JSX
+
+The dashboard uses Hono's JSX mode with AlpineJS for reactive frontend:
 
 ```typescript
-import { html } from "hono/html";
-
-const Layout = (props: LayoutProps) => html`<!DOCTYPE html>
-<html>
-  <head>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-  </head>
-  <body>
-    <div x-data="{ count: 0 }">
-      <button @click="count++">Increment</button>
-      <span x-text="count"></span>
-    </div>
-  </body>
-</html>`;
+// JSX component with AlpineJS
+<div class="card" x-data="{ count: 0 }">
+  <div class="counter" x-text="count"></div>
+  <button x-on:click="count++">Increment</button>
+</div>
 ```
 
 AlpineJS provides reactive state management directly in HTML, making it perfect for:
