@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { logger } from "hono/logger";
 import { cors } from "hono/cors";
-import apiRoutes from "./routes/api.ts";
+import apiRoutes from "./routes/api.tsx";
 
 const app = new Hono();
 
