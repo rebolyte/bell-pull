@@ -15,8 +15,14 @@ app.get("/", (c) => {
     message: "Deno + Hono + CapnWeb API",
     version: "1.0.0",
     endpoints: {
-      health: "/health",
-      api: "/api/*",
+      dashboard: "/api/dashboard - Interactive dashboard with AlpineJS",
+      health: "/health - Health check",
+      rpc: {
+        "POST /api/rpc": "Generic RPC endpoint (send {method, args})",
+        "GET /api/rpc/hello/:name": "Hello RPC method",
+        "POST /api/rpc/add": "Add two numbers (send {a, b})",
+        "POST /api/rpc/batch": "Process batch items (send {items})",
+      },
     },
   });
 });

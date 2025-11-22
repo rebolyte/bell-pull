@@ -1,14 +1,15 @@
 # Deno + Hono + CapnWeb API
 
-A modern API built with Deno, Hono web framework, and Cap'n Web RPC system.
+A modern API built with Deno, Hono web framework, and Cap'n Web RPC system featuring an interactive AlpineJS dashboard.
 
 ## Features
 
 - **Deno Runtime**: Modern, secure JavaScript/TypeScript runtime
-- **Hono Framework**: Lightweight, fast web framework
+- **Hono Framework**: Lightweight, fast web framework with HTML templating
 - **Cap'n Web**: Schema-free RPC with object-capability security
+- **AlpineJS**: Lightweight reactive frontend framework
 - **TypeScript**: Full type safety
-- **REST & RPC**: Support for both traditional REST and RPC patterns
+- **Interactive Dashboard**: Beautiful UI demonstrating RPC calls
 
 ## Prerequisites
 
@@ -59,41 +60,49 @@ The server will start on `http://localhost:8000` by default.
 └── README.md
 ```
 
+## Quick Start
+
+1. Start the server:
+   ```bash
+   deno task dev
+   ```
+
+2. Open the interactive dashboard:
+   ```
+   http://localhost:8000/api/dashboard
+   ```
+
+3. Try the interactive features:
+   - **Counter**: Simple AlpineJS reactivity example
+   - **RPC Calculator**: Add numbers via RPC calls
+   - **RPC Greeting**: Send personalized greetings
+   - **Batch Processing**: Process arrays through RPC
+
 ## API Endpoints
+
+### Dashboard
+
+- `GET /api/dashboard` - Interactive dashboard with AlpineJS
 
 ### Root Endpoints
 
 - `GET /` - API information
 - `GET /health` - Health check
 
-### REST Endpoints
-
-- `GET /api/users/:id` - Get user by ID
-- `POST /api/users` - Create a new user
-- `GET /api/info` - API documentation
-
 ### RPC Endpoints
 
-- `POST /api/rpc` - Generic RPC endpoint
+- `POST /api/rpc` - Generic RPC endpoint (send `{method, args}`)
 - `GET /api/rpc/hello/:name` - Hello RPC method
-- `POST /api/rpc/add` - Add two numbers
-- `POST /api/rpc/batch` - Process batch items
+- `POST /api/rpc/add` - Add two numbers (send `{a, b}`)
+- `POST /api/rpc/batch` - Process batch items (send `{items}`)
 
 ## Usage Examples
 
-### REST API
+### Interactive Dashboard
 
-```bash
-# Get user
-curl http://localhost:8000/api/users/123
+Visit `http://localhost:8000/api/dashboard` in your browser to interact with the RPC API through a beautiful UI.
 
-# Create user
-curl -X POST http://localhost:8000/api/users \
-  -H "Content-Type: application/json" \
-  -d '{"name": "John Doe", "email": "john@example.com"}'
-```
-
-### RPC API
+### RPC API (cURL)
 
 ```bash
 # Generic RPC call
@@ -111,6 +120,33 @@ curl -X POST http://localhost:8000/api/rpc/batch \
   -H "Content-Type: application/json" \
   -d '{"items": ["hello", "world", "test"]}'
 ```
+
+## AlpineJS Integration
+
+The dashboard demonstrates how to use AlpineJS with Hono's HTML templating:
+
+```typescript
+import { html } from "hono/html";
+
+const Layout = (props: LayoutProps) => html`<!DOCTYPE html>
+<html>
+  <head>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  </head>
+  <body>
+    <div x-data="{ count: 0 }">
+      <button @click="count++">Increment</button>
+      <span x-text="count"></span>
+    </div>
+  </body>
+</html>`;
+```
+
+AlpineJS provides reactive state management directly in HTML, making it perfect for:
+- Interactive forms
+- Dynamic content updates
+- API calls with loading states
+- Client-side data manipulation
 
 ## About Cap'n Web
 
@@ -183,6 +219,7 @@ deno lint
 
 - [Deno Documentation](https://deno.land/manual)
 - [Hono Documentation](https://hono.dev/)
+- [AlpineJS Documentation](https://alpinejs.dev/)
 - [Cap'n Web GitHub](https://github.com/cloudflare/capnweb)
 
 ## License
