@@ -17,6 +17,26 @@ const Layout = (props: LayoutProps) => (
       <meta charset="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <title>{props.title}</title>
+      <script type="module" dangerouslySetInnerHTML={{
+        __html: `
+          import { newHttpBatchRpcSession } from 'https://cdn.jsdelivr.net/npm/capnweb@0.2.0/+esm';
+
+          // Create global RPC stub for use in AlpineJS
+          window.rpcStub = newHttpBatchRpcSession('/api/rpc');
+
+          // Helper for simple RPC calls (backwards compatible with fetch examples)
+          window.rpc = async function(method, ...params) {
+            try {
+              return await window.rpcStub[method](...params);
+            } catch (error) {
+              console.error('RPC error:', error);
+              throw error;
+            }
+          };
+
+          console.log('Cap\\'n Web RPC client initialized');
+        `
+      }}></script>
       <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
       <style dangerouslySetInnerHTML={{
         __html: `
@@ -135,7 +155,7 @@ api.get("/dashboard", (c) => {
 
       {/* RPC Calculator */}
       <div class="card" x-data="{ a: 5, b: 3, result: null, loading: false }">
-        <h2>RPC Calculator</h2>
+        <h2>RPC Calculator <span class="badge">Cap'n Web Client</span></h2>
         <div>
           <input type="number" x-model="a" />
           +
@@ -143,14 +163,9 @@ api.get("/dashboard", (c) => {
           <button
             x-on:click={`
               loading = true;
-              fetch('/api/rpc', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ method: 'add', params: [Number(a), Number(b)] })
-              })
-              .then(r => r.json())
-              .then(data => { result = data.result; loading = false; })
-              .catch(() => loading = false)
+              window.rpc('add', Number(a), Number(b))
+                .then(r => { result = r; loading = false; })
+                .catch(() => loading = false)
             `}
           >
             Calculate via RPC
@@ -164,18 +179,13 @@ api.get("/dashboard", (c) => {
 
       {/* RPC Hello */}
       <div class="card" x-data="{ name: 'World', message: null }">
-        <h2>RPC Greeting</h2>
+        <h2>RPC Greeting <span class="badge">Cap'n Web Client</span></h2>
         <div>
           <input type="text" x-model="name" placeholder="Enter name" style="width: 200px;" />
           <button
             x-on:click={`
-              fetch('/api/rpc', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ method: 'hello', params: [name] })
-              })
-              .then(r => r.json())
-              .then(data => message = data.result)
+              window.rpc('hello', name)
+                .then(msg => message = msg)
             `}
           >
             Say Hello via RPC
@@ -184,19 +194,51 @@ api.get("/dashboard", (c) => {
         <div x-show="message" class="result" x-text="message"></div>
       </div>
 
-      {/* Batch Processing */}
-      <div class="card" x-data="{ items: ['hello', 'world', 'deno'], processed: null }">
-        <h2>RPC Batch Processing</h2>
+      {/* Batched RPC Calls - Cap'n Web's killer feature! */}
+      <div class="card" x-data="{ results: null, loading: false }">
+        <h2>Batched RPC Calls <span class="badge">One HTTP Request!</span></h2>
         <div>
           <button
             x-on:click={`
-              fetch('/api/rpc', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ method: 'processBatch', params: [items] })
-              })
-              .then(r => r.json())
-              .then(data => processed = data.result)
+              loading = true;
+              // All three calls will be sent in a SINGLE HTTP request!
+              const sum = window.rpcStub.add(10, 5);
+              const product = window.rpcStub.multiply(7, 3);
+              const greeting = window.rpcStub.hello('Batching');
+
+              Promise.all([sum, product, greeting])
+                .then(([s, p, g]) => {
+                  results = {
+                    sum: s,
+                    product: p.result,
+                    operation: p.operation,
+                    greeting: g
+                  };
+                  loading = false;
+                })
+                .catch(() => loading = false);
+            `}
+          >
+            Execute 3 RPC Calls in One Request
+          </button>
+        </div>
+        <div x-show="loading" style="margin-top: 1rem;">Loading...</div>
+        <div x-show="results" class="result">
+          <div><strong>All results from ONE HTTP request:</strong></div>
+          <div>Sum (10 + 5): <span x-text="results?.sum"></span></div>
+          <div>Product: <span x-text="results?.product"></span> (<span x-text="results?.operation"></span>)</div>
+          <div>Greeting: <span x-text="results?.greeting"></span></div>
+        </div>
+      </div>
+
+      {/* Batch Processing */}
+      <div class="card" x-data="{ items: ['hello', 'world', 'deno'], processed: null }">
+        <h2>RPC Batch Processing <span class="badge">Cap'n Web Client</span></h2>
+        <div>
+          <button
+            x-on:click={`
+              window.rpc('processBatch', items)
+                .then(data => processed = data)
             `}
           >
             Process Batch via RPC
@@ -210,19 +252,14 @@ api.get("/dashboard", (c) => {
 
       {/* User Creation - Demonstrates shared types */}
       <div class="card" x-data="{ name: 'Alice', email: 'alice@example.com', user: null }">
-        <h2>Create User (Typed RPC) <span class="badge">Shared Types</span></h2>
+        <h2>Create User (Typed RPC) <span class="badge">Cap'n Web + Shared Types</span></h2>
         <div>
           <input type="text" x-model="name" placeholder="Name" style="width: 150px;" />
           <input type="email" x-model="email" placeholder="Email" style="width: 200px;" />
           <button
             x-on:click={`
-              fetch('/api/rpc', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ method: 'createUser', params: [name, email] })
-              })
-              .then(r => r.json())
-              .then(data => user = data.result)
+              window.rpc('createUser', name, email)
+                .then(u => user = u)
             `}
           >
             Create User via RPC
@@ -239,7 +276,7 @@ api.get("/dashboard", (c) => {
 
       {/* Todo Management - Demonstrates complex types */}
       <div class="card" x-data="{ userId: 'demo-user', title: 'Learn Cap\\'n Web', priority: 'high', todos: [], newTodo: null }">
-        <h2>Todo Manager (Complex Types) <span class="badge">Shared Types</span></h2>
+        <h2>Todo Manager <span class="badge">Cap'n Web + Complex Types</span></h2>
         <div style="margin-bottom: 1rem;">
           <input type="text" x-model="title" placeholder="Todo title" style="width: 200px;" />
           <select x-model="priority" style="padding: 0.75rem; border: 2px solid #e0e0e0; border-radius: 0.5rem; margin-right: 0.5rem;">
@@ -249,36 +286,21 @@ api.get("/dashboard", (c) => {
           </select>
           <button
             x-on:click={`
-              fetch('/api/rpc', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ method: 'createTodo', params: [userId, title, priority] })
-              })
-              .then(r => r.json())
-              .then(data => {
-                newTodo = data.result;
-                // Refresh todos list
-                fetch('/api/rpc', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ method: 'getTodos', params: [userId] })
+              // Create todo and refresh list using Cap'n Web
+              window.rpc('createTodo', userId, title, priority)
+                .then(todo => {
+                  newTodo = todo;
+                  return window.rpc('getTodos', userId);
                 })
-                  .then(r => r.json())
-                  .then(data => todos = data.result);
-              })
+                .then(list => todos = list);
             `}
           >
             Add Todo
           </button>
           <button
             x-on:click={`
-              fetch('/api/rpc', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ method: 'getTodos', params: [userId] })
-              })
-                .then(r => r.json())
-                .then(data => todos = data.result)
+              window.rpc('getTodos', userId)
+                .then(list => todos = list);
             `}
           >
             Load Todos

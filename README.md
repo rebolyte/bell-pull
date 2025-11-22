@@ -163,7 +163,44 @@ curl -X POST http://localhost:8000/api/rpc \
 # Response: {"result": {"id": "...", "title": "Learn RPC", "priority": "high", ...}}
 ```
 
-### Using Cap'n Web Client Library (Recommended)
+### Using Cap'n Web Client Library (Browser - No Build Step!)
+
+The dashboard uses Cap'n Web directly in the browser via ES modules - **no build step required**:
+
+```html
+<script type="module">
+  import { newHttpBatchRpcSession } from 'https://cdn.jsdelivr.net/npm/capnweb@0.2.0/+esm';
+
+  // Create global RPC stub
+  window.rpcStub = newHttpBatchRpcSession('/api/rpc');
+
+  // Helper for simple calls
+  window.rpc = async function(method, ...params) {
+    return await window.rpcStub[method](...params);
+  };
+</script>
+```
+
+Then use it in your JavaScript:
+
+```javascript
+// Simple call
+const greeting = await window.rpc('hello', 'Alice');
+
+// Batched calls - all in ONE HTTP request!
+const sum = window.rpcStub.add(5, 3);
+const product = window.rpcStub.multiply(10, 4);
+const greeting = window.rpcStub.hello('Batching');
+const [sumResult, productResult, greetingResult] = await Promise.all([sum, product, greeting]);
+```
+
+**Benefits:**
+- ✅ Full batching support (multiple calls in one HTTP request)
+- ✅ Promise pipelining (dependent calls in one round trip)
+- ✅ No build step, no bundler needed
+- ✅ Works directly in the browser with ES modules
+
+### Using Cap'n Web Client Library (Node.js/Bundled Apps)
 
 For applications with a build step (Vite, esbuild, etc.), use the Cap'n Web client library:
 
@@ -192,30 +229,6 @@ let [userData, todosData] = await Promise.all([user, todos]);
 ```
 
 See `src/client-example.ts` for more examples.
-
-### Simple Fetch API (No Build Step)
-
-For simple cases without a bundler (like the dashboard), use plain fetch:
-
-```javascript
-// Helper function
-async function rpc(method, ...params) {
-  const res = await fetch('/api/rpc', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ method, params })
-  });
-  const data = await res.json();
-  if (data.error) throw new Error(data.error.message);
-  return data.result;
-}
-
-// Usage
-const sum = await rpc('add', 5, 3);
-const user = await rpc('createUser', 'Alice', 'alice@example.com');
-```
-
-**Note:** The fetch approach doesn't support batching or promise pipelining. Use the Cap'n Web client library for full features.
 
 ## Shared Types Between Frontend and Backend
 
