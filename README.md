@@ -163,26 +163,59 @@ curl -X POST http://localhost:8000/api/rpc \
 # Response: {"result": {"id": "...", "title": "Learn RPC", "priority": "high", ...}}
 ```
 
-### JavaScript/Fetch Example
+### Using Cap'n Web Client Library (Recommended)
+
+For applications with a build step (Vite, esbuild, etc.), use the Cap'n Web client library:
+
+```typescript
+import { newHttpBatchRpcSession, type RpcStub } from "capnweb";
+import type { ExampleRpcMethods } from "./types/shared";
+
+// Create typed RPC session
+using stub: RpcStub<ExampleRpcMethods> = newHttpBatchRpcSession<ExampleRpcMethods>(
+  "/api/rpc"
+);
+
+// Single call
+const greeting = await stub.hello("Alice");
+
+// Batched calls - all in ONE HTTP request!
+let sum = stub.add(5, 3);
+let product = stub.multiply(10, 4);
+let batch = stub.processBatch(["hello", "world"]);
+let [sumResult, productResult, batchResult] = await Promise.all([sum, product, batch]);
+
+// Promise pipelining - dependent calls in ONE round trip!
+let user = stub.createUser("Bob", "bob@example.com");
+let todos = stub.getTodos(user.id);  // Uses user.id before resolved!
+let [userData, todosData] = await Promise.all([user, todos]);
+```
+
+See `src/client-example.ts` for more examples.
+
+### Simple Fetch API (No Build Step)
+
+For simple cases without a bundler (like the dashboard), use plain fetch:
 
 ```javascript
-// Simple helper for RPC calls
+// Helper function
 async function rpc(method, ...params) {
-  const response = await fetch('/api/rpc', {
+  const res = await fetch('/api/rpc', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ method, params })
   });
-  const data = await response.json();
+  const data = await res.json();
   if (data.error) throw new Error(data.error.message);
   return data.result;
 }
 
 // Usage
-const sum = await rpc('add', 5, 3);  // 8
+const sum = await rpc('add', 5, 3);
 const user = await rpc('createUser', 'Alice', 'alice@example.com');
-const todos = await rpc('getTodos', 'demo-user');
 ```
+
+**Note:** The fetch approach doesn't support batching or promise pipelining. Use the Cap'n Web client library for full features.
 
 ## Shared Types Between Frontend and Backend
 
