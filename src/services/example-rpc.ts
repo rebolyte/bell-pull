@@ -1,8 +1,9 @@
 /**
- * Example RPC service using capnweb patterns
+ * Example RPC service using Cap'n Web
  * Demonstrates type sharing between frontend and backend
  */
 
+import { RpcTarget } from "capnweb";
 import type {
   BatchProcessResult,
   CalculationResult,
@@ -17,7 +18,7 @@ import type {
 const users = new Map<string, User>();
 const todos = new Map<string, Todo[]>();
 
-export class ExampleRpcService implements ExampleRpcMethods {
+export class ExampleRpcService extends RpcTarget implements ExampleRpcMethods {
   // Simple greeting
   async hello(name: string): Promise<string> {
     return `Hello, ${name}! This is a Cap'n Web RPC response.`;

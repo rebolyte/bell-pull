@@ -51,14 +51,12 @@ The server will start on `http://localhost:8000` by default.
 ├── src/
 │   ├── main.ts              # Application entry point
 │   ├── routes/
-│   │   └── api.tsx          # API routes with JSX
+│   │   └── api.tsx          # API routes with JSX + Cap'n Web
 │   ├── services/
-│   │   └── example-rpc.ts   # RPC service implementation
+│   │   └── example-rpc.ts   # RPC service (extends RpcTarget)
 │   ├── middleware/          # Custom middleware (future)
-│   ├── types/
-│   │   └── shared.ts        # Shared types (frontend + backend)
-│   └── utils/
-│       └── capnweb-setup.ts # Cap'n Web utilities
+│   └── types/
+│       └── shared.ts        # Shared types (frontend + backend)
 └── README.md
 ```
 
@@ -295,29 +293,60 @@ AlpineJS provides reactive state management directly in HTML, making it perfect 
 
 ### Cap'n Web Integration
 
-This project demonstrates Cap'n Web patterns through:
+This project uses the **real Cap'n Web library** (`npm:capnweb`):
 
-1. **RPC Service** (`src/services/example-rpc.ts`): Example service implementation
-2. **RPC Handler** (`src/utils/capnweb-setup.ts`): Utilities for handling RPC calls
-3. **RPC Routes** (`src/routes/api.ts`): HTTP endpoints exposing RPC methods
-
-For production use with full Cap'n Web features, you would:
-
+**Server Side** (`src/services/example-rpc.ts`):
 ```typescript
-import { RpcTarget, newWorkersRpcResponse } from "capnweb";
+import { RpcTarget } from "capnweb";
 
-class MyApi extends RpcTarget {
-  async hello(name: string) {
+export class ExampleRpcService extends RpcTarget {
+  async hello(name: string): Promise<string> {
     return `Hello, ${name}!`;
   }
-}
 
-// For Cloudflare Workers or similar environments
-export default {
-  fetch(request: Request) {
-    return newWorkersRpcResponse(request, new MyApi());
+  async add(a: number, b: number): Promise<number> {
+    return a + b;
   }
-};
+}
+```
+
+**Route Handler** (`src/routes/api.tsx`):
+```typescript
+import { newHttpBatchRpcResponse } from "capnweb";
+
+api.all("/rpc", async (c) => {
+  const request = c.req.raw;
+  const response = await newHttpBatchRpcResponse(request, new ExampleRpcService());
+  response.headers.set("Access-Control-Allow-Origin", "*");
+  return response;
+});
+```
+
+**Client Side** (JavaScript):
+```typescript
+import { newHttpBatchRpcSession } from "capnweb";
+
+// Create RPC session
+using stub = newHttpBatchRpcSession("/api/rpc");
+
+// Make batched calls - all sent in one HTTP request!
+let greeting1 = stub.hello("Alice");
+let greeting2 = stub.hello("Bob");
+let sum = stub.add(5, 3);
+
+// Await all at once
+let [g1, g2, result] = await Promise.all([greeting1, greeting2, sum]);
+```
+
+### Promise Pipelining Example
+
+Cap'n Web's killer feature - chain dependent calls in a single round trip:
+
+```typescript
+// All of this happens in ONE HTTP request!
+let user = stub.getUserInfo("user123");
+let todos = stub.getTodos(user.id);  // Uses result from first call
+let count = await todos.length;      // Pipeline through the array
 ```
 
 ## Environment Variables

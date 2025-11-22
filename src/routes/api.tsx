@@ -1,13 +1,9 @@
 import { Hono } from "hono";
+import { newHttpBatchRpcResponse } from "capnweb";
 import { ExampleRpcService } from "../services/example-rpc.ts";
-import { createRpcHandler } from "../utils/capnweb-setup.ts";
 import type { User, Todo, CalculationResult } from "../types/shared.ts";
 
 const api = new Hono();
-
-// Initialize RPC service
-const rpcService = new ExampleRpcService();
-const rpcHandler = createRpcHandler(rpcService);
 
 // Layout component
 type LayoutProps = {
@@ -303,20 +299,15 @@ api.get("/dashboard", (c) => {
   );
 });
 
-// Single RPC endpoint - dispatches to all methods
-api.post("/rpc", async (c) => {
-  try {
-    const body = await c.req.json();
-    const response = await rpcHandler(body);
-    return c.json(response);
-  } catch (error) {
-    return c.json({
-      error: {
-        code: -32700,
-        message: "Parse error",
-      },
-    }, 400);
-  }
+// Single RPC endpoint using Cap'n Web
+api.all("/rpc", async (c) => {
+  const request = c.req.raw;
+  const response = await newHttpBatchRpcResponse(request, new ExampleRpcService());
+
+  // Add CORS header
+  response.headers.set("Access-Control-Allow-Origin", "*");
+
+  return response;
 });
 
 export default api;
