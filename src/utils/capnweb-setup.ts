@@ -1,74 +1,67 @@
 /**
- * Cap'n Web Setup and Utilities
+ * Cap'n Web-style RPC Handler
  *
- * This module provides utilities for setting up Cap'n Web RPC
- *
- * Note: To use capnweb, you need to import from the GitHub repository:
- * import { RpcTarget, newWorkersRpcResponse, newWebSocketRpcSession } from "capnweb";
- *
- * Example Server (for Cloudflare Workers or similar):
- * ```typescript
- * import { RpcTarget, newWorkersRpcResponse } from "capnweb";
- *
- * class MyApi extends RpcTarget {
- *   hello(name: string) {
- *     return `Hello, ${name}!`;
- *   }
- * }
- *
- * export default {
- *   fetch(request: Request) {
- *     return newWorkersRpcResponse(request, new MyApi());
- *   }
- * };
- * ```
- *
- * Example Client:
- * ```typescript
- * import { newWebSocketRpcSession } from "capnweb";
- *
- * const api = newWebSocketRpcSession("wss://example.com/api");
- * const result = await api.hello("World");
- * ```
+ * Simple JSON-RPC implementation for HTTP transport
+ * Following Cap'n Web patterns for method-based RPC dispatch
  */
 
 export interface RpcService {
   [key: string]: (...args: unknown[]) => Promise<unknown>;
 }
 
-/**
- * Mock RPC handler for demonstration
- * In production, you would use capnweb's RpcTarget and transport methods
- */
-export async function handleRpcCall(
-  service: RpcService,
-  method: string,
-  args: unknown[],
-): Promise<unknown> {
-  if (typeof service[method] !== "function") {
-    throw new Error(`Method ${method} not found`);
-  }
+export interface RpcRequest {
+  method: string;
+  params?: unknown[];
+  id?: string | number;
+}
 
-  return await service[method](...args);
+export interface RpcResponse {
+  result?: unknown;
+  error?: { code: number; message: string };
+  id?: string | number;
 }
 
 /**
- * Creates a simple RPC request handler
+ * Creates an RPC handler that dispatches to service methods
+ *
+ * Example usage:
+ * ```typescript
+ * const service = new MyRpcService();
+ * const handler = createRpcHandler(service);
+ *
+ * // Client calls:
+ * POST /rpc { "method": "add", "params": [5, 3] }
+ * ```
  */
 export function createRpcHandler(service: RpcService) {
-  return async (body: { method: string; args: unknown[] }) => {
-    const { method, args = [] } = body;
+  return async (request: RpcRequest): Promise<RpcResponse> => {
+    const { method, params = [], id } = request;
+
+    // Check if method exists
+    if (typeof service[method] !== "function") {
+      return {
+        error: {
+          code: -32601,
+          message: `Method '${method}' not found`,
+        },
+        id,
+      };
+    }
 
     try {
-      const result = await handleRpcCall(service, method, args);
+      // Call the method with params
+      const result = await service[method](...(Array.isArray(params) ? params : [params]));
       return {
-        success: true,
         result,
+        id,
       };
     } catch (error) {
       return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: {
+          code: -32603,
+          message: error instanceof Error ? error.message : "Internal error",
+        },
+        id,
       };
     }
   };

@@ -147,10 +147,10 @@ api.get("/dashboard", (c) => {
           <button
             x-on:click={`
               loading = true;
-              fetch('/api/rpc/add', {
+              fetch('/api/rpc', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ a: Number(a), b: Number(b) })
+                body: JSON.stringify({ method: 'add', params: [Number(a), Number(b)] })
               })
               .then(r => r.json())
               .then(data => { result = data.result; loading = false; })
@@ -173,7 +173,11 @@ api.get("/dashboard", (c) => {
           <input type="text" x-model="name" placeholder="Enter name" style="width: 200px;" />
           <button
             x-on:click={`
-              fetch('/api/rpc/hello/' + name)
+              fetch('/api/rpc', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ method: 'hello', params: [name] })
+              })
               .then(r => r.json())
               .then(data => message = data.result)
             `}
@@ -190,13 +194,13 @@ api.get("/dashboard", (c) => {
         <div>
           <button
             x-on:click={`
-              fetch('/api/rpc/batch', {
+              fetch('/api/rpc', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ items })
+                body: JSON.stringify({ method: 'processBatch', params: [items] })
               })
               .then(r => r.json())
-              .then(data => processed = data)
+              .then(data => processed = data.result)
             `}
           >
             Process Batch via RPC
@@ -216,13 +220,13 @@ api.get("/dashboard", (c) => {
           <input type="email" x-model="email" placeholder="Email" style="width: 200px;" />
           <button
             x-on:click={`
-              fetch('/api/rpc/user/create', {
+              fetch('/api/rpc', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, email })
+                body: JSON.stringify({ method: 'createUser', params: [name, email] })
               })
               .then(r => r.json())
-              .then(data => user = data)
+              .then(data => user = data.result)
             `}
           >
             Create User via RPC
@@ -249,18 +253,22 @@ api.get("/dashboard", (c) => {
           </select>
           <button
             x-on:click={`
-              fetch('/api/rpc/todo/create', {
+              fetch('/api/rpc', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId, title, priority })
+                body: JSON.stringify({ method: 'createTodo', params: [userId, title, priority] })
               })
               .then(r => r.json())
               .then(data => {
-                newTodo = data;
+                newTodo = data.result;
                 // Refresh todos list
-                fetch('/api/rpc/todos/' + userId)
+                fetch('/api/rpc', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ method: 'getTodos', params: [userId] })
+                })
                   .then(r => r.json())
-                  .then(data => todos = data);
+                  .then(data => todos = data.result);
               })
             `}
           >
@@ -268,9 +276,13 @@ api.get("/dashboard", (c) => {
           </button>
           <button
             x-on:click={`
-              fetch('/api/rpc/todos/' + userId)
+              fetch('/api/rpc', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ method: 'getTodos', params: [userId] })
+              })
                 .then(r => r.json())
-                .then(data => todos = data)
+                .then(data => todos = data.result)
             `}
           >
             Load Todos
@@ -291,73 +303,20 @@ api.get("/dashboard", (c) => {
   );
 });
 
-// RPC endpoints
+// Single RPC endpoint - dispatches to all methods
 api.post("/rpc", async (c) => {
   try {
     const body = await c.req.json();
-    const result = await rpcHandler(body);
-    return c.json(result);
+    const response = await rpcHandler(body);
+    return c.json(response);
   } catch (error) {
     return c.json({
-      success: false,
-      error: error instanceof Error ? error.message : "Invalid request",
+      error: {
+        code: -32700,
+        message: "Parse error",
+      },
     }, 400);
   }
-});
-
-api.get("/rpc/hello/:name", async (c) => {
-  const name = c.req.param("name");
-  const result = await rpcService.hello(name);
-  return c.json({ result });
-});
-
-api.post("/rpc/add", async (c) => {
-  const { a, b } = await c.req.json();
-  const result = await rpcService.add(a, b);
-  return c.json({ result });
-});
-
-api.post("/rpc/batch", async (c) => {
-  const { items } = await c.req.json();
-  const result = await rpcService.processBatch(items);
-  return c.json(result);
-});
-
-// New RPC endpoints
-api.post("/rpc/multiply", async (c) => {
-  const { a, b } = await c.req.json();
-  const result: CalculationResult = await rpcService.multiply(a, b);
-  return c.json(result);
-});
-
-api.post("/rpc/user/create", async (c) => {
-  const { name, email } = await c.req.json();
-  const user: User = await rpcService.createUser(name, email);
-  return c.json(user);
-});
-
-api.get("/rpc/user/:userId", async (c) => {
-  const userId = c.req.param("userId");
-  const user: User = await rpcService.getUserInfo(userId);
-  return c.json(user);
-});
-
-api.post("/rpc/todo/create", async (c) => {
-  const { userId, title, priority } = await c.req.json();
-  const todo: Todo = await rpcService.createTodo(userId, title, priority);
-  return c.json(todo);
-});
-
-api.get("/rpc/todos/:userId", async (c) => {
-  const userId = c.req.param("userId");
-  const todos: Todo[] = await rpcService.getTodos(userId);
-  return c.json(todos);
-});
-
-api.post("/rpc/todo/toggle", async (c) => {
-  const { todoId } = await c.req.json();
-  const todo: Todo = await rpcService.toggleTodo(todoId);
-  return c.json(todo);
 });
 
 export default api;

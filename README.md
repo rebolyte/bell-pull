@@ -93,23 +93,35 @@ The server will start on `http://localhost:8000` by default.
 - `GET /` - API information
 - `GET /health` - Health check
 
-### RPC Endpoints
+### RPC Endpoint
 
-**Basic RPC:**
-- `POST /api/rpc` - Generic RPC endpoint (send `{method, args}`)
-- `GET /api/rpc/hello/:name` - Hello RPC method
-- `POST /api/rpc/add` - Add two numbers (send `{a, b}`)
-- `POST /api/rpc/multiply` - Multiply with typed result (send `{a, b}`)
-- `POST /api/rpc/batch` - Process batch items (send `{items}`)
+- `POST /api/rpc` - **Single RPC endpoint** for all method calls
+
+All RPC methods are called through this one endpoint using the format:
+```json
+{
+  "method": "methodName",
+  "params": [param1, param2, ...]
+}
+```
+
+**Available Methods:**
+
+**Basic:**
+- `hello(name)` - Returns greeting
+- `add(a, b)` - Add two numbers
+- `multiply(a, b)` - Multiply with typed result
+- `processBatch(items)` - Process array of items
 
 **User Management (Typed):**
-- `POST /api/rpc/user/create` - Create user (send `{name, email}`)
-- `GET /api/rpc/user/:userId` - Get user info
+- `createUser(name, email)` - Create user
+- `getUserInfo(userId)` - Get user info
+- `updateUserPreferences(userId, prefs)` - Update preferences
 
 **Todo Management (Typed):**
-- `POST /api/rpc/todo/create` - Create todo (send `{userId, title, priority}`)
-- `GET /api/rpc/todos/:userId` - Get all todos for user
-- `POST /api/rpc/todo/toggle` - Toggle todo completion (send `{todoId}`)
+- `createTodo(userId, title, priority)` - Create todo
+- `getTodos(userId)` - Get all todos for user
+- `toggleTodo(todoId)` - Toggle todo completion
 
 ## Usage Examples
 
@@ -119,21 +131,59 @@ Visit `http://localhost:8000/api/dashboard` in your browser to interact with the
 
 ### RPC API (cURL)
 
+All RPC calls go to the single `/api/rpc` endpoint:
+
 ```bash
-# Generic RPC call
+# Call hello method
 curl -X POST http://localhost:8000/api/rpc \
   -H "Content-Type: application/json" \
-  -d '{"method": "hello", "args": ["World"]}'
+  -d '{"method": "hello", "params": ["World"]}'
+# Response: {"result": "Hello, World! This is a Cap'n Web RPC response."}
 
-# Add numbers
-curl -X POST http://localhost:8000/api/rpc/add \
+# Add two numbers
+curl -X POST http://localhost:8000/api/rpc \
   -H "Content-Type: application/json" \
-  -d '{"a": 5, "b": 3}'
+  -d '{"method": "add", "params": [5, 3]}'
+# Response: {"result": 8}
+
+# Create a user (typed RPC)
+curl -X POST http://localhost:8000/api/rpc \
+  -H "Content-Type: application/json" \
+  -d '{"method": "createUser", "params": ["Alice", "alice@example.com"]}'
+# Response: {"result": {"id": "...", "name": "Alice", "email": "alice@example.com", ...}}
 
 # Process batch
-curl -X POST http://localhost:8000/api/rpc/batch \
+curl -X POST http://localhost:8000/api/rpc \
   -H "Content-Type: application/json" \
-  -d '{"items": ["hello", "world", "test"]}'
+  -d '{"method": "processBatch", "params": [["hello", "world", "deno"]]}'
+# Response: {"result": {"processed": 3, "results": ["HELLO", "WORLD", "DENO"]}}
+
+# Create a todo
+curl -X POST http://localhost:8000/api/rpc \
+  -H "Content-Type: application/json" \
+  -d '{"method": "createTodo", "params": ["demo-user", "Learn RPC", "high"]}'
+# Response: {"result": {"id": "...", "title": "Learn RPC", "priority": "high", ...}}
+```
+
+### JavaScript/Fetch Example
+
+```javascript
+// Simple helper for RPC calls
+async function rpc(method, ...params) {
+  const response = await fetch('/api/rpc', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ method, params })
+  });
+  const data = await response.json();
+  if (data.error) throw new Error(data.error.message);
+  return data.result;
+}
+
+// Usage
+const sum = await rpc('add', 5, 3);  // 8
+const user = await rpc('createUser', 'Alice', 'alice@example.com');
+const todos = await rpc('getTodos', 'demo-user');
 ```
 
 ## Shared Types Between Frontend and Backend
