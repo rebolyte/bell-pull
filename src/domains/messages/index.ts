@@ -80,4 +80,14 @@ export const makeMessagesDomain = (ctx: Context) => ({
   getChatHistory: getChatHistory(ctx),
 });
 
+// remeda
+export const makeMessagesDomain2 = (ctx: Context) => R.pipe(
+  {
+    storeChatMessage,
+    getChatHistory,
+    processAndStoreMessage,
+  },
+  R.mapValues((readerFn) => readerFn(ctx))
+);
+
 export type MessagesDomain = ReturnType<typeof makeMessagesDomain>;
