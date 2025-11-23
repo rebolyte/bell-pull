@@ -18,7 +18,7 @@ A modern API built with Deno, Hono web framework, and Cap'n Web RPC system featu
 
 ## Installation
 
-Clone the repository:
+1. Clone the repository:
 
 ```bash
 git clone <your-repo-url>
@@ -26,6 +26,24 @@ cd studious-umbrella
 ```
 
 No package installation needed - Deno handles dependencies automatically!
+
+2. Install [mise](https://mise.jdx.dev/):
+
+```shell
+brew install mise
+```
+
+If you haven't set up Mise before:
+
+```shell
+# set up shell
+echo 'eval "$(mise activate bash)"' >> ~/.bashrc
+
+# trust config file in this project
+mise trust
+
+mise activate
+```
 
 ## Running the Server
 
@@ -63,11 +81,13 @@ The server will start on `http://localhost:8000` by default.
 ## Quick Start
 
 1. Start the server:
+
    ```bash
    deno task dev
    ```
 
 2. Open the interactive dashboard:
+
    ```
    http://localhost:8000/api/dashboard
    ```
@@ -96,6 +116,7 @@ The server will start on `http://localhost:8000` by default.
 - `POST /api/rpc` - **Single RPC endpoint** for all method calls
 
 All RPC methods are called through this one endpoint using the format:
+
 ```json
 {
   "method": "methodName",
@@ -106,17 +127,20 @@ All RPC methods are called through this one endpoint using the format:
 **Available Methods:**
 
 **Basic:**
+
 - `hello(name)` - Returns greeting
 - `add(a, b)` - Add two numbers
 - `multiply(a, b)` - Multiply with typed result
 - `processBatch(items)` - Process array of items
 
 **User Management (Typed):**
+
 - `createUser(name, email)` - Create user
 - `getUserInfo(userId)` - Get user info
 - `updateUserPreferences(userId, prefs)` - Update preferences
 
 **Todo Management (Typed):**
+
 - `createTodo(userId, title, priority)` - Create todo
 - `getTodos(userId)` - Get all todos for user
 - `toggleTodo(todoId)` - Toggle todo completion
@@ -169,13 +193,13 @@ The dashboard uses Cap'n Web directly in the browser via ES modules - **no build
 
 ```html
 <script type="module">
-  import { newHttpBatchRpcSession } from 'https://cdn.jsdelivr.net/npm/capnweb@0.2.0/+esm';
+  import { newHttpBatchRpcSession } from "https://cdn.jsdelivr.net/npm/capnweb@0.2.0/+esm";
 
   // Create global RPC stub
-  window.rpcStub = newHttpBatchRpcSession('/api/rpc');
+  window.rpcStub = newHttpBatchRpcSession("/api/rpc");
 
   // Helper for simple calls
-  window.rpc = async function(method, ...params) {
+  window.rpc = async function (method, ...params) {
     return await window.rpcStub[method](...params);
   };
 </script>
@@ -185,16 +209,21 @@ Then use it in your JavaScript:
 
 ```javascript
 // Simple call
-const greeting = await window.rpc('hello', 'Alice');
+const greeting = await window.rpc("hello", "Alice");
 
 // Batched calls - all in ONE HTTP request!
 const sum = window.rpcStub.add(5, 3);
 const product = window.rpcStub.multiply(10, 4);
-const greeting = window.rpcStub.hello('Batching');
-const [sumResult, productResult, greetingResult] = await Promise.all([sum, product, greeting]);
+const greeting = window.rpcStub.hello("Batching");
+const [sumResult, productResult, greetingResult] = await Promise.all([
+  sum,
+  product,
+  greeting,
+]);
 ```
 
 **Benefits:**
+
 - ✅ Full batching support (multiple calls in one HTTP request)
 - ✅ Promise pipelining (dependent calls in one round trip)
 - ✅ No build step, no bundler needed
@@ -237,6 +266,7 @@ One of the key features of this setup is **type sharing** between the frontend J
 ### How It Works
 
 **1. Define shared types** (`src/types/shared.ts`):
+
 ```typescript
 export type User = {
   id: string;
@@ -259,25 +289,29 @@ export interface ExampleRpcMethods {
 ```
 
 **2. Use types in backend service** (`src/services/example-rpc.ts`):
+
 ```typescript
 import type { User, ExampleRpcMethods } from "../types/shared.ts";
 
 export class ExampleRpcService implements ExampleRpcMethods {
   async getUserInfo(userId: string): Promise<User> {
     // TypeScript ensures we return the correct shape
-    return { /* ... */ };
+    return {
+      /* ... */
+    };
   }
 }
 ```
 
 **3. Use types in frontend** (`src/routes/api.tsx`):
+
 ```typescript
 import type { User } from "../types/shared.ts";
 
 api.get("/rpc/user/:userId", async (c) => {
   const userId = c.req.param("userId");
   const user: User = await rpcService.getUserInfo(userId);
-  return c.json(user);  // Type-safe!
+  return c.json(user); // Type-safe!
 });
 ```
 
@@ -294,11 +328,13 @@ api.get("/rpc/user/:userId", async (c) => {
 The dashboard demonstrates these typed RPC methods:
 
 - **User Management**
+
   - `createUser(name, email)` → Returns typed `User`
   - `getUserInfo(userId)` → Returns typed `User`
   - `updateUserPreferences(userId, prefs)` → Updates with type safety
 
 - **Todo Management**
+
   - `getTodos(userId)` → Returns typed `Todo[]`
   - `createTodo(userId, title, priority)` → Returns typed `Todo`
   - `toggleTodo(todoId)` → Returns typed `Todo`
@@ -322,6 +358,7 @@ The dashboard uses Hono's JSX mode with AlpineJS for reactive frontend:
 ```
 
 AlpineJS provides reactive state management directly in HTML, making it perfect for:
+
 - Interactive forms
 - Dynamic content updates
 - API calls with loading states
@@ -342,6 +379,7 @@ AlpineJS provides reactive state management directly in HTML, making it perfect 
 This project uses the **real Cap'n Web library** (`npm:capnweb`):
 
 **Server Side** (`src/services/example-rpc.ts`):
+
 ```typescript
 import { RpcTarget } from "capnweb";
 
@@ -357,18 +395,23 @@ export class ExampleRpcService extends RpcTarget {
 ```
 
 **Route Handler** (`src/routes/api.tsx`):
+
 ```typescript
 import { newHttpBatchRpcResponse } from "capnweb";
 
 api.all("/rpc", async (c) => {
   const request = c.req.raw;
-  const response = await newHttpBatchRpcResponse(request, new ExampleRpcService());
+  const response = await newHttpBatchRpcResponse(
+    request,
+    new ExampleRpcService()
+  );
   response.headers.set("Access-Control-Allow-Origin", "*");
   return response;
 });
 ```
 
 **Client Side** (JavaScript):
+
 ```typescript
 import { newHttpBatchRpcSession } from "capnweb";
 
@@ -391,8 +434,8 @@ Cap'n Web's killer feature - chain dependent calls in a single round trip:
 ```typescript
 // All of this happens in ONE HTTP request!
 let user = stub.getUserInfo("user123");
-let todos = stub.getTodos(user.id);  // Uses result from first call
-let count = await todos.length;      // Pipeline through the array
+let todos = stub.getTodos(user.id); // Uses result from first call
+let count = await todos.length; // Pipeline through the array
 ```
 
 ## Environment Variables
@@ -431,6 +474,12 @@ deno lint
 - [Hono Documentation](https://hono.dev/)
 - [AlpineJS Documentation](https://alpinejs.dev/)
 - [Cap'n Web GitHub](https://github.com/cloudflare/capnweb)
+
+## Inspiration
+
+https://www.geoffreylitt.com/2025/04/12/how-i-made-a-useful-ai-assistant-with-one-sqlite-table-and-a-handful-of-cron-jobs
+
+https://www.val.town/x/geoffreylitt/stevensDemo
 
 ## License
 

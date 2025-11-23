@@ -5,9 +5,8 @@
     "test": "deno test --allow-net --allow-read --allow-env"
   },
   "imports": {
-    "hono": "https://deno.land/x/hono@v4.0.0/mod.ts",
-    "hono/": "https://deno.land/x/hono@v4.0.0/",
-    "capnweb": "npm:capnweb@^0.1.0"
+    "hono": "jsr:@hono/hono@^4.10.6",
+    "capnweb": "npm:capnweb@^0.2.0"
   },
   "compilerOptions": {
     "strict": true,

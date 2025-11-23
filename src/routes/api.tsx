@@ -275,7 +275,7 @@ api.get("/dashboard", (c) => {
       </div>
 
       {/* Todo Management - Demonstrates complex types */}
-      <div class="card" x-data="{ userId: 'demo-user', title: 'Learn Cap\\'n Web', priority: 'high', todos: [], newTodo: null }">
+      <div class="card" x-data="{ userId: 'demo-user', title: 'Learn Capn Web', priority: 'high', todos: [], newTodo: null }">
         <h2>Todo Manager <span class="badge">Cap'n Web + Complex Types</span></h2>
         <div style="margin-bottom: 1rem;">
           <input type="text" x-model="title" placeholder="Todo title" style="width: 200px;" />
@@ -308,7 +308,7 @@ api.get("/dashboard", (c) => {
         </div>
         <div x-show="todos.length > 0" class="result">
           <div><strong>Todos:</strong></div>
-          <template x-for="todo in todos" :key="todo.id">
+          <template x-for="todo in todos" x-bind:key="todo.id">
             <div style="padding: 0.5rem; margin: 0.5rem 0; background: white; border-radius: 0.25rem;">
               <span x-text="todo.title"></span>
               <span x-text="' [' + todo.priority + ']'" style="font-size: 0.875rem; color: #666;"></span>
