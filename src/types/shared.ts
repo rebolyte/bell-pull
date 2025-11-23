@@ -59,6 +59,12 @@ export interface ExampleRpcMethods {
   add(a: number, b: number): Promise<number>;
   multiply(a: number, b: number): Promise<CalculationResult>;
 
+  // Counter operations
+  getCounter(): Promise<number>;
+  incrementCounter(): Promise<number>;
+  decrementCounter(): Promise<number>;
+  resetCounter(): Promise<number>;
+
   // User operations
   getUserInfo(userId: string): Promise<User>;
   createUser(name: string, email: string): Promise<User>;

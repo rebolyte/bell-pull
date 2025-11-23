@@ -17,8 +17,29 @@ import type {
 // In-memory storage (for demo purposes)
 const users = new Map<string, User>();
 const todos = new Map<string, Todo[]>();
+let counter = 0;
 
 export class ExampleRpcService extends RpcTarget implements ExampleRpcMethods {
+  // Counter operations
+  async getCounter(): Promise<number> {
+    return counter;
+  }
+
+  async incrementCounter(): Promise<number> {
+    counter++;
+    return counter;
+  }
+
+  async decrementCounter(): Promise<number> {
+    counter--;
+    return counter;
+  }
+
+  async resetCounter(): Promise<number> {
+    counter = 0;
+    return counter;
+  }
+
   // Simple greeting
   async hello(name: string): Promise<string> {
     return `Hello, ${name}! This is a Cap'n Web RPC response.`;
