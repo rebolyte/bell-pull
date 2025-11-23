@@ -1,13 +1,32 @@
 import { Hono } from "hono";
 import { logger } from "hono/logger";
 import { cors } from "hono/cors";
+import cron from "node-cron";
+import type { Plugin } from "./types/index.ts";
 import apiRoutes from "./routes/api.tsx";
+import { letterboxdPlugin } from "./plugins/letterboxd/index.ts";
 
 const app = new Hono();
 
 // Middleware
 app.use("*", logger());
 app.use("*", cors());
+
+const plugins: Plugin[] = [letterboxdPlugin];
+
+// 2. Register Crons
+plugins.forEach((p) => {
+  p.registerRoutes?.(app);
+
+  if (p.cronJobs) {
+    p.cronJobs.forEach((job) => {
+      cron.schedule(job.schedule, async () => {
+        console.log(`Running ${p.name} job...`);
+        await job.run();
+      });
+    });
+  }
+});
 
 // Routes
 app.get("/", (c) => {
@@ -64,6 +83,6 @@ app.onError((err, c) => {
 
 const port = Number(Deno.env.get("PORT")) || 8000;
 
-console.log(`🚀 Server running on http://localhost:${port}`);
+console.log(`listening on http://localhost:${port}`);
 
 Deno.serve({ port }, app.fetch);
