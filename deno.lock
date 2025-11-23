@@ -1,0 +1,23 @@
+{
+  "version": "5",
+  "specifiers": {
+    "jsr:@hono/hono@^4.10.6": "4.10.6",
+    "npm:capnweb@0.2": "0.2.0"
+  },
+  "jsr": {
+    "@hono/hono@4.10.6": {
+      "integrity": "bcbbf9753a3570f2fa4609484bae0cead85a3feb110ee9ceb7ffc37d845d9a4d"
+    }
+  },
+  "npm": {
+    "capnweb@0.2.0": {
+      "integrity": "sha512-fQSW5h6HIefRM4rHZMyAsWcu/qE/6Qr2OC8B99whifjDJatI5KLFcODSykKmpyCCKF50N3HvZ5lB26YBdh0fRg=="
+    }
+  },
+  "workspace": {
+    "dependencies": [
+      "jsr:@hono/hono@^4.10.6",
+      "npm:capnweb@0.2"
+    ]
+  }
+}
