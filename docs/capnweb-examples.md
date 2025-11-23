@@ -511,6 +511,7 @@ setRunning(false)
 }
 
 return (
+
 <div style={{ fontFamily: 'system-ui, sans-serif', padding: 24, lineHeight: 1.5 }}>
 <h1>JSRPC: Workers + React</h1>
 <div style={{ opacity: 0.8 }}>Network RTT is simulated on the server (configurable via SIMULATED_RTT_MS/SIMULATED_RTT_JITTER_MS in wrangler.toml).</div>

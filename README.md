@@ -239,7 +239,7 @@ import type { ExampleRpcMethods } from "./types/shared";
 
 // Create typed RPC session
 using stub: RpcStub<ExampleRpcMethods> = newHttpBatchRpcSession<ExampleRpcMethods>(
-  "/api/rpc"
+  "/api/rpc",
 );
 
 // Single call
@@ -253,7 +253,7 @@ let [sumResult, productResult, batchResult] = await Promise.all([sum, product, b
 
 // Promise pipelining - dependent calls in ONE round trip!
 let user = stub.createUser("Bob", "bob@example.com");
-let todos = stub.getTodos(user.id);  // Uses user.id before resolved!
+let todos = stub.getTodos(user.id); // Uses user.id before resolved!
 let [userData, todosData] = await Promise.all([user, todos]);
 ```
 
@@ -291,7 +291,7 @@ export interface ExampleRpcMethods {
 **2. Use types in backend service** (`src/services/example-rpc.ts`):
 
 ```typescript
-import type { User, ExampleRpcMethods } from "../types/shared.ts";
+import type { ExampleRpcMethods, User } from "../types/shared.ts";
 
 export class ExampleRpcService implements ExampleRpcMethods {
   async getUserInfo(userId: string): Promise<User> {
@@ -354,7 +354,7 @@ The dashboard uses Hono's JSX mode with AlpineJS for reactive frontend:
 <div class="card" x-data="{ count: 0 }">
   <div class="counter" x-text="count"></div>
   <button x-on:click="count++">Increment</button>
-</div>
+</div>;
 ```
 
 AlpineJS provides reactive state management directly in HTML, making it perfect for:
@@ -403,7 +403,7 @@ api.all("/rpc", async (c) => {
   const request = c.req.raw;
   const response = await newHttpBatchRpcResponse(
     request,
-    new ExampleRpcService()
+    new ExampleRpcService(),
   );
   response.headers.set("Access-Control-Allow-Origin", "*");
   return response;

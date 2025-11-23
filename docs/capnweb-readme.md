@@ -45,7 +45,7 @@ console.log(result);
 Here's the server:
 
 ```js
-import { RpcTarget, newWorkersRpcResponse } from "capnweb";
+import { newWorkersRpcResponse, RpcTarget } from "capnweb";
 
 // This is the server implementation.
 class MyApiServer extends RpcTarget {
@@ -424,7 +424,7 @@ In HTTP batch mode, a batch of RPC calls can be made in a single HTTP request, w
 **Cap'n Web has a magic trick:** The results of one call in the batch can be used in the parameters to later calls in the same batch, even though the entire batch is sent at once. If you simply take the Promise returned by one call and use it in the parameters to another call, the Promise will be replaced with its resolution before delivering it to the callee. **This is called Promise Pipelining.**
 
 ```ts
-import { RpcTarget, RpcStub, newHttpBatchRpcSession } from "capnweb";
+import { newHttpBatchRpcSession, RpcStub, RpcTarget } from "capnweb";
 
 // Declare our RPC interface.
 interface MyApi extends RpcTarget {
@@ -433,7 +433,7 @@ interface MyApi extends RpcTarget {
 
   // Returns a friendly greeting for a user with the given name.
   greet(name: string): string;
-};
+}
 
 // Start a batch request using this interface.
 using stub: RpcStub<MyApi> = newHttpBatchRpcSession<MyApi>("https://example.com/api");
@@ -472,7 +472,7 @@ console.log(greeting3);
 In WebSocket mode, the client forms a long-lived connection to the server, allowing us to make many calls over a long period of time. In this mode, the server can even make asynchronous calls back to the client.
 
 ```ts
-import { RpcTarget, RpcStub, newWebSocketRpcSession } from "capnweb";
+import { newWebSocketRpcSession, RpcStub, RpcTarget } from "capnweb";
 
 // Declare our RPC interface.
 interface MyApi extends RpcTarget {
@@ -481,7 +481,7 @@ interface MyApi extends RpcTarget {
 
   // Returns a friendly greeting for a user with the given name.
   greet(name: string): string;
-};
+}
 
 // Start a WebSocket session.
 //
@@ -510,7 +510,7 @@ console.log(await stub.greet("Bob"));
 The helper function `newWorkersRpcResponse()` makes it easy to implement an HTTP server that accepts both the HTTP batch and WebSocket APIs at once:
 
 ```ts
-import { RpcTarget, newWorkersRpcResponse } from "capnweb";
+import { newWorkersRpcResponse, RpcTarget } from "capnweb";
 
 // Define our server implementation.
 class MyApiImpl extends RpcTarget implements MyApi {
@@ -548,11 +548,7 @@ A server on Node.js is a bit more involved, due to the awkward handling of WebSo
 ```ts
 import http from "node:http";
 import { WebSocketServer } from "ws"; // npm package
-import {
-  RpcTarget,
-  newWebSocketRpcSession,
-  nodeHttpBatchRpcResponse,
-} from "capnweb";
+import { newWebSocketRpcSession, nodeHttpBatchRpcResponse, RpcTarget } from "capnweb";
 
 class MyApiImpl extends RpcTarget implements MyApi {
   // ... define API, same as above ...
@@ -602,11 +598,7 @@ httpServer.listen(8080);
 ### HTTP server on Deno
 
 ```ts
-import {
-  newHttpBatchRpcResponse,
-  newWebSocketRpcSession,
-  RpcTarget,
-} from "npm:capnweb";
+import { newHttpBatchRpcResponse, newWebSocketRpcSession, RpcTarget } from "npm:capnweb";
 
 // This is the server implementation.
 class MyApiImpl extends RpcTarget implements MyApi {
@@ -645,7 +637,7 @@ Every runtime does HTTP handling and WebSockets a little differently, although m
 function newHttpBatchRpcResponse(
   request: Request,
   yourApi: RpcTarget,
-  options?: RpcSessionOptions
+  options?: RpcSessionOptions,
 ): Promise<Response>;
 
 // Run a WebSocket session.
@@ -660,7 +652,7 @@ function newHttpBatchRpcResponse(
 function newWebSocketRpcSession(
   webSocket: WebSocket,
   yourApi: RpcTarget,
-  options?: RpcSessionOptions
+  options?: RpcSessionOptions,
 ): Disposable;
 ```
 
@@ -669,17 +661,17 @@ function newWebSocketRpcSession(
 Cap'n Web can also talk over MessagePorts. This can be used in a browser to talk to Web Workers, iframes, etc.
 
 ```ts
-import { RpcTarget, RpcStub, newMessagePortRpcSession } from "capnweb";
+import { newMessagePortRpcSession, RpcStub, RpcTarget } from "capnweb";
 
 // Declare our RPC interface.
 class Greeter extends RpcTarget {
   greet(name: string): string {
     return `Hello, ${name}!`;
   }
-};
+}
 
 // Create a MessageChannel (pair of MessagePorts).
-let channel = new MessageChannel()
+let channel = new MessageChannel();
 
 // Initialize the server on port1.
 newMessagePortRpcSession(channel.port1, new Greeter());
