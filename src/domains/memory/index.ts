@@ -1,66 +1,77 @@
 import { DateTime } from "https://esm.sh/luxon@3.4.4";
-import type { Context } from "../../types/index.ts";
+import type { Context, Reader } from "../../types/index.ts";
+import { type Selectable, sql } from "kysely";
+import type { MemoriesTable } from "../../services/database.ts";
+
+type Memory = Selectable<MemoriesTable>;
 
 /**
  * Retrieves all memories from the database
- * @param includeDate Whether to include date-specific memories or not
- * @param startDate Optional start date to filter memories from (ISO format)
- * @returns Array of memory objects
  */
-export async function getAllMemories(includeDate = true, startDate = null) {
+const getAllMemories: Reader<
+  "db",
+  { includeDate?: boolean; startDate?: string | null },
+  Promise<Memory[]>
+> = ({ db }) => async ({ includeDate = true, startDate = null } = {}) => {
   try {
-    const { sqlite } = await import("https://esm.town/v/stevekrouse/sqlite");
+    let memories: Memory[] = [];
 
-    // Get memories with dates if requested
-    let memories = [];
     if (includeDate) {
-      const query = startDate
-        ? {
-          sql:
-            `SELECT id, date(date) as date, text FROM memories WHERE date >= :startDate AND date <= date(:startDate, '+7 days') ORDER BY date ASC`,
-          args: { startDate },
-        }
-        : `SELECT id, date(date) as date, text FROM memories WHERE date IS NOT NULL ORDER BY date ASC`;
+      let query = db.selectFrom("memories")
+        .selectAll()
+        .where("date", "is not", null)
+        .orderBy("date", "asc");
 
-      const dateMemories = await sqlite.execute(query);
-      memories = [...dateMemories.rows];
+      if (startDate) {
+        query = query
+          .where("date", ">=", startDate)
+          // SQLite doesn't have date add function in standard SQL, so using raw sql or just filtering in JS
+          // But kysely helper sql`date(...)` might work if using sqlite dialect
+          .where(sql`date(date)`, "<=", sql`date(${startDate}, '+7 days')`);
+      }
+
+      memories = await query.execute();
     }
 
-    // Always get dateless memories
-    const datelessMemories = await sqlite.execute(
-      `SELECT id, date, text FROM memories WHERE date IS NULL`,
-    );
+    const datelessMemories = await db.selectFrom("memories")
+      .selectAll()
+      .where("date", "is", null)
+      .execute();
 
-    return [...memories, ...datelessMemories.rows];
+    return [...memories, ...datelessMemories];
   } catch (error) {
     console.error("Error retrieving memories:", error);
-    return [];
+    return []; // Return empty if table doesn't exist or other error
   }
-}
+};
 
 /**
  * Gets memories relevant to today and future dates
- * @returns Array of memory objects
  */
-export async function getRelevantMemories() {
+const getRelevantMemories: Reader<
+  "db",
+  void,
+  Promise<Memory[]>
+> = (deps) => async () => {
   try {
     // Get today's date in US Eastern Time
     const today = DateTime.now().setZone("America/New_York").startOf("day");
     const todayFormatted = today.toFormat("yyyy-MM-dd");
 
-    return await getAllMemories(true, todayFormatted);
+    // reusing the reader by passing deps manually?
+    // Or just calling the implementation?
+    // For simplicity, I'll just use the implementation returned by the reader
+    return await getAllMemories(deps)({ includeDate: true, startDate: todayFormatted });
   } catch (error) {
     console.error("Error getting relevant memories:", error);
     return [];
   }
-}
+};
 
 /**
  * Formats memories into a string for the system prompt
- * @param memories Array of memory objects
- * @returns Formatted string of memories
  */
-export function formatMemoriesForPrompt(memories) {
+const formatMemoriesForPrompt = (memories: Memory[]) => {
   if (!memories || memories.length === 0) {
     return "No stored memories are available.";
   }
@@ -89,12 +100,12 @@ export function formatMemoriesForPrompt(memories) {
   }
 
   return result;
-}
+};
 
 export const makeMemoryDomain = (ctx: Context) => ({
   getAllMemories: getAllMemories(ctx),
   getRelevantMemories: getRelevantMemories(ctx),
-  formatMemoriesForPrompt: formatMemoriesForPrompt(ctx),
+  formatMemoriesForPrompt, // This is a pure function, doesn't need ctx
 });
 
 export type MemoryDomain = ReturnType<typeof makeMemoryDomain>;

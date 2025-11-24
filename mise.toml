@@ -21,8 +21,8 @@
 # mise.path = "./node_modules/.bin" # add a directory to PATH
 
 [tasks]
-dev = "deno run --allow-net --allow-read --allow-env --watch src/main.ts"
-start = "deno run --allow-net --allow-read --allow-env src/main.ts"
+dev = "deno run --allow-net --allow-read --allow-write --allow-env --watch src/main.ts"
+start = "deno run --allow-net --allow-read --allow-write --allow-env src/main.ts"
 test = "deno test --allow-net --allow-read --allow-env"
 fmt = "deno fmt"
 lint = "deno lint"

@@ -2,15 +2,20 @@ import { Hono } from "hono";
 import { logger } from "hono/logger";
 import { cors } from "hono/cors";
 import cron from "node-cron";
-import type { Plugin } from "./types/index.ts";
+import type { HonoEnv, Plugin } from "./types/index.ts";
 import apiRoutes from "./routes/api.tsx";
 import { letterboxdPlugin } from "./plugins/letterboxd/index.ts";
+import { container } from "./container.ts";
 
-const app = new Hono();
+const app = new Hono<HonoEnv>();
 
 // Middleware
 app.use("*", logger());
 app.use("*", cors());
+app.use("*", async (c, next) => {
+  c.set("container", container);
+  await next();
+});
 
 const plugins: Plugin[] = [letterboxdPlugin];
 

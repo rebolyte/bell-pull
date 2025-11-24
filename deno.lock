@@ -2,17 +2,23 @@
   "version": "5",
   "specifiers": {
     "jsr:@hono/hono@^4.10.6": "4.10.6",
+    "jsr:@remeda/remeda@^2.32.0": "2.32.0",
     "jsr:@zod/zod@^4.1.12": "4.1.12",
     "npm:@anthropic-ai/sdk@~0.70.1": "0.70.1",
     "npm:capnweb@0.2": "0.2.0",
     "npm:grammy@^1.38.4": "1.38.4",
+    "npm:kysely@~0.28.8": "0.28.8",
     "npm:neverthrow@^8.2.0": "8.2.0",
     "npm:node-cron@^4.2.1": "4.2.1",
+    "npm:rss-parser@^3.13.0": "3.13.0",
     "npm:ts-pattern@^5.9.0": "5.9.0"
   },
   "jsr": {
     "@hono/hono@4.10.6": {
       "integrity": "bcbbf9753a3570f2fa4609484bae0cead85a3feb110ee9ceb7ffc37d845d9a4d"
+    },
+    "@remeda/remeda@2.32.0": {
+      "integrity": "f07d2b878c81ee973826299ff39effdb80b81d8bb6d54d690354a79a7ad4cdeb"
     },
     "@zod/zod@4.1.12": {
       "integrity": "5876ed4c6d44673faf5120f0a461a2ada2eb6c735329d3ebaf5ba1fc08387695"
@@ -52,6 +58,9 @@
         "ms"
       ]
     },
+    "entities@2.2.0": {
+      "integrity": "sha512-p92if5Nz619I0w+akJrLZH0MX0Pb5DX39XOwQTtXSdQQOaYH03S1uIQp4mhOZtAXrxq4ViO67YTiLBo2638o9A=="
+    },
     "event-target-shim@5.0.1": {
       "integrity": "sha512-i/2XbnSz/uxRCU6+NdVJgKWDTM427+MqYbkQzD321DuCQJUqOuJKIA0IM2+W2xtYHdKOmZ4dR6fExsd4SXL+WQ=="
     },
@@ -71,6 +80,9 @@
         "ts-algebra"
       ]
     },
+    "kysely@0.28.8": {
+      "integrity": "sha512-QUOgl5ZrS9IRuhq5FvOKFSsD/3+IA6MLE81/bOOTRA/YQpKDza2sFdN5g6JCB9BOpqMJDGefLCQ9F12hRS13TA=="
+    },
     "ms@2.1.3": {
       "integrity": "sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA=="
     },
@@ -88,6 +100,16 @@
       "dependencies": [
         "whatwg-url"
       ]
+    },
+    "rss-parser@3.13.0": {
+      "integrity": "sha512-7jWUBV5yGN3rqMMj7CZufl/291QAhvrrGpDNE4k/02ZchL0npisiYYqULF71jCEKoIiHvK/Q2e6IkDwPziT7+w==",
+      "dependencies": [
+        "entities",
+        "xml2js"
+      ]
+    },
+    "sax@1.4.3": {
+      "integrity": "sha512-yqYn1JhPczigF94DMS+shiDMjDowYO6y9+wB/4WgO0Y19jWYk0lQ4tuG5KI7kj4FTp1wxPj5IFfcrz/s1c3jjQ=="
     },
     "tr46@0.0.3": {
       "integrity": "sha512-N3WMsuqV66lT30CrXNbEjx4GEwlow3v6rr4mCcv6prnfwhS01rkgyFdjPNBYd9br7LpXV1+Emh01fHnq2Gdgrw=="
@@ -107,17 +129,34 @@
         "tr46",
         "webidl-conversions"
       ]
+    },
+    "xml2js@0.5.0": {
+      "integrity": "sha512-drPFnkQJik/O+uPKpqSgr22mpuFHqKdbS835iAQrUC73L2F5WkboIRd63ai/2Yg6I1jzifPFKH2NTK+cfglkIA==",
+      "dependencies": [
+        "sax",
+        "xmlbuilder"
+      ]
+    },
+    "xmlbuilder@11.0.1": {
+      "integrity": "sha512-fDlsI/kFEx7gLvbecc0/ohLG50fugQp8ryHzMTuW9vSa1GJ0XYWKnhsUx7oie3G98+r56aTQIUB4kht42R3JvA=="
     }
+  },
+  "remote": {
+    "https://esm.sh/luxon@3.4.4": "6a06a95bafc0a363da035a6f39ec1b7d39c6697cb1a197c49872aeb915342e58",
+    "https://esm.sh/luxon@3.4.4/denonext/luxon.mjs": "cfaaddcd3dc1061a5ebac63b62c288a14b24305847dd386d653f85b688d716d7"
   },
   "workspace": {
     "dependencies": [
       "jsr:@hono/hono@^4.10.6",
+      "jsr:@remeda/remeda@^2.32.0",
       "jsr:@zod/zod@^4.1.12",
       "npm:@anthropic-ai/sdk@~0.70.1",
       "npm:capnweb@0.2",
       "npm:grammy@^1.38.4",
+      "npm:kysely@~0.28.8",
       "npm:neverthrow@^8.2.0",
       "npm:node-cron@^4.2.1",
+      "npm:rss-parser@^3.13.0",
       "npm:ts-pattern@^5.9.0"
     ]
   }

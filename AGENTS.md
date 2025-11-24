@@ -8,7 +8,8 @@ Bell Pull is a personal AI assistant. It uses a simple architecture: a single SQ
 - Do not add emojis.
 - Do not add comments in any code unless it is extremely complicated.
 - Use `mise` to run tasks, for example `mise run dev` to start the API with file watching
-- State is the mind-killer. I'm going for "FP light", so call out any choices made around impure functions/architecture. No in-memory state if at all possible. The golden rule: "If it's not in the DB, it doesn't exist."
+- State is the mind-killer. I'm going for "FP light", so call out any choices made around impure functions/architecture.
+- We are using Remeda, not Ramda.
 
 ## Cap'n Web RPC
 

@@ -1,6 +1,11 @@
 import type { Context, Services } from "./types/index.ts";
 import { makeMessagesDomain } from "./domains/messages/index.ts";
 import { makeMemoryDomain } from "./domains/memory/index.ts";
+import { db } from "./services/database.ts";
+import { Logger } from "./services/logger.ts";
+
+class EmailService {}
+class PaymentGateway {}
 
 export const bootstrap = (svcs: Services): Context => {
   // create object first so domains can reference each other if needed.
@@ -21,7 +26,7 @@ export const makeContainer = () => {
       host: "0.0.0.0",
       env: "development",
     },
-    db: new Database(),
+    db,
     logger: new Logger(),
     emailService: new EmailService(),
     paymentGateway: new PaymentGateway(),
