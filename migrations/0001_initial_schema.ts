@@ -26,6 +26,12 @@ export async function up(db: Kysely<any>): Promise<void> {
     .addColumn("is_bot", "integer", (col) => col.notNull().defaultTo(0))
     .addColumn("created_at", "text", (col) => col.defaultTo(sql`CURRENT_TIMESTAMP`))
     .execute();
+
+  await db.schema
+    .createIndex("idx_messages_chat_id")
+    .on("messages")
+    .column("chat_id")
+    .execute();
 }
 
 export async function down(db: Kysely<any>): Promise<void> {

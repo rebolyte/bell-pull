@@ -13,7 +13,7 @@ export interface MessagesTable {
   sender_id: string;
   sender_name: string;
   message: string;
-  is_bot: number; // 0 or 1
+  is_bot: 0 | 1;
   created_at: Generated<string>;
 }
 

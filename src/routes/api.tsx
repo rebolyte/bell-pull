@@ -3,6 +3,10 @@ import { newHttpBatchRpcResponse } from "capnweb";
 import { ExampleRpcService } from "../services/example-rpc.ts";
 import type { CalculationResult, Todo, User } from "../types/shared.ts";
 import type { HonoEnv } from "../types/index.ts";
+import * as R from "@remeda/remeda";
+import type { InsertResult } from "kysely";
+import { ResultAsync } from "neverthrow";
+import type { Context, Reader } from "../../types/index.ts";
 
 const api = new Hono<HonoEnv>();
 
@@ -441,15 +445,24 @@ api.post("/messages", async (c) => {
   const { chatId, senderId, senderName, message, isBot } = body;
 
   const container = c.get("container");
-  const result = await container.messages.storeChatMessage({
-    chatId,
-    senderId,
-    senderName,
-    message,
-    isBot,
-  });
 
-  return c.json({ success: true, result });
+  // Call the domain method
+  // Note: We await the result of match() because the handlers might be async or return promises
+  return container.messages
+    .storeChatMessage({
+      chatId,
+      senderId,
+      senderName,
+      message,
+      isBot,
+    })
+    .match(
+      (result) => c.json({ success: true, result }),
+      (error) => {
+        console.error("Failed to store message:", error);
+        return c.json({ success: false, error: error.message }, 500);
+      }
+    );
 });
 
 // Single RPC endpoint using Cap'n Web
