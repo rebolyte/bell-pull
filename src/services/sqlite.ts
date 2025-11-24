@@ -67,8 +67,8 @@ export class DenoSqliteConnection implements DatabaseConnection {
       const result = stmt.run(...(parameters as any[]));
       return {
         rows: [],
-        numUpdatedOrDeletedRows: BigInt(result.changes),
-        insertId: BigInt(result.lastInsertRowid),
+        numAffectedRows: result.changes,
+        insertId: result.lastInsertRowid,
       } as QueryResult<R>;
     }
   }

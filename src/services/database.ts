@@ -7,7 +7,7 @@ export interface MemoriesTable {
   text: string;
 }
 
-export interface TelegramChatsTable {
+export interface MessagesTable {
   id: Generated<number>;
   chat_id: string;
   sender_id: string;
@@ -19,7 +19,7 @@ export interface TelegramChatsTable {
 
 export interface DatabaseSchema {
   memories: MemoriesTable;
-  telegram_chats: TelegramChatsTable;
+  messages: MessagesTable;
 }
 
 export type Database = Kysely<DatabaseSchema>;

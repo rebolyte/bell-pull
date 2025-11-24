@@ -17,7 +17,7 @@ const storeChatMessage: Reader<
 > = ({ db, logger }) => async ({ chatId, senderId, senderName, message, isBot = false }) => {
   logger.info("Storing chat message...");
 
-  const result = await db.insertInto("telegram_chats").values({
+  const result = await db.insertInto("messages").values({
     chat_id: chatId,
     sender_id: senderId,
     sender_name: senderName,
@@ -33,7 +33,7 @@ const getChatHistory: Reader<
   { chatId: string; limit?: number },
   Promise<unknown[]>
 > = ({ db }) => async ({ chatId, limit = 50 }) => {
-  const result = await db.selectFrom("telegram_chats")
+  const result = await db.selectFrom("messages")
     .selectAll()
     .where("chat_id", "=", chatId)
     .orderBy("created_at", "asc")

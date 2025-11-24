@@ -24,3 +24,5 @@ logs/
 # Build outputs
 dist/
 build/
+
+*.db
