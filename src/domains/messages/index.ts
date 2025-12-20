@@ -1,40 +1,36 @@
 import * as R from "@remeda/remeda";
-import type { InsertResult } from "kysely";
-import { ResultAsync } from "neverthrow";
+import { Result, ResultAsync } from "neverthrow";
 import type { Context, Reader } from "../../types/index.ts";
-
-type TelegramChatMessage = {
-  chatId: string;
-  senderId: string;
-  senderName: string;
-  message: string;
-  isBot: boolean;
-};
+import {
+  CreateMessageInput,
+  MessageModel,
+  parseMessageInput,
+  parseMessageRow,
+  toRowInsert,
+} from "./schema.ts";
+import { toError } from "../../utils/validate.ts";
 
 const storeChatMessage: Reader<
   "config" | "db" | "logger",
-  TelegramChatMessage,
-  ResultAsync<InsertResult, Error>
-> = ({ db, logger }) => (args) => {
-  const { chatId, senderId, senderName, message, isBot = false } = args;
+  CreateMessageInput,
+  ResultAsync<MessageModel, Error>
+> = ({ db, logger }) => (input) => {
   logger.info("Storing chat message...");
 
-  return ResultAsync.fromPromise(
-    db.insertInto("messages").values({
-      chat_id: chatId,
-      sender_id: senderId,
-      sender_name: senderName,
-      is_bot: isBot ? 1 : 0,
-      message,
-    }).executeTakeFirst(),
-    (e) => e instanceof Error ? e : new Error(String(e)),
-  );
+  return parseMessageInput(input)
+    .asyncAndThen((input) =>
+      ResultAsync.fromPromise(
+        db.insertInto("messages").values(toRowInsert(input)).returningAll()
+          .executeTakeFirstOrThrow(),
+        toError,
+      ).andThen(parseMessageRow)
+    );
 };
 
 const getChatHistory: Reader<
   "db",
   { chatId: string; limit?: number },
-  ResultAsync<unknown[], Error>
+  ResultAsync<MessageModel[], Error>
 > = ({ db }) => ({ chatId, limit = 50 }) => {
   return ResultAsync.fromPromise(
     db.selectFrom("messages")
@@ -43,8 +39,8 @@ const getChatHistory: Reader<
       .orderBy("created_at", "asc")
       .limit(limit)
       .execute(),
-    (e) => e instanceof Error ? e : new Error(String(e)),
-  );
+    toError,
+  ).andThen((rows) => Result.combine(rows.map(parseMessageRow)));
 };
 
 export const makeMessagesDomain = (ctx: Context) => ({
