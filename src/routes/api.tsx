@@ -3,10 +3,6 @@ import { newHttpBatchRpcResponse } from "capnweb";
 import { ExampleRpcService } from "../services/example-rpc.ts";
 import type { CalculationResult, Todo, User } from "../types/shared.ts";
 import type { HonoEnv } from "../types/index.ts";
-import * as R from "@remeda/remeda";
-import type { InsertResult } from "kysely";
-import { ResultAsync } from "neverthrow";
-import type { Context, Reader } from "../../types/index.ts";
 
 const api = new Hono<HonoEnv>();
 

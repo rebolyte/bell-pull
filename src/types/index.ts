@@ -3,7 +3,7 @@ import type { MessagesDomain } from "../domains/messages/index.ts";
 import type { MemoryDomain } from "../domains/memory/index.ts";
 import type { Database } from "../services/database.ts";
 
-type AppConfig = {
+export type AppConfig = {
   port: number;
   host: string;
   env: "development" | "production";
@@ -34,10 +34,6 @@ export type HonoEnv = {
     container: Context;
   };
 };
-
-export type Reader<TDeps extends keyof Context, TArgs, TReturn> = (
-  deps: Pick<Context, TDeps>,
-) => (args: TArgs) => TReturn;
 
 export interface Plugin {
   name: string;

@@ -12,9 +12,13 @@ export const bootstrap = (svcs: Services): Context => {
   // note the cast here! if we miss adding a domain, it will fail at runtime
   const context = { ...svcs } as Context;
 
+  // we could also just pass entire ctx god object down but this is explicit
+  // and domains can't accidentally reference dependencies at runtime
+  const { config, db, logger } = svcs;
+
   // order matters here if domains reference each other
-  context.messages = makeMessagesDomain(context);
-  context.memory = makeMemoryDomain(context);
+  context.messages = makeMessagesDomain({ config, db, logger });
+  context.memory = makeMemoryDomain({ db });
 
   return context;
 };

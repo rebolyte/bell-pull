@@ -1,15 +1,17 @@
 import { DateTime } from "https://esm.sh/luxon@3.4.4";
 import { Result, ResultAsync } from "neverthrow";
 import { sql } from "kysely";
-import type { Context, Reader } from "../../types/index.ts";
 import { MemoryModel, parseMemoryRow } from "./schema.ts";
 import { toError } from "../../utils/validate.ts";
+import { Database } from "../../services/database.ts";
 
-const getAllMemories: Reader<
-  "db",
-  { includeDate?: boolean; startDate?: string | null },
-  ResultAsync<MemoryModel[], Error>
-> = ({ db }) => ({ includeDate = true, startDate = null } = {}) => {
+type MemoryDeps = { db: Database };
+
+const getAllMemories = ({ db }: MemoryDeps) =>
+(
+  { includeDate = true, startDate = null }: { includeDate?: boolean; startDate?: string | null } =
+    {},
+) => {
   const datedQuery = () => {
     let query = db.selectFrom("memories")
       .selectAll()
@@ -39,11 +41,7 @@ const getAllMemories: Reader<
     .andThen((rows) => Result.combine(rows.map(parseMemoryRow)));
 };
 
-const getRelevantMemories: Reader<
-  "db",
-  void,
-  ResultAsync<MemoryModel[], Error>
-> = (deps) => () => {
+const getRelevantMemories = (deps: MemoryDeps) => () => {
   const today = DateTime.now().setZone("America/New_York").startOf("day");
   const todayFormatted = today.toFormat("yyyy-MM-dd");
   return getAllMemories(deps)({ includeDate: true, startDate: todayFormatted });
@@ -78,10 +76,10 @@ const formatMemoriesForPrompt = (memories: MemoryModel[]) => {
   return result;
 };
 
-export const makeMemoryDomain = (ctx: Context) => ({
-  getAllMemories: getAllMemories(ctx),
-  getRelevantMemories: getRelevantMemories(ctx),
-  formatMemoriesForPrompt, // This is a pure function, doesn't need ctx
+export const makeMemoryDomain = (deps: MemoryDeps) => ({
+  getAllMemories: getAllMemories(deps),
+  getRelevantMemories: getRelevantMemories(deps),
+  formatMemoriesForPrompt,
 });
 
 export type MemoryDomain = ReturnType<typeof makeMemoryDomain>;
