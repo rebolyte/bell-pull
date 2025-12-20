@@ -5,7 +5,7 @@ Bell Pull is a personal AI assistant. It uses a simple architecture: a single SQ
 ## Validate your changes
 
 * start the API with file watching: `mise run dev`
-* run tests: `deno test` or `deno test file.ts`
+* run tests: `mise run test`, `mise run test:watch`, `mise run test --filter <test name string/regexp>` (ex: `--filter "my"` or `--filter "/.*Memories$/"`), or `mise run test --reporter dot` (for quick verification)
 * validate types: `deno check`
 * validate style: `deno lint`
 * run formatter: `deno fmt`

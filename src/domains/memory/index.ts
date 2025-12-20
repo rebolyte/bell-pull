@@ -55,7 +55,7 @@ const formatMemoriesForPrompt = (memories: MemoryModel[]) => {
   const datedMemories = memories
     .filter((memory) => memory.date)
     .map((memory) => {
-      const date = DateTime.fromJSDate(memory.date!);
+      const date = DateTime.fromJSDate(memory.date!).setZone("utc");
       return `- ${date.toFormat("yyyy-MM-dd")} [ID: ${memory.id}]: ${memory.text}`;
     });
 

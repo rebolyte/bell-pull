@@ -3,6 +3,8 @@
     "@anthropic-ai/sdk": "npm:@anthropic-ai/sdk@^0.70.1",
     "@remeda/remeda": "jsr:@remeda/remeda@^2.32.0",
     "@std/cli": "jsr:@std/cli@^1.0.6",
+    "@std/expect": "jsr:@std/expect@^1.0.17",
+    "@std/testing": "jsr:@std/testing@^1.0.16",
     "@zod/zod": "jsr:@zod/zod@^4.1.12",
     "grammy": "npm:grammy@^1.38.4",
     "hono": "jsr:@hono/hono@^4.10.6",
