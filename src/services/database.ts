@@ -20,11 +20,12 @@ export interface DatabaseSchema {
 
 export type Database = Kysely<DatabaseSchema>;
 
-export const db = new Kysely<DatabaseSchema>({
-  dialect: {
-    createAdapter: () => new SqliteAdapter(),
-    createDriver: () => new DenoSqliteDriver("bell-pull.db"),
-    createIntrospector: (db) => new SqliteIntrospector(db),
-    createQueryCompiler: () => new SqliteQueryCompiler(),
-  },
-});
+export const createDatabase = (path: string): Database =>
+  new Kysely<DatabaseSchema>({
+    dialect: {
+      createAdapter: () => new SqliteAdapter(),
+      createDriver: () => new DenoSqliteDriver(path),
+      createIntrospector: (db) => new SqliteIntrospector(db),
+      createQueryCompiler: () => new SqliteQueryCompiler(),
+    },
+  });

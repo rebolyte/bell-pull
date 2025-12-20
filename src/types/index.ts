@@ -2,12 +2,7 @@ import type { Hono } from "hono";
 import type { MessagesDomain } from "../domains/messages/index.ts";
 import type { MemoryDomain } from "../domains/memory/index.ts";
 import type { Database } from "../services/database.ts";
-
-export type AppConfig = {
-  port: number;
-  host: string;
-  env: "development" | "production";
-};
+import type { AppConfig } from "../services/config.ts";
 
 type Logger = { info: (msg: string) => void };
 type Emailer = unknown;

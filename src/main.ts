@@ -1,93 +1,27 @@
-import { Hono } from "hono";
-import { logger } from "hono/logger";
-import { cors } from "hono/cors";
-import cron from "node-cron";
-import type { HonoEnv, Plugin } from "./types/index.ts";
-import apiRoutes from "./routes/api.tsx";
-import { letterboxdPlugin } from "./plugins/letterboxd/index.ts";
-import { container } from "./container.ts";
+import { makeServer, ServerOptions } from "./server.ts";
+import { makeContainer } from "./container.ts";
+import { Context } from "./types/index.ts";
 
-const app = new Hono<HonoEnv>();
+export interface RunOptions extends ServerOptions {
+  port?: number;
+  container?: Context;
+  signal?: AbortSignal;
+}
 
-// Middleware
-app.use("*", logger());
-app.use("*", cors());
-app.use("*", async (c, next) => {
-  c.set("container", container);
-  await next();
-});
+export const run = (opts: RunOptions = {}) => {
+  const container = opts.container || makeContainer();
+  const server = makeServer(container, opts);
 
-const plugins: Plugin[] = [letterboxdPlugin];
-
-// 2. Register Crons
-plugins.forEach((p) => {
-  p.registerRoutes?.(app);
-
-  if (p.cronJobs) {
-    p.cronJobs.forEach((job) => {
-      cron.schedule(job.schedule, async () => {
-        console.log(`Running ${p.name} job...`);
-        await job.run();
-      });
-    });
-  }
-});
-
-// Routes
-app.get("/", (c) => {
-  return c.json({
-    message: "Deno + Hono + CapnWeb API",
-    version: "1.0.0",
-    description: "Single RPC endpoint for all method calls",
-    endpoints: {
-      dashboard: "/api/dashboard - Interactive dashboard with AlpineJS",
-      health: "/health - Health check",
-      rpc: "POST /api/rpc - Single RPC endpoint (send {method, params})",
+  return Deno.serve({
+    port: opts.port || container.config.PORT,
+    signal: opts.signal,
+    onListen: ({ port, hostname }) => {
+      console.log(`listening on http://${hostname}:${port}`);
     },
-    availableMethods: {
-      basic: ["hello", "add", "multiply", "processBatch"],
-      users: ["createUser", "getUserInfo", "updateUserPreferences"],
-      todos: ["createTodo", "getTodos", "toggleTodo"],
-    },
-    exampleCall: {
-      url: "/api/rpc",
-      method: "POST",
-      body: {
-        method: "add",
-        params: [5, 3],
-      },
-      response: {
-        result: 8,
-      },
-    },
-  });
-});
+  }, server.fetch);
+};
 
-app.get("/health", (c) => {
-  return c.json({
-    status: "healthy",
-    timestamp: new Date().toISOString(),
-  });
-});
-
-// Mount API routes
-app.route("/api", apiRoutes);
-
-// 404 handler
-app.notFound((c) => {
-  return c.json({ error: "Not Found" }, 404);
-});
-
-// Error handler
-app.onError((err, c) => {
-  console.error(`Error: ${err.message}`);
-  return c.json({
-    error: err.message,
-  }, 500);
-});
-
-const port = Number(Deno.env.get("PORT")) || 8000;
-
-console.log(`listening on http://localhost:${port}`);
-
-Deno.serve({ port }, app.fetch);
+if (import.meta.main) {
+  console.log("I AM MAIN");
+  run();
+}

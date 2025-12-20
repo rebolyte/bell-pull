@@ -1,8 +1,9 @@
 import type { Context, Services } from "./types/index.ts";
 import { makeMessagesDomain } from "./domains/messages/index.ts";
 import { makeMemoryDomain } from "./domains/memory/index.ts";
-import { db } from "./services/database.ts";
+import { createDatabase } from "./services/database.ts";
 import { Logger } from "./services/logger.ts";
+import { createConfig } from "./services/config.ts";
 
 class EmailService {}
 class PaymentGateway {}
@@ -23,20 +24,16 @@ export const bootstrap = (svcs: Services): Context => {
   return context;
 };
 
-export const makeContainer = () => {
+export const makeContainer = (overrides: Partial<Services> = {}) => {
+  const config = createConfig(overrides.config);
+
   const svcs: Services = {
-    config: {
-      port: 3000,
-      host: "0.0.0.0",
-      env: "development",
-    },
-    db,
-    logger: new Logger(),
-    emailService: new EmailService(),
-    paymentGateway: new PaymentGateway(),
+    config,
+    db: overrides.db ?? createDatabase(config.DATABASE_PATH),
+    logger: overrides.logger ?? new Logger(),
+    emailService: overrides.emailService ?? new EmailService(),
+    paymentGateway: overrides.paymentGateway ?? new PaymentGateway(),
   };
 
   return bootstrap(svcs);
 };
-
-export const container = makeContainer();

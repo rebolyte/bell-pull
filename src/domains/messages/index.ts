@@ -1,5 +1,5 @@
 import { Result, ResultAsync } from "neverthrow";
-import type { AppConfig } from "../../types/index.ts";
+import type { AppConfig } from "../../services/config.ts";
 import { CreateMessageInput, parseMessageInput, parseMessageRow, toRowInsert } from "./schema.ts";
 import { toError } from "../../utils/validate.ts";
 import type { Database } from "../../services/database.ts";

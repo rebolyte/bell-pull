@@ -1,25 +1,10 @@
 import { promises as fs } from "node:fs";
 import * as path from "node:path";
-import {
-  FileMigrationProvider,
-  Kysely,
-  Migrator,
-  SqliteAdapter,
-  SqliteIntrospector,
-  SqliteQueryCompiler,
-} from "kysely";
-import { DenoSqliteDriver } from "../services/sqlite.ts";
-import type { DatabaseSchema } from "../services/database.ts";
+import { FileMigrationProvider, Kysely, Migrator } from "kysely";
+import { createDatabase, type DatabaseSchema } from "../services/database.ts";
 
 export async function createTestDb() {
-  const db = new Kysely<DatabaseSchema>({
-    dialect: {
-      createAdapter: () => new SqliteAdapter(),
-      createDriver: () => new DenoSqliteDriver(":memory:"),
-      createIntrospector: (db) => new SqliteIntrospector(db),
-      createQueryCompiler: () => new SqliteQueryCompiler(),
-    },
-  });
+  const db = createDatabase(":memory:");
 
   const migrator = new Migrator({
     db,

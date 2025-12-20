@@ -2,9 +2,13 @@ import { promises as fs } from "node:fs";
 import * as path from "node:path";
 import { FileMigrationProvider, Migrator } from "kysely";
 import { parseArgs } from "@std/cli/parse-args";
-import { db } from "./src/services/database.ts";
+import { createDatabase } from "./src/services/database.ts";
+import { createConfig } from "./src/services/config.ts";
 
 async function runMigration() {
+  const config = createConfig();
+  const db = createDatabase(config.DATABASE_PATH);
+
   const migrator = new Migrator({
     db,
     provider: new FileMigrationProvider({
