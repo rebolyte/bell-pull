@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { logger } from "hono/logger";
 import { cors } from "hono/cors";
 import cron from "node-cron";
-import type { Context, HonoEnv, Plugin } from "./types/index.ts";
+import type { Container, HonoEnv, Plugin } from "./types/index.ts";
 import apiRoutes from "./routes/api.tsx";
 import { letterboxdPlugin } from "./plugins/letterboxd/index.ts";
 import { telegramPlugin } from "./plugins/telegram/index.ts";
@@ -11,7 +11,7 @@ export interface ServerOptions {
   enableCrons?: boolean;
 }
 
-export const makeServer = (container: Context, opts: ServerOptions = { enableCrons: true }) => {
+export const makeServer = (container: Container, opts: ServerOptions = { enableCrons: true }) => {
   const app = new Hono<HonoEnv>();
 
   // Middleware

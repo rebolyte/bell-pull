@@ -1,4 +1,4 @@
-import type { Context, Services } from "./types/index.ts";
+import type { Container, Services } from "./types/index.ts";
 import { makeMessagesDomain } from "./domains/messages/index.ts";
 import { makeMemoryDomain } from "./domains/memory/index.ts";
 import { createDatabase } from "./services/database.ts";
@@ -8,10 +8,10 @@ import { createConfig } from "./services/config.ts";
 class EmailService {}
 class PaymentGateway {}
 
-export const bootstrap = (svcs: Services): Context => {
+export const bootstrap = (svcs: Services): Container => {
   // create object first so domains can reference each other if needed.
   // note the cast here! if we miss adding a domain, it will fail at runtime
-  const context = { ...svcs } as Context;
+  const context = { ...svcs } as Container;
 
   // we could also just pass entire ctx god object down but this is explicit
   // and domains can't accidentally reference dependencies at runtime

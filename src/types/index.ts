@@ -22,17 +22,17 @@ export type Domains = {
   memory: MemoryDomain;
 };
 
-export type Context = Services & Domains;
+export type Container = Services & Domains;
 
 export type HonoEnv = {
   Variables: {
-    container: Context;
+    container: Container;
   };
 };
 
 export interface Plugin {
   name: string;
-  init?: (app: Hono<HonoEnv>, container: Context) => void;
+  init?: (app: Hono<HonoEnv>, container: Container) => void;
   // Optional: Jobs to run on a schedule
   cronJobs?: {
     schedule: string; // e.g., "0 9 * * *"

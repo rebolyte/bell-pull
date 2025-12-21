@@ -3,7 +3,6 @@ import { Bot, webhookCallback as telegramWebhookCallback } from "grammy";
 import Anthropic from "npm:@anthropic-ai/sdk@0.24.3";
 import type { Plugin } from "../../types/index.ts";
 import { AppConfig } from "../../services/config.ts";
-// import { backstory } from "../backstory.ts";
 // import { formatMemoriesForPrompt, getRelevantMemories } from "../memoryUtils.ts";
 
 // Special ID for the bot's own messages
@@ -11,23 +10,10 @@ export const BOT_SENDER_ID = "MechMaidBot";
 export const BOT_SENDER_NAME = "Noelle";
 
 export const makeBot = (config: AppConfig) => {
-  // Initialize the bot
   if (!config.TELEGRAM_BOT_TOKEN) {
     throw new Error("TELEGRAM_BOT_TOKEN is not set");
   }
   const bot = new Bot(config.TELEGRAM_BOT_TOKEN);
-
-  // Use part of the TELEGRAM_BOT_TOKEN itself as the secret_token
-  // const SECRET_TOKEN = config.TELEGRAM_BOT_TOKEN.split(":")[1];
-  // const handleUpdate = webhookCallback(
-  //   bot,
-  //   "std/http",
-  //   undefined,
-  //   undefined,
-  //   SECRET_TOKEN,
-  // );
-
-  // let isEndpointSet = false;
 
   bot.on("message", async (ctx) => {
     try {
@@ -35,7 +21,7 @@ export const makeBot = (config: AppConfig) => {
 
       ctx.reply(`received: ${ctx.message.text}`);
 
-      return;
+      // return;
 
       // Get Anthropic API key from environment
       const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
@@ -220,4 +206,10 @@ export const telegramPlugin: Plugin = {
     // https://grammy.dev/guide/deployment-types
     app.use("/webhook/telegram", telegramWebhookCallback(bot, "hono"));
   },
+  cronJobs: [{
+    schedule: "0 9 * * *",
+    run: async () => {
+      console.log("sending daily brief to Telegram...");
+    },
+  }],
 };

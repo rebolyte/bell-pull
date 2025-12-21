@@ -1,10 +1,10 @@
 import { makeServer, ServerOptions } from "./server.ts";
 import { makeContainer } from "./container.ts";
-import { Context } from "./types/index.ts";
+import { Container } from "./types/index.ts";
 
 export interface RunOptions extends ServerOptions {
   port?: number;
-  container?: Context;
+  container?: Container;
   signal?: AbortSignal;
 }
 
