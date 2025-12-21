@@ -9,7 +9,7 @@ export interface RunOptions extends ServerOptions {
 }
 
 export const run = (opts: RunOptions = {}) => {
-  const container = opts.container || makeContainer();
+  const container = opts.container ?? makeContainer();
   const server = makeServer(container, opts);
 
   return Deno.serve({
@@ -22,6 +22,5 @@ export const run = (opts: RunOptions = {}) => {
 };
 
 if (import.meta.main) {
-  console.log("I AM MAIN");
   run();
 }

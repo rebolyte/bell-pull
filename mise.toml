@@ -21,8 +21,9 @@
 # mise.path = "./node_modules/.bin" # add a directory to PATH
 
 [tasks]
-dev = "deno run --allow-net --allow-read --allow-write --allow-env --watch src/main.ts"
-start = "deno run --allow-net --allow-read --allow-write --allow-env src/main.ts"
+dev = "deno run --allow-net --allow-read --allow-write --allow-import --allow-env --env-file --watch src/main.ts"
+start = "deno run --allow-net --allow-read --allow-write --allow-import --allow-env --env-file src/main.ts"
+tunnel = "cloudflared tunnel --url localhost:8000"
 test = "deno test --allow-net --allow-read --allow-env"
 test_watch = "deno test --allow-net --allow-read --allow-env --watch"
 fmt = "deno fmt"

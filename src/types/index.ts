@@ -32,8 +32,7 @@ export type HonoEnv = {
 
 export interface Plugin {
   name: string;
-  // Optional: Register routes (e.g. /auth/spotify/callback, /webhooks/health)
-  registerRoutes?: (app: Hono<HonoEnv>) => void;
+  init?: (app: Hono<HonoEnv>, container: Context) => void;
   // Optional: Jobs to run on a schedule
   cronJobs?: {
     schedule: string; // e.g., "0 9 * * *"
