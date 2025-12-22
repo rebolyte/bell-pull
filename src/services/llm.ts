@@ -70,7 +70,10 @@ export const makeLlm = (
         return "I apologize, but I can't do that.";
       }
 
-      console.log("usage:", response.usage, estimateCost(config.ANTHROPIC_MODEL, response.usage));
+      console.log("usage:", {
+        ...response.usage,
+        cost: estimateCost(config.ANTHROPIC_MODEL, response.usage),
+      });
 
       const content = response.content[0];
 

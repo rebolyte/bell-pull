@@ -1,19 +1,25 @@
 import { Bot, webhookCallback as telegramWebhookCallback } from "grammy";
-import Anthropic from "npm:@anthropic-ai/sdk@0.24.3";
+import { ok, ResultAsync } from "neverthrow";
 import type { Plugin } from "../../types/index.ts";
 import { AppConfig } from "../../services/config.ts";
-import { MemoryModel } from "../../domains/memory/schema.ts";
-import type { LLM } from "../../services/llm.ts";
+import type { LLM, LLMMessageParam } from "../../services/llm.ts";
 import type { MemoryDomain } from "../../domains/memory/index.ts";
 import { makeSystemPrompt } from "./prompt.ts";
-// import { formatMemoriesForPrompt, getRelevantMemories } from "../memoryUtils.ts";
+import type { MessagesDomain } from "../../domains/messages/index.ts";
 
 // Special ID for the bot's own messages
 export const BOT_SENDER_ID = "MechMaidBot";
 export const BOT_SENDER_NAME = "Noelle";
 
+type BotDeps = {
+  config: AppConfig;
+  llm: LLM;
+  memory: MemoryDomain;
+  messages: MessagesDomain;
+};
+
 export const makeBot = (
-  { config, llm, memory }: { config: AppConfig; llm: LLM; memory: MemoryDomain },
+  { config, llm, memory, messages }: BotDeps,
 ) => {
   if (!config.TELEGRAM_BOT_TOKEN) {
     throw new Error("TELEGRAM_BOT_TOKEN is not set");
@@ -22,56 +28,48 @@ export const makeBot = (
 
   bot.on("message", async (ctx) => {
     try {
-      console.log("Message received:", ctx.message);
-
-      // ctx.reply(`received: ${ctx.message.text}`);
-
       const messageText = ctx.message.text || "";
-      const username = ctx.message.from.username || ctx.message.from.first_name || "Sir/Madam";
-      const chatId = ctx.chat.id;
+      const username = ctx.message.from.username || ctx.message.from.first_name ||
+        "Sir/Madam";
+      const chatId = ctx.chat.id.toString();
       const senderId = ctx.message.from.id.toString();
-      const senderName = username; // Using username as the sender name
+      const senderName = username;
 
+      console.log("received:", messageText.slice(0, 100) + "...");
       console.log({ chatId, username, messageText });
 
-      // const memories = await memory.getAllMemories();
-      // // TODO - NO!
-      // const memoriesString = memory.formatMemoriesForPrompt(memories._unsafeUnwrap());
-      // const systemPrompt = makeSystemPrompt(memoriesString);
-
-      const response = await llm.generateText({
-        messages: [
-          {
-            role: "user",
-            content: messageText,
-          },
-        ],
-        // systemPrompt,
+      const storeResult = await messages.storeChatMessage({
+        chatId,
+        senderId,
+        senderName,
+        message: messageText,
+        isBot: false,
       });
 
-      await ctx.reply(response);
-
-      return;
-
-      // Store the incoming message in the chat history
-      await storeChatMessage(chatId, senderId, senderName, messageText);
-
-      // If the message is a /start command, introduce Mr. Stevens
-      if (messageText === "/start") {
-        const introMessage =
-          "Good day. I am Mr. Stevens, at your service. I shall make note of any important matters you wish me to remember and will ensure they're properly attended to at the appropriate time. If I may, I would like to ask you a few questions to understand how I can better serve you and your household.";
-        await ctx.reply(introMessage);
-
-        // Store the bot's response in chat history
-        await storeChatMessage(
-          chatId,
-          BOT_SENDER_ID,
-          BOT_SENDER_NAME,
-          introMessage,
-          true,
+      if (storeResult.isErr()) {
+        console.error("Error storing message:", storeResult.error);
+        await ctx.reply(
+          "I do apologize, but I seem to be experiencing some difficulty at the moment. Perhaps we could try again shortly.",
         );
         return;
       }
+
+      // If the message is a /start command, introduce Mr. Stevens
+      // if (messageText === "/start") {
+      //   const introMessage =
+      //     "Good day. I am Mr. Stevens, at your service. I shall make note of any important matters you wish me to remember and will ensure they're properly attended to at the appropriate time. If I may, I would like to ask you a few questions to understand how I can better serve you and your household.";
+      //   await ctx.reply(introMessage);
+
+      //   // Store the bot's response in chat history
+      //   await storeChatMessage(
+      //     chatId,
+      //     BOT_SENDER_ID,
+      //     BOT_SENDER_NAME,
+      //     introMessage,
+      //     true,
+      //   );
+      //   return;
+      // }
 
       // If it's another command, ignore it
       if (messageText.startsWith("/")) {
@@ -79,7 +77,49 @@ export const makeBot = (
       }
 
       // Retrieve chat history for this chat, which now includes the current message we just stored
-      const chatHistory = await getChatHistory(chatId);
+      const chatHistory = await messages.getChatHistory({ chatId })
+        .andThen((history) => {
+          console.log("chat history:", history);
+          return ok(history);
+        })
+        .map((history): LLMMessageParam[] => history.length > 0 ? messages.mapToLLM(history) : [])
+        .andThen((history) => {
+          console.log("formatted chat history:", history);
+          return ok(history);
+        })
+        .andThen((formattedHistory) =>
+          ResultAsync.fromSafePromise((async () => {
+            const response = await llm.generateText({
+              messages: formattedHistory,
+              systemPrompt:
+                "You are a helpful assistant tasked with giving me a summary of what we've discussed approximately every 5 messages.",
+            });
+            await ctx.reply(response);
+            return response;
+          })())
+        );
+
+      if (chatHistory.isErr()) {
+        console.error("Error processing message:", chatHistory.error);
+        await ctx.reply(
+          "I do apologize, but I seem to be experiencing some difficulty at the moment. Perhaps we could try again shortly.",
+        );
+      }
+
+      await messages.storeChatMessage({
+        chatId,
+        senderId: BOT_SENDER_ID,
+        senderName: BOT_SENDER_NAME,
+        message: chatHistory._unsafeUnwrap(),
+        isBot: true,
+      });
+
+      return;
+
+      // const memories = await memory.getAllMemories();
+      // // TODO - NO!
+      // const memoriesString = memory.formatMemoriesForPrompt(memories._unsafeUnwrap());
+      // const systemPrompt = makeSystemPrompt(memoriesString);
 
       // Analyze message content with chat history context
       const analysis = await analyzeMessageContent(
@@ -209,8 +249,8 @@ export const makeBot = (
 export const telegramPlugin: Plugin = {
   name: "telegram",
   init: (app, container) => {
-    const { config, llm, memory } = container;
-    const bot = makeBot({ config, llm, memory });
+    const { config, llm, memory, messages } = container;
+    const bot = makeBot({ config, llm, memory, messages });
 
     // https://grammy.dev/guide/deployment-types
     app.use("/webhook/telegram", telegramWebhookCallback(bot, "hono"));

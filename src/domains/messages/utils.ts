@@ -4,26 +4,6 @@ import { LLMMessageParam } from "../../services/llm.ts";
 /**
  * Format chat history for Anthropic API
  */
-export function formatChatHistoryForAI(history: MessageModel[]) {
-  const messages: LLMMessageParam[] = [];
-
-  for (const msg of history) {
-    if (msg.isBot) {
-      messages.push({
-        role: "assistant",
-        content: msg.message,
-      });
-    } else {
-      // Format user message with sender name
-      messages.push({
-        role: "user",
-        content: `${msg.senderName} says: ${msg.message}`,
-      });
-    }
-  }
-
-  return messages;
-}
 
 /**
  * Analyze a Telegram message and extract memories from it

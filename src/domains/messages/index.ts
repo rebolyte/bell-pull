@@ -1,9 +1,16 @@
 import { Result, ResultAsync } from "neverthrow";
 import type { AppConfig } from "../../services/config.ts";
-import { CreateMessageInput, parseMessageInput, parseMessageRow, toRowInsert } from "./schema.ts";
+import {
+  CreateMessageInput,
+  MessageModel,
+  parseMessageInput,
+  parseMessageRow,
+  toRowInsert,
+} from "./schema.ts";
 import { toError } from "../../utils/validate.ts";
 import type { Database } from "../../services/database.ts";
 import type { Logger } from "../../services/logger.ts";
+import { LLMMessageParam } from "../../services/llm.ts";
 
 type MessagesDeps = { config: AppConfig; db: Database; logger: Logger };
 
@@ -35,9 +42,31 @@ const getChatHistory =
       toError,
     ).andThen((rows) => Result.combine(rows.map(parseMessageRow)));
 
+const mapToLLM = (history: MessageModel[]) => {
+  const messages: LLMMessageParam[] = [];
+
+  for (const msg of history) {
+    if (msg.isBot) {
+      messages.push({
+        role: "assistant",
+        content: msg.message,
+      });
+    } else {
+      // Format user message with sender name
+      messages.push({
+        role: "user",
+        content: `${msg.senderName} says: ${msg.message}`,
+      });
+    }
+  }
+
+  return messages;
+};
+
 export const makeMessagesDomain = (deps: MessagesDeps) => ({
   storeChatMessage: storeChatMessage(deps),
   getChatHistory: getChatHistory(deps),
+  mapToLLM,
 });
 
 // export const makeMessagesDomain2 = (deps: MessagesDeps) =>
