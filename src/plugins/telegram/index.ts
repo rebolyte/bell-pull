@@ -6,6 +6,7 @@ import type { LLM, LLMMessageParam } from "../../services/llm.ts";
 import type { MemoryDomain } from "../../domains/memory/index.ts";
 import { makeSystemPrompt } from "./prompt.ts";
 import type { MessagesDomain } from "../../domains/messages/index.ts";
+import { toError } from "../../utils/validate.ts";
 
 // Special ID for the bot's own messages
 export const BOT_SENDER_ID = "MechMaidBot";
@@ -78,25 +79,18 @@ export const makeBot = (
 
       // Retrieve chat history for this chat, which now includes the current message we just stored
       const chatHistory = await messages.getChatHistory({ chatId })
-        .andThen((history) => {
+        .andTee((history) => {
           console.log("chat history:", history);
-          return ok(history);
         })
         .map((history): LLMMessageParam[] => history.length > 0 ? messages.mapToLLM(history) : [])
-        .andThen((history) => {
-          console.log("formatted chat history:", history);
-          return ok(history);
-        })
         .andThen((formattedHistory) =>
-          ResultAsync.fromSafePromise((async () => {
-            const response = await llm.generateText({
-              messages: formattedHistory,
-              systemPrompt:
-                "You are a helpful assistant tasked with giving me a summary of what we've discussed approximately every 5 messages.",
-            });
-            await ctx.reply(response);
-            return response;
-          })())
+          llm.generateText({
+            messages: formattedHistory,
+            systemPrompt:
+              "You are a helpful assistant tasked with giving me a summary of what we've discussed approximately every 5 messages.",
+          }).andThen((response) =>
+            ResultAsync.fromPromise(ctx.reply(response), toError).map(() => response)
+          )
         );
 
       if (chatHistory.isErr()) {
@@ -104,13 +98,15 @@ export const makeBot = (
         await ctx.reply(
           "I do apologize, but I seem to be experiencing some difficulty at the moment. Perhaps we could try again shortly.",
         );
+
+        return;
       }
 
       await messages.storeChatMessage({
         chatId,
         senderId: BOT_SENDER_ID,
         senderName: BOT_SENDER_NAME,
-        message: chatHistory._unsafeUnwrap(),
+        message: chatHistory.value,
         isBot: true,
       });
 

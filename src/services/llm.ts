@@ -1,5 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { ResultAsync } from "neverthrow";
 import type { AppConfig } from "./config.ts";
+import { toError } from "../utils/validate.ts";
 
 export type LLMMessageParam = Anthropic.MessageParam;
 
@@ -46,58 +48,58 @@ export const makeLlm = (
   const anthropic = opts.anthropic ?? new Anthropic({ apiKey: config.ANTHROPIC_API_KEY });
 
   return {
-    generateText: async (
+    generateText: (
       { messages, systemPrompt: systemPromptOverride }: {
         messages: LLMMessageParam[];
         systemPrompt?: string;
       },
-    ): Promise<string> => {
-      const response = await anthropic.messages.create({
-        model: config.ANTHROPIC_MODEL,
-        max_tokens: 4196,
-        thinking: {
-          type: "disabled",
-        },
-        temperature: 0.7,
-        messages,
-        ...(systemPromptOverride || opts.systemPrompt
-          ? { system: systemPromptOverride || opts.systemPrompt }
-          : {}),
-      });
+    ): ResultAsync<string, Error> =>
+      ResultAsync.fromPromise(
+        anthropic.messages.create({
+          model: config.ANTHROPIC_MODEL,
+          max_tokens: 4196,
+          thinking: { type: "disabled" },
+          temperature: 0.7,
+          messages,
+          ...(systemPromptOverride || opts.systemPrompt
+            ? { system: systemPromptOverride || opts.systemPrompt }
+            : {}),
+        }),
+        toError,
+      ).map((response) => {
+        if (response.stop_reason === "refusal") {
+          console.warn("LLM refused to generate text", response.content[0]);
+          return "I apologize, but I can't do that.";
+        }
 
-      if (response.stop_reason === "refusal") {
-        console.warn("LLM refused to generate text", response.content[0]);
-        return "I apologize, but I can't do that.";
-      }
+        console.log("usage:", {
+          ...response.usage,
+          cost: estimateCost(config.ANTHROPIC_MODEL, response.usage),
+        });
 
-      console.log("usage:", {
-        ...response.usage,
-        cost: estimateCost(config.ANTHROPIC_MODEL, response.usage),
-      });
+        const content = response.content[0];
 
-      const content = response.content[0];
-
-      switch (content.type) {
-        case "text":
-          return content.text;
-        case "thinking":
-          return content.thinking;
-        case "tool_use":
-        case "server_tool_use":
-          return content.name + " " + content.input;
-        case "redacted_thinking":
-          return "thinking quietly: " + content.data;
-        case "web_search_tool_result":
-          if (Array.isArray(content.content)) {
-            return content.content.map((c) => c.title + " - " + c.url).join("\n");
-          } else {
-            return "I'm sorry, but I've failed you: " + content.content.error_code;
-          }
-        default:
-          console.warn("LLM returned unexpected content", response.content[0]);
-          return "I'm sorry, but I didn't quite catch your request.";
-      }
-    },
+        switch (content.type) {
+          case "text":
+            return content.text;
+          case "thinking":
+            return content.thinking;
+          case "tool_use":
+          case "server_tool_use":
+            return content.name + " " + content.input;
+          case "redacted_thinking":
+            return "thinking quietly: " + content.data;
+          case "web_search_tool_result":
+            if (Array.isArray(content.content)) {
+              return content.content.map((c) => c.title + " - " + c.url).join("\n");
+            } else {
+              return "I'm sorry, but I've failed you: " + content.content.error_code;
+            }
+          default:
+            console.warn("LLM returned unexpected content", response.content[0]);
+            return "I'm sorry, but I didn't quite catch your request.";
+        }
+      }),
   };
 };
 
