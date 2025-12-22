@@ -1,15 +1,20 @@
 import { Bot, webhookCallback as telegramWebhookCallback } from "grammy";
-// import { DateTime } from "https://esm.sh/luxon@3.4.4";
 import Anthropic from "npm:@anthropic-ai/sdk@0.24.3";
 import type { Plugin } from "../../types/index.ts";
 import { AppConfig } from "../../services/config.ts";
+import { MemoryModel } from "../../domains/memory/schema.ts";
+import type { LLM } from "../../services/llm.ts";
+import type { MemoryDomain } from "../../domains/memory/index.ts";
+import { makeSystemPrompt } from "./prompt.ts";
 // import { formatMemoriesForPrompt, getRelevantMemories } from "../memoryUtils.ts";
 
 // Special ID for the bot's own messages
 export const BOT_SENDER_ID = "MechMaidBot";
 export const BOT_SENDER_NAME = "Noelle";
 
-export const makeBot = (config: AppConfig) => {
+export const makeBot = (
+  { config, llm, memory }: { config: AppConfig; llm: LLM; memory: MemoryDomain },
+) => {
   if (!config.TELEGRAM_BOT_TOKEN) {
     throw new Error("TELEGRAM_BOT_TOKEN is not set");
   }
@@ -19,24 +24,8 @@ export const makeBot = (config: AppConfig) => {
     try {
       console.log("Message received:", ctx.message);
 
-      ctx.reply(`received: ${ctx.message.text}`);
+      // ctx.reply(`received: ${ctx.message.text}`);
 
-      // return;
-
-      // Get Anthropic API key from environment
-      const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
-      if (!apiKey) {
-        console.error("Anthropic API key is not configured.");
-        ctx.reply(
-          "I apologize, but I'm not properly configured at the moment. Please inform the household administrator.",
-        );
-        return;
-      }
-
-      // Initialize Anthropic client
-      const anthropic = new Anthropic({ apiKey });
-
-      // Get message text and user info
       const messageText = ctx.message.text || "";
       const username = ctx.message.from.username || ctx.message.from.first_name || "Sir/Madam";
       const chatId = ctx.chat.id;
@@ -44,6 +33,25 @@ export const makeBot = (config: AppConfig) => {
       const senderName = username; // Using username as the sender name
 
       console.log({ chatId, username, messageText });
+
+      // const memories = await memory.getAllMemories();
+      // // TODO - NO!
+      // const memoriesString = memory.formatMemoriesForPrompt(memories._unsafeUnwrap());
+      // const systemPrompt = makeSystemPrompt(memoriesString);
+
+      const response = await llm.generateText({
+        messages: [
+          {
+            role: "user",
+            content: messageText,
+          },
+        ],
+        // systemPrompt,
+      });
+
+      await ctx.reply(response);
+
+      return;
 
       // Store the incoming message in the chat history
       await storeChatMessage(chatId, senderId, senderName, messageText);
@@ -201,7 +209,8 @@ export const makeBot = (config: AppConfig) => {
 export const telegramPlugin: Plugin = {
   name: "telegram",
   init: (app, container) => {
-    const bot = makeBot(container.config);
+    const { config, llm, memory } = container;
+    const bot = makeBot({ config, llm, memory });
 
     // https://grammy.dev/guide/deployment-types
     app.use("/webhook/telegram", telegramWebhookCallback(bot, "hono"));

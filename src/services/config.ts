@@ -4,6 +4,8 @@ export interface AppConfig {
   ENV: "development" | "production";
   DATABASE_PATH: string;
   TELEGRAM_BOT_TOKEN: string;
+  ANTHROPIC_API_KEY: string;
+  ANTHROPIC_MODEL: string;
 }
 
 export const createConfig = (overrides: Partial<AppConfig> = {}): AppConfig => ({
@@ -12,5 +14,7 @@ export const createConfig = (overrides: Partial<AppConfig> = {}): AppConfig => (
   ENV: (Deno.env.get("ENV") || "development") as "development" | "production",
   DATABASE_PATH: Deno.env.get("DATABASE_PATH") || "bell-pull.db",
   TELEGRAM_BOT_TOKEN: Deno.env.get("TELEGRAM_BOT_TOKEN") || "",
+  ANTHROPIC_API_KEY: Deno.env.get("ANTHROPIC_API_KEY") || "",
+  ANTHROPIC_MODEL: Deno.env.get("ANTHROPIC_MODEL") || "claude-haiku-4-5-20251001",
   ...overrides,
 });

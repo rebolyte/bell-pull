@@ -4,9 +4,7 @@ import { makeMemoryDomain } from "./domains/memory/index.ts";
 import { createDatabase } from "./services/database.ts";
 import { Logger } from "./services/logger.ts";
 import { createConfig } from "./services/config.ts";
-
-class EmailService {}
-class PaymentGateway {}
+import { makeLlm } from "./services/llm.ts";
 
 export const bootstrap = (svcs: Services): Container => {
   // create object first so domains can reference each other if needed.
@@ -31,8 +29,7 @@ export const makeContainer = (overrides: Partial<Services> = {}) => {
     config,
     db: overrides.db ?? createDatabase(config.DATABASE_PATH),
     logger: overrides.logger ?? new Logger(),
-    emailService: overrides.emailService ?? new EmailService(),
-    paymentGateway: overrides.paymentGateway ?? new PaymentGateway(),
+    llm: overrides.llm ?? makeLlm(config),
   };
 
   return bootstrap(svcs);

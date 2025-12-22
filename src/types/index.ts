@@ -3,18 +3,16 @@ import type { MessagesDomain } from "../domains/messages/index.ts";
 import type { MemoryDomain } from "../domains/memory/index.ts";
 import type { Database } from "../services/database.ts";
 import type { AppConfig } from "../services/config.ts";
+import type { LLM } from "../services/llm.ts";
 
 type Logger = { info: (msg: string) => void };
-type Emailer = unknown;
-type Stripe = unknown;
 
 // the "container"
 export type Services = {
   config: AppConfig;
   db: Database;
   logger: Logger;
-  emailService: Emailer;
-  paymentGateway: Stripe;
+  llm: LLM;
 };
 
 export type Domains = {
