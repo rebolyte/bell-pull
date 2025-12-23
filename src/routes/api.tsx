@@ -438,27 +438,19 @@ api.get("/dashboard", (c) => {
 // Store chat message
 api.post("/messages", async (c) => {
   const body = await c.req.json();
-  const { chatId, senderId, senderName, message, isBot } = body;
+  // const { chatId, senderId, senderName, message, isBot } = body;
 
   const container = c.get("container");
 
   // Call the domain method
   // Note: We await the result of match() because the handlers might be async or return promises
-  return container.messages
-    .storeChatMessage({
-      chatId,
-      senderId,
-      senderName,
-      message,
-      isBot,
-    })
-    .match(
-      (result) => c.json({ success: true, result }),
-      (error) => {
-        console.error("Failed to store message:", error);
-        return c.json({ success: false, error: error.message }, 500);
-      }
-    );
+  return container.messages.storeChatMessage(body).match(
+    (result) => c.json({ success: true, result }),
+    (error) => {
+      console.error("Failed to store message:", error);
+      return c.json({ success: false, error: JSON.parse(error.message) }, 500);
+    }
+  );
 });
 
 // Single RPC endpoint using Cap'n Web

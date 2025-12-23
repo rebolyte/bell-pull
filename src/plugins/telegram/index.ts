@@ -1,8 +1,8 @@
-import { Bot, webhookCallback as telegramWebhookCallback } from "grammy";
-import { ok, ResultAsync } from "neverthrow";
+import { Bot, Context, Filter, webhookCallback as telegramWebhookCallback } from "grammy";
+import { ResultAsync } from "neverthrow";
 import type { Plugin } from "../../types/index.ts";
 import { AppConfig } from "../../services/config.ts";
-import type { LLM, LLMMessageParam } from "../../services/llm.ts";
+import type { LLM } from "../../services/llm.ts";
 import type { MemoryDomain } from "../../domains/memory/index.ts";
 import { makeSystemPrompt } from "./prompt.ts";
 import type { MessagesDomain } from "../../domains/messages/index.ts";
@@ -27,11 +27,13 @@ export const makeBot = (
   }
   const bot = new Bot(config.TELEGRAM_BOT_TOKEN);
 
-  bot.on("message", async (ctx) => {
+  const handleMessage = async (ctx: Filter<Context, "message">) => {
     try {
       const messageText = ctx.message.text || "";
       const username = ctx.message.from.username || ctx.message.from.first_name ||
         "Sir/Madam";
+      // note that for 1:1 chats, the chatId is the same as the senderId and will not change
+      // for group chats, the chatId will be the groupId and will not change
       const chatId = ctx.chat.id.toString();
       const senderId = ctx.message.from.id.toString();
       const senderName = username;
@@ -77,28 +79,39 @@ export const makeBot = (
         return;
       }
 
-      // Retrieve chat history for this chat, which now includes the current message we just stored
-      const chatHistory = await messages.getChatHistory({ chatId })
-        .andTee((history) => {
-          console.log("chat history:", history);
-        })
-        .map((history): LLMMessageParam[] => history.length > 0 ? messages.mapToLLM(history) : [])
+      const memories = await memory.getAllMemories();
+      // TODO - NO!
+      const memoriesString = memory.formatMemoriesForPrompt(memories._unsafeUnwrap());
+      const systemPrompt = makeSystemPrompt(memoriesString);
+
+      console.log("systemPrompt:", systemPrompt);
+
+      // Retrieve chat history for this chat, which now includes the current message we just stored.
+      // by default, we'll get the last 50 messages
+      const llmResponse = await messages.getChatHistory({ chatId })
+        // .andTee((history) => {
+        //   console.log("chat history:", history);
+        // })
+        .map((history) => history.length > 0 ? messages.mapToLLM(history) : [])
         .andThen((formattedHistory) =>
           llm.generateText({
             messages: formattedHistory,
-            systemPrompt:
-              "You are a helpful assistant tasked with giving me a summary of what we've discussed approximately every 5 messages.",
-          }).andThen((response) =>
-            ResultAsync.fromPromise(ctx.reply(response), toError).map(() => response)
-          )
+            systemPrompt,
+          }).andThen((responseText) => {
+            const analysis = memory.extractMemories(responseText);
+            // TODO
+            memory.updateMemories(analysis._unsafeUnwrap());
+            return ResultAsync.fromPromise(ctx.reply(responseText), toError).map(() =>
+              responseText
+            );
+          })
         );
 
-      if (chatHistory.isErr()) {
-        console.error("Error processing message:", chatHistory.error);
+      if (llmResponse.isErr()) {
+        console.error("Error processing message:", llmResponse.error);
         await ctx.reply(
           "I do apologize, but I seem to be experiencing some difficulty at the moment. Perhaps we could try again shortly.",
         );
-
         return;
       }
 
@@ -106,138 +119,18 @@ export const makeBot = (
         chatId,
         senderId: BOT_SENDER_ID,
         senderName: BOT_SENDER_NAME,
-        message: chatHistory.value,
+        message: llmResponse.value,
         isBot: true,
       });
-
-      return;
-
-      // const memories = await memory.getAllMemories();
-      // // TODO - NO!
-      // const memoriesString = memory.formatMemoriesForPrompt(memories._unsafeUnwrap());
-      // const systemPrompt = makeSystemPrompt(memoriesString);
-
-      // Analyze message content with chat history context
-      const analysis = await analyzeMessageContent(
-        anthropic,
-        username,
-        messageText,
-        chatHistory,
-      );
-
-      // Create memories based on the analysis
-      if (analysis.memories && analysis.memories.length > 0) {
-        const { sqlite } = await import("https://esm.town/v/stevekrouse/sqlite");
-        const { nanoid } = await import("https://esm.sh/nanoid@5.0.5");
-
-        const createdIds = [];
-
-        for (const memory of analysis.memories) {
-          const memoryId = nanoid(10);
-          createdIds.push(memoryId);
-          await sqlite.execute({
-            sql: `INSERT INTO memories (id, date, text, createdBy, createdDate, tags)
-                VALUES (:id, :date, :text, :createdBy, :createdDate, :tags)`,
-            args: {
-              id: memoryId,
-              date: memory.date,
-              text: memory.text,
-              createdBy: "telegram",
-              createdDate: Date.now(),
-              tags: "",
-            },
-          });
-        }
-
-        console.log(
-          `Created ${analysis.memories.length} memories with IDs: ${createdIds.join(", ")}`,
-        );
-      }
-
-      // Edit memories if requested
-      if (analysis.editMemories && analysis.editMemories.length > 0) {
-        const { sqlite } = await import("https://esm.town/v/stevekrouse/sqlite");
-
-        const editedIds = [];
-
-        for (const memory of analysis.editMemories) {
-          if (!memory.id) {
-            console.error("Cannot edit memory without ID:", memory);
-            continue;
-          }
-
-          editedIds.push(memory.id);
-
-          // Create the SET clause dynamically based on what fields are provided
-          const updateFields = [];
-          const args: Record<string, any> = { id: memory.id };
-
-          if (memory.text !== undefined) {
-            updateFields.push("text = :text");
-            args.text = memory.text;
-          }
-
-          if (memory.date !== undefined) {
-            updateFields.push("date = :date");
-            args.date = memory.date;
-          }
-
-          if (memory.tags !== undefined) {
-            updateFields.push("tags = :tags");
-            args.tags = memory.tags;
-          }
-
-          // Only proceed if we have fields to update
-          if (updateFields.length > 0) {
-            const setClause = updateFields.join(", ");
-            await sqlite.execute({
-              sql: `UPDATE memories SET ${setClause} WHERE id = :id`,
-              args,
-            });
-          }
-        }
-
-        console.log(
-          `Edited ${editedIds.length} memories with IDs: ${editedIds.join(", ")}`,
-        );
-      }
-
-      // Delete memories if requested
-      if (analysis.deleteMemories && analysis.deleteMemories.length > 0) {
-        const { sqlite } = await import("https://esm.town/v/stevekrouse/sqlite");
-
-        for (const memoryId of analysis.deleteMemories) {
-          await sqlite.execute({
-            sql: `DELETE FROM memories WHERE id = :id`,
-            args: { id: memoryId },
-          });
-        }
-
-        console.log(
-          `Deleted ${analysis.deleteMemories.length} memories with IDs: ${
-            analysis.deleteMemories.join(", ")
-          }`,
-        );
-      }
-
-      // Respond with the butler-like response
-      await ctx.reply(analysis.response);
-
-      // Store the bot's response in chat history (without debug info to keep it clean)
-      await storeChatMessage(
-        chatId,
-        BOT_SENDER_ID,
-        BOT_SENDER_NAME,
-        analysis.response,
-        true,
-      );
     } catch (error) {
       console.error("Error processing message:", error);
       await ctx.reply(
         "I do apologize, but I seem to be experiencing some difficulty at the moment. Perhaps we could try again shortly.",
       );
     }
-  });
+  };
+
+  bot.on("message", handleMessage);
 
   return bot;
 };
