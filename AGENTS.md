@@ -28,7 +28,7 @@ Avoid:
 * Classes (unless wrapping a stateful resource like a connection pool)
 * `this`
 * Mutation (use Remeda's set, merge, omit for immutable updates)
-* Throwing errors, errors are values (return Result instead)
+* Throwing errors (errors are values, return Result instead)
 * God services that do multiple things
 
 The theme: data in, data out, effects at the edges. 
