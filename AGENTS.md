@@ -19,7 +19,7 @@ see other tasks available in mise.toml if needed.
 - Do not add emojis.
 - Do not add comments in any code unless it is extremely complicated.
 
-## FP "light"
+## FP "light" / railway programming
 
 State is the mind-killer. I'm going for "FP light", so call out any choices made around impure functions/architecture.
 
@@ -28,7 +28,7 @@ Avoid:
 * Classes (unless wrapping a stateful resource like a connection pool)
 * `this`
 * Mutation (use Remeda's set, merge, omit for immutable updates)
-* Throwing errors in business logic (return Result)
+* Throwing errors, errors are values (return Result instead)
 * God services that do multiple things
 
 The theme: data in, data out, effects at the edges. 
