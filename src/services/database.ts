@@ -1,17 +1,28 @@
-import { Generated, Kysely, SqliteAdapter, SqliteIntrospector, SqliteQueryCompiler } from "kysely";
+import {
+  CamelCasePlugin,
+  Generated,
+  Kysely,
+  SqliteAdapter,
+  SqliteIntrospector,
+  SqliteQueryCompiler,
+} from "kysely";
 import { DenoSqliteDriver } from "./sqlite.ts";
-import { MemoryRow } from "../domains/memory/schema.ts";
-import { MessageRow } from "../domains/messages/schema.ts";
 
-export type MemoriesTable = {
-  [K in keyof MemoryRow]: K extends "id" ? Generated<MemoryRow[K]>
-    : MemoryRow[K];
-};
+export interface MemoriesTable {
+  id: Generated<number>;
+  date: string | null;
+  text: string;
+}
 
-export type MessagesTable = {
-  [K in keyof MessageRow]: K extends "id" | "created_at" ? Generated<MessageRow[K]>
-    : MessageRow[K];
-};
+export interface MessagesTable {
+  id: Generated<number>;
+  chatId: string;
+  senderId: string;
+  senderName: string;
+  message: string;
+  isBot: number;
+  createdAt: Generated<string>;
+}
 
 export interface DatabaseSchema {
   memories: MemoriesTable;
@@ -28,4 +39,5 @@ export const createDatabase = (path: string): Database =>
       createIntrospector: (db) => new SqliteIntrospector(db),
       createQueryCompiler: () => new SqliteQueryCompiler(),
     },
+    plugins: [new CamelCasePlugin()],
   });

@@ -2,7 +2,7 @@ import type { Container, Services } from "./types/index.ts";
 import { makeMessagesDomain } from "./domains/messages/index.ts";
 import { makeMemoryDomain } from "./domains/memory/index.ts";
 import { createDatabase } from "./services/database.ts";
-import { Logger } from "./services/logger.ts";
+import { makeLogger } from "./services/logger.ts";
 import { createConfig } from "./services/config.ts";
 import { makeLlm } from "./services/llm.ts";
 
@@ -28,7 +28,7 @@ export const makeContainer = (overrides: Partial<Services> = {}) => {
   const svcs: Services = {
     config,
     db: overrides.db ?? createDatabase(config.DATABASE_PATH),
-    logger: overrides.logger ?? new Logger(),
+    logger: overrides.logger ?? makeLogger(),
     llm: overrides.llm ?? makeLlm(config),
   };
 

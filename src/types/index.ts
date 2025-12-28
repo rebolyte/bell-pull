@@ -4,8 +4,7 @@ import type { MemoryDomain } from "../domains/memory/index.ts";
 import type { Database } from "../services/database.ts";
 import type { AppConfig } from "../services/config.ts";
 import type { LLM } from "../services/llm.ts";
-
-type Logger = { info: (msg: string) => void };
+import type { Logger } from "../services/logger.ts";
 
 // the "container"
 export type Services = {

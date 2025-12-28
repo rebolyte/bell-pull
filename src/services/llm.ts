@@ -1,7 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { ResultAsync } from "neverthrow";
+import { match } from "ts-pattern";
 import type { AppConfig } from "./config.ts";
-import { toError } from "../utils/validate.ts";
+import { type AppError, llmError } from "../errors.ts";
 
 export type LLMMessageParam = Anthropic.MessageParam;
 
@@ -53,7 +54,7 @@ export const makeLlm = (
         messages: LLMMessageParam[];
         systemPrompt?: string;
       },
-    ): ResultAsync<string, Error> =>
+    ): ResultAsync<string, AppError> =>
       ResultAsync.fromPromise(
         anthropic.messages.create({
           model: config.ANTHROPIC_MODEL,
@@ -65,7 +66,7 @@ export const makeLlm = (
             ? { system: systemPromptOverride || opts.systemPrompt }
             : {}),
         }),
-        toError,
+        llmError("Claude API call failed"),
       ).map((response) => {
         if (response.stop_reason === "refusal") {
           console.warn("LLM refused to generate text", response.content[0]);
@@ -79,26 +80,21 @@ export const makeLlm = (
 
         const content = response.content[0];
 
-        switch (content.type) {
-          case "text":
-            return content.text;
-          case "thinking":
-            return content.thinking;
-          case "tool_use":
-          case "server_tool_use":
-            return content.name + " " + content.input;
-          case "redacted_thinking":
-            return "thinking quietly: " + content.data;
-          case "web_search_tool_result":
-            if (Array.isArray(content.content)) {
-              return content.content.map((c) => c.title + " - " + c.url).join("\n");
-            } else {
-              return "I'm sorry, but I've failed you: " + content.content.error_code;
-            }
-          default:
-            console.warn("LLM returned unexpected content", response.content[0]);
+        return match(content)
+          .with({ type: "text" }, (c) => c.text)
+          .with({ type: "thinking" }, (c) => c.thinking)
+          .with({ type: "tool_use" }, (c) => `${c.name} ${JSON.stringify(c.input)}`)
+          .with({ type: "server_tool_use" }, (c) => `${c.name} ${JSON.stringify(c.input)}`)
+          .with({ type: "redacted_thinking" }, (c) => `thinking quietly: ${c.data}`)
+          .with({ type: "web_search_tool_result" }, (c) =>
+            Array.isArray(c.content)
+              ? c.content.map((r) => `${r.title} - ${r.url}`).join("\n")
+              : `Search failed: ${c.content.error_code}`
+          )
+          .otherwise(() => {
+            console.warn("LLM returned unexpected content", content);
             return "I'm sorry, but I didn't quite catch your request.";
-        }
+          });
       }),
   };
 };

@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, it } from "@std/testing/bdd"
 import { expect } from "@std/expect";
 import { useHarness } from "../../utils/harness.ts";
 import { extractMemories, makeMemoryDomain, MemoryDomain } from "./index.ts";
-import { DateTime } from "https://esm.sh/luxon@3.4.4";
+import { DateTime } from "luxon";
 import type { Database } from "../../services/database.ts";
 
 describe("Memory Domain", () => {

@@ -1,4 +1,4 @@
-import { DateTime } from "https://esm.sh/luxon@3.4.4";
+import { DateTime } from "luxon";
 
 export const backstory =
   `You are Noelle, the dignified and highly professional mechanimal maid from Genshin Impact.
