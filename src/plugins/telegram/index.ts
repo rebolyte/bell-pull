@@ -6,7 +6,6 @@ import {
   webhookCallback as telegramWebhookCallback,
 } from "grammy";
 import { ResultAsync } from "neverthrow";
-import * as R from "@remeda/remeda";
 import { match } from "ts-pattern";
 import type { Plugin } from "../../types/index.ts";
 import type { AppConfig } from "../../services/config.ts";
@@ -14,8 +13,8 @@ import type { LLMService } from "../../services/llm.ts";
 import type { MemoryDomain } from "../../domains/memory/index.ts";
 import { APOLOGY, makeIntakePrompt, makeSystemPrompt } from "./prompt.ts";
 import type { MessagesDomain } from "../../domains/messages/index.ts";
-import { type AppError, telegramError } from "../../errors.ts";
-import { sendAndStoreMessage } from "./lib.ts";
+import { type AppError, toAppError } from "../../errors.ts";
+import { extractContext, type MessageContext, sendAndStoreMessage } from "./lib.ts";
 import { sendDailyBriefing } from "./briefing.ts";
 
 export const BOT_SENDER_ID = "MechMaidBot";
@@ -28,35 +27,10 @@ type BotDeps = {
   messages: MessagesDomain;
 };
 
-type MessageContext = {
-  chatId: string;
-  senderId: string;
-  senderName: string;
-  messageText: string;
-};
-
-const extractContext = (
-  ctx: Filter<Context, "message"> | CommandContext<Context>,
-): MessageContext => ({
-  // note that for 1:1 chats, the chatId is the same as the senderId and will not change
-  // for group chats, the chatId will be the groupId and will not change
-  chatId: ctx.chat.id.toString(),
-  senderId: ctx.message!.from.id.toString(),
-  senderName: ctx.message!.from.username || ctx.message!.from.first_name || "Sir/Madam",
-  messageText: ctx.message!.text || "",
-});
-
-// Telegram supports Markdown V2, but it's more restrictive than regular Markdown
-// For simplicity, we'll use the content as is, which should work with basic formatting
-const makeReply = (ctx: Context) => (text: string) =>
-  ResultAsync.fromPromise(
-    ctx.reply(text, { parse_mode: "Markdown" }),
-    telegramError("Failed to send reply"),
-  );
-
 const handleBotError = (
   error: AppError,
-  reply: (text: string) => ResultAsync<unknown, AppError>,
+  msgCtx: Pick<MessageContext, "api" | "chatId">,
+  messagesDomain: MessagesDomain,
 ) => {
   console.error(`[${error.type}] ${error.message}`, error.cause);
 
@@ -68,9 +42,9 @@ const handleBotError = (
     .with("unexpected", () => "Something quite unexpected has occurred.")
     .exhaustive();
 
-  reply(`${APOLOGY} ${errorMessage}`).match(
+  sendAndStoreMessage(msgCtx, `${APOLOGY} ${errorMessage}`, messagesDomain).match(
     () => {},
-    (err) => console.error("Critical: Failed to send error message to user", err),
+    toAppError("unexpected", "Critical: Failed to send error message to user"),
   );
 };
 
@@ -83,59 +57,39 @@ export const makeBot = ({ config }: { config: AppConfig }) => {
 
 const handleStartCommand = async (
   ctx: CommandContext<Context>,
-  { messages }: BotDeps,
+  { messages: messagesDomain }: BotDeps,
 ) => {
   const msgCtx = extractContext(ctx);
   const welcomeMessage =
     "Good day. I am Noelle, at your service. I shall make note of any important matters you wish me to remember and will ensure they are properly attended to at the appropriate time. If I may, I would like to ask you a few questions to understand how I can better serve you and your household.";
 
-  const reply = makeReply(ctx);
-
-  const result = await reply(welcomeMessage).andThen(() =>
-    messages.storeChatMessage({
-      chatId: msgCtx.chatId,
-      senderId: BOT_SENDER_ID,
-      senderName: BOT_SENDER_NAME,
-      message: welcomeMessage,
-      isBot: true,
-    })
-  );
+  const result = await sendAndStoreMessage(msgCtx, welcomeMessage, messagesDomain);
 
   result.match(
     () => {},
-    (error) => handleBotError(error, reply),
+    (error) => handleBotError(error, msgCtx, messagesDomain),
   );
 };
 
 const handleHelpCommand = async (
   ctx: CommandContext<Context>,
-  { messages }: BotDeps,
+  { messages: messagesDomain }: BotDeps,
 ) => {
   const msgCtx = extractContext(ctx);
   const helpMessage =
     "I am your personal assistant who remembers important information for you. Simply tell me things you would like me to remember, and I will keep them organized for future reference.\n\nAvailable commands:\n/start - Introduction and initial setup\n/help - Show this help message";
 
-  const reply = makeReply(ctx);
-
-  const result = await reply(helpMessage).andThen(() =>
-    messages.storeChatMessage({
-      chatId: msgCtx.chatId,
-      senderId: BOT_SENDER_ID,
-      senderName: BOT_SENDER_NAME,
-      message: helpMessage,
-      isBot: true,
-    })
-  );
+  const result = await sendAndStoreMessage(msgCtx, helpMessage, messagesDomain);
 
   result.match(
     () => {},
-    (error) => handleBotError(error, reply),
+    (error) => handleBotError(error, msgCtx, messagesDomain),
   );
 };
 
 const handleMessage = async (
   ctx: Filter<Context, "message">,
-  { config, llm, memory, messages }: BotDeps,
+  { config, llm, memory, messages: messagesDomain }: BotDeps,
 ) => {
   const msgCtx = extractContext(ctx);
 
@@ -145,9 +99,7 @@ const handleMessage = async (
     return;
   }
 
-  const reply = makeReply(ctx);
-
-  const result = await messages
+  const result = await messagesDomain
     .storeChatMessage({
       chatId: msgCtx.chatId,
       senderId: msgCtx.senderId,
@@ -158,10 +110,10 @@ const handleMessage = async (
     .andThen(() =>
       ResultAsync.combine([
         memory.getAllMemories(),
-        messages.getChatHistory({ chatId: msgCtx.chatId }),
+        messagesDomain.getChatHistory({ chatId: msgCtx.chatId }),
       ])
     )
-    .andTee(([memories, history]) => {
+    .andTee(([memories, _history]) => {
       console.log("memories:", memories);
     })
     .andThen(([memories, history]) => {
@@ -171,7 +123,7 @@ const handleMessage = async (
         : makeSystemPrompt(config, formattedMemories);
 
       return llm.generateText({
-        messages: messages.mapToLLM(history),
+        messages: messagesDomain.mapToLLM(history),
         systemPrompt,
       });
     })
@@ -183,11 +135,11 @@ const handleMessage = async (
         return memory.updateMemories(analysis).map(() => response);
       })
     )
-    .andThen((response) => sendAndStoreMessage(ctx.api, msgCtx.chatId, response, messages));
+    .andThen((response) => sendAndStoreMessage(msgCtx, response, messagesDomain));
 
   result.match(
     () => {},
-    (error) => handleBotError(error, reply),
+    (error) => handleBotError(error, msgCtx, messagesDomain),
   );
 };
 
