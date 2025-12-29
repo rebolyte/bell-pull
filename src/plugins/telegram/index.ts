@@ -1,9 +1,10 @@
 import { Bot, Context, Filter, webhookCallback as telegramWebhookCallback } from "grammy";
 import { ResultAsync } from "neverthrow";
 import * as R from "@remeda/remeda";
+import { match } from "ts-pattern";
 import type { Plugin } from "../../types/index.ts";
 import type { AppConfig } from "../../services/config.ts";
-import type { LLM } from "../../services/llm.ts";
+import type { LLMService } from "../../services/llm.ts";
 import type { MemoryDomain } from "../../domains/memory/index.ts";
 import { APOLOGY, makeSystemPrompt } from "./prompt.ts";
 import type { MessagesDomain } from "../../domains/messages/index.ts";
@@ -14,7 +15,7 @@ export const BOT_SENDER_NAME = "Noelle";
 
 type BotDeps = {
   config: AppConfig;
-  llm: LLM;
+  llm: LLMService;
   memory: MemoryDomain;
   messages: MessagesDomain;
 };
@@ -124,7 +125,14 @@ export const makeBot = (
       () => {},
       (error: AppError) => {
         console.error(`[${error.type}] ${error.message}`, error.cause);
-        reply(APOLOGY);
+        const errorMessage = match(error.type)
+          .with("db", () => "I am having trouble accessing my records at the moment.")
+          .with("llm", () => "I am experiencing some difficulty processing your request.")
+          .with("telegram", () => "I am unable to deliver my response properly.")
+          .with("validation", () => "I seem to have misunderstood something in your message.")
+          .with("unexpected", () => "Something quite unexpected has occurred.")
+          .exhaustive();
+        reply(`${APOLOGY} ${errorMessage}`);
       },
     );
   };

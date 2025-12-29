@@ -6,6 +6,12 @@ import { type AppError, llmError } from "../errors.ts";
 
 export type LLMMessageParam = Anthropic.MessageParam;
 
+type LlmDeps = {
+  config: AppConfig;
+  anthropic: Anthropic;
+  systemPrompt?: string;
+};
+
 type Rates = { input: number; output: number };
 
 // https://platform.claude.com/docs/en/about-claude/pricing
@@ -39,67 +45,74 @@ export const estimateCost = (
   return `$${cost.toFixed(4)}`;
 };
 
-export const makeLlm = (
+export const generateText = ({ config, anthropic, systemPrompt }: LlmDeps) =>
+(
+  { messages, systemPrompt: systemPromptOverride }: {
+    messages: LLMMessageParam[];
+    systemPrompt?: string;
+  },
+): ResultAsync<string, AppError> =>
+  ResultAsync.fromPromise(
+    anthropic.messages.create({
+      model: config.ANTHROPIC_MODEL,
+      max_tokens: 4196,
+      thinking: { type: "disabled" },
+      temperature: 0.7,
+      messages,
+      ...(systemPromptOverride || systemPrompt
+        ? { system: systemPromptOverride || systemPrompt }
+        : {}),
+    }),
+    llmError("Claude API call failed"),
+  ).map((response) => {
+    if (response.stop_reason === "refusal") {
+      console.warn("LLM refused to generate text", response.content[0]);
+      return "I apologize, but I can't do that.";
+    }
+
+    console.log("usage:", {
+      ...response.usage,
+      cost: estimateCost(config.ANTHROPIC_MODEL, response.usage),
+    });
+
+    const content = response.content[0];
+
+    return match(content)
+      .with({ type: "text" }, (c) => c.text)
+      .with({ type: "thinking" }, (c) => c.thinking)
+      .with({ type: "tool_use" }, (c) => `${c.name} ${JSON.stringify(c.input)}`)
+      .with({ type: "server_tool_use" }, (c) => `${c.name} ${JSON.stringify(c.input)}`)
+      .with({ type: "redacted_thinking" }, (c) => `thinking quietly: ${c.data}`)
+      .with(
+        { type: "web_search_tool_result", content: P.array() },
+        (c) => c.content.map((r) => `${r.title}: ${r.url}`).join("\n"),
+      )
+      .with(
+        { type: "web_search_tool_result", content: { error_code: P.select() } },
+        (code) => `Search failed: ${code}`,
+      )
+      .otherwise(() => {
+        console.warn("LLM returned unexpected content", content);
+        return "I'm sorry, but I didn't quite catch your request.";
+      });
+  });
+
+export const makeLlmService = (
   config: AppConfig,
   opts: { anthropic?: Anthropic; systemPrompt?: string } = {},
 ) => {
   if (!config.ANTHROPIC_API_KEY) {
     throw new Error("ANTHROPIC_API_KEY is not set");
   }
-  const anthropic = opts.anthropic ?? new Anthropic({ apiKey: config.ANTHROPIC_API_KEY });
+  const deps: LlmDeps = {
+    config,
+    anthropic: opts.anthropic ?? new Anthropic({ apiKey: config.ANTHROPIC_API_KEY }),
+    systemPrompt: opts.systemPrompt,
+  };
 
   return {
-    generateText: (
-      { messages, systemPrompt: systemPromptOverride }: {
-        messages: LLMMessageParam[];
-        systemPrompt?: string;
-      },
-    ): ResultAsync<string, AppError> =>
-      ResultAsync.fromPromise(
-        anthropic.messages.create({
-          model: config.ANTHROPIC_MODEL,
-          max_tokens: 4196,
-          thinking: { type: "disabled" },
-          temperature: 0.7,
-          messages,
-          ...(systemPromptOverride || opts.systemPrompt
-            ? { system: systemPromptOverride || opts.systemPrompt }
-            : {}),
-        }),
-        llmError("Claude API call failed"),
-      ).map((response) => {
-        if (response.stop_reason === "refusal") {
-          console.warn("LLM refused to generate text", response.content[0]);
-          return "I apologize, but I can't do that.";
-        }
-
-        console.log("usage:", {
-          ...response.usage,
-          cost: estimateCost(config.ANTHROPIC_MODEL, response.usage),
-        });
-
-        const content = response.content[0];
-
-        return match(content)
-          .with({ type: "text" }, (c) => c.text)
-          .with({ type: "thinking" }, (c) => c.thinking)
-          .with({ type: "tool_use" }, (c) => `${c.name} ${JSON.stringify(c.input)}`)
-          .with({ type: "server_tool_use" }, (c) => `${c.name} ${JSON.stringify(c.input)}`)
-          .with({ type: "redacted_thinking" }, (c) => `thinking quietly: ${c.data}`)
-          .with(
-            { type: "web_search_tool_result", content: P.array() },
-            (c) => c.content.map((r) => `${r.title}: ${r.url}`).join("\n"),
-          )
-          .with(
-            { type: "web_search_tool_result", content: { error_code: P.select() } },
-            (code) => `Search failed: ${code}`,
-          )
-          .otherwise(() => {
-            console.warn("LLM returned unexpected content", content);
-            return "I'm sorry, but I didn't quite catch your request.";
-          });
-      }),
+    generateText: generateText(deps),
   };
 };
 
-export type LLM = ReturnType<typeof makeLlm>;
+export type LLMService = ReturnType<typeof makeLlmService>;
