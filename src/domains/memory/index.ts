@@ -71,8 +71,8 @@ const formatMemoriesForPrompt = (memories: Memory[]) => {
 
   return R.pipe(
     [
-      !R.isEmpty(dated) ? `Dated memories:\n${dated.map(formatDated).join("\n")}` : null,
-      !R.isEmpty(undated) ? `General memories:\n${undated.map(formatUndated).join("\n")}` : null,
+      R.isEmpty(dated) ? null : `Dated memories:\n${dated.map(formatDated).join("\n")}`,
+      R.isEmpty(undated) ? null : `General memories:\n${undated.map(formatUndated).join("\n")}`,
     ],
     R.filter(R.isNonNullish),
     R.join("\n\n"),
