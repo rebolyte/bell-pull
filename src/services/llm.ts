@@ -52,9 +52,15 @@ export const generateText = ({ config, anthropic, systemPrompt }: LlmDeps) =>
     messages: LLMMessageParam[];
     systemPrompt?: string;
   },
-): ResultAsync<string, AppError> =>
-  ResultAsync.fromPromise(
-    anthropic.messages.create({
+): ResultAsync<string, AppError> => {
+  if (!R.isEmpty(messages) && messages.at(-1)?.role === "assistant") {
+    console.log(
+      "[generateText] last message is from assistant, this will be used to constrain model response (see docs)",
+    );
+  }
+
+  return ResultAsync.fromPromise(
+    anthropic.messages.stream({
       model: config.ANTHROPIC_MODEL,
       max_tokens: config.ANTHROPIC_MAX_TOKENS,
       thinking: { type: "disabled" },
@@ -63,7 +69,7 @@ export const generateText = ({ config, anthropic, systemPrompt }: LlmDeps) =>
       ...(systemPromptOverride || systemPrompt
         ? { system: systemPromptOverride || systemPrompt }
         : {}),
-    }),
+    }).finalMessage(),
     llmError("Claude API call failed"),
   ).map((response) => {
     if (response.stop_reason === "refusal") {
@@ -76,9 +82,9 @@ export const generateText = ({ config, anthropic, systemPrompt }: LlmDeps) =>
       cost: estimateCost(config.ANTHROPIC_MODEL, response.usage),
     });
 
-    if (R.isEmpty(response.content) && response.usage.input_tokens >= config.ANTHROPIC_MAX_TOKENS) {
-      console.warn("LLM input tokens exceeded max", response.usage);
-      return "I'm sorry, but this is a lot to take in. Please try again with a shorter message.";
+    if (R.isEmpty(response.content)) {
+      console.warn("LLM returned empty content", response);
+      return "I'm sorry, but I wasn't able to generate a response. Perhaps we could try again shortly?";
     }
 
     const content = response.content[0];
@@ -102,6 +108,7 @@ export const generateText = ({ config, anthropic, systemPrompt }: LlmDeps) =>
         return "I'm sorry, but I didn't quite catch your request.";
       });
   });
+};
 
 export const makeLlmService = (
   config: AppConfig,

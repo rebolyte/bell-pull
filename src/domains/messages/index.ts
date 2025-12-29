@@ -36,18 +36,27 @@ const getChatHistory =
       db.selectFrom("messages")
         .selectAll()
         .where("chatId", "=", chatId)
-        .orderBy("createdAt", "asc")
+        .orderBy("createdAt", "desc")
         .limit(limit)
         .execute(),
       dbError("Failed to get chat history"),
-    ).andThen((rows) => Result.combine(rows.map(parseMessage)));
+    ).andThen((rows) => Result.combine(rows.toReversed().map(parseMessage)));
 
-const mapToLLM = (history: Message[]): LLMMessageParam[] =>
-  history.map((msg) =>
+const mapToLLM = (
+  history: Message[],
+  { ensureUser = true }: { ensureUser?: boolean } = {},
+): LLMMessageParam[] => {
+  const mapped = history.map((msg) =>
     msg.isBot
-      ? { role: "assistant", content: msg.message }
-      : { role: "user", content: `${msg.senderName} says: ${msg.message}` }
+      ? { role: "assistant" as const, content: msg.message }
+      : { role: "user" as const, content: `${msg.senderName} says: ${msg.message}` }
   );
+  // ensure final message isn't used to constrain/prefill model response
+  if (ensureUser && mapped.at(-1)?.role === "assistant") {
+    mapped.push({ role: "user", content: "[Please continue]" });
+  }
+  return mapped;
+};
 
 export const makeMessagesDomain = (deps: MessagesDeps) => ({
   storeChatMessage: storeChatMessage(deps),
