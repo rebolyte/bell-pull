@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { ResultAsync } from "neverthrow";
-import { match } from "ts-pattern";
+import { match, P } from "ts-pattern";
 import type { AppConfig } from "./config.ts";
 import { type AppError, llmError } from "../errors.ts";
 
@@ -86,10 +86,13 @@ export const makeLlm = (
           .with({ type: "tool_use" }, (c) => `${c.name} ${JSON.stringify(c.input)}`)
           .with({ type: "server_tool_use" }, (c) => `${c.name} ${JSON.stringify(c.input)}`)
           .with({ type: "redacted_thinking" }, (c) => `thinking quietly: ${c.data}`)
-          .with({ type: "web_search_tool_result" }, (c) =>
-            Array.isArray(c.content)
-              ? c.content.map((r) => `${r.title} - ${r.url}`).join("\n")
-              : `Search failed: ${c.content.error_code}`
+          .with(
+            { type: "web_search_tool_result", content: P.array() },
+            (c) => c.content.map((r) => `${r.title}: ${r.url}`).join("\n"),
+          )
+          .with(
+            { type: "web_search_tool_result", content: { error_code: P.select() } },
+            (code) => `Search failed: ${code}`,
           )
           .otherwise(() => {
             console.warn("LLM returned unexpected content", content);
