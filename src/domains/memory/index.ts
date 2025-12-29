@@ -99,17 +99,17 @@ const extractMemories = (
   const editJSON = extractTag("editMemories")(messageText ?? "");
   const deleteJSON = extractTag("deleteMemories")(messageText ?? "");
 
-  const toCreate = createJSON ? CreateMemoriesSchema.safeParse(createJSON) : { success: false };
-  const toEdit = editJSON ? EditMemoriesSchema.safeParse(editJSON) : { success: false };
-  const toDelete = deleteJSON ? DeleteMemoriesSchema.safeParse(deleteJSON) : { success: false };
+  const toCreate = createJSON ? CreateMemoriesSchema.safeParse(createJSON) : null;
+  const toEdit = editJSON ? EditMemoriesSchema.safeParse(editJSON) : null;
+  const toDelete = deleteJSON ? DeleteMemoriesSchema.safeParse(deleteJSON) : null;
 
   const response = stripTags(["createMemories", "editMemories", "deleteMemories"])(messageText)
     .replace(/\n{3,}/g, "\n\n");
 
   return ok({
-    memories: toCreate.success ? toCreate.data : [],
-    editMemories: toEdit.success ? toEdit.data : [],
-    deleteMemories: toDelete.success ? toDelete.data : [],
+    memories: (toCreate?.success ? toCreate.data : []),
+    editMemories: (toEdit?.success ? toEdit.data : []),
+    deleteMemories: (toDelete?.success ? toDelete.data : []),
     response,
   });
 };

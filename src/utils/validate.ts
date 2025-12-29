@@ -7,7 +7,7 @@ export const toError = (e: unknown): Error => e instanceof Error ? e : new Error
 export const safeParse = <T>(schema: z.ZodSchema<T>) => (data: unknown): Result<T, AppError> => {
   const result = schema.safeParse(data);
   if (result.success) return ok(result.data);
-  const msg = result.error.errors[0]?.message ?? "Validation failed";
+  const msg = result.error.issues[0]?.message ?? "Validation failed";
   return err(appError("validation", msg, result.error));
 };
 

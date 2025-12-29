@@ -23,6 +23,7 @@
     "npm:capnweb@0.2": "0.2.0",
     "npm:grammy@^1.38.4": "1.38.4",
     "npm:kysely@~0.28.8": "0.28.8",
+    "npm:luxon@^3.4.4": "3.7.2",
     "npm:neverthrow@^8.2.0": "8.2.0",
     "npm:node-cron@^4.2.1": "4.2.1",
     "npm:rss-parser@^3.13.0": "3.13.0",
@@ -427,6 +428,9 @@
       "os": ["darwin", "linux", "win32"],
       "cpu": ["x64", "arm64", "wasm32"]
     },
+    "luxon@3.7.2": {
+      "integrity": "sha512-vtEhXh/gNjI9Yg1u4jX/0YVPMvxzHuGgCm6tC5kZyb08yjGWGnqAjGJvcXbqQR2P3MyMEFnRbpcdFS6PBcLqew=="
+    },
     "math-intrinsics@1.1.0": {
       "integrity": "sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g=="
     },
@@ -600,6 +604,7 @@
       "npm:capnweb@0.2",
       "npm:grammy@^1.38.4",
       "npm:kysely@~0.28.8",
+      "npm:luxon@^3.4.4",
       "npm:neverthrow@^8.2.0",
       "npm:node-cron@^4.2.1",
       "npm:rss-parser@^3.13.0",
