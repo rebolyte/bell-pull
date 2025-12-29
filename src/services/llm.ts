@@ -54,7 +54,7 @@ export const generateText = ({ config, anthropic, systemPrompt }: LlmDeps) =>
   },
 ): ResultAsync<string, AppError> =>
   ResultAsync.fromPromise(
-    anthropic.messages.create({
+    anthropic.messages.stream({
       model: config.ANTHROPIC_MODEL,
       max_tokens: config.ANTHROPIC_MAX_TOKENS,
       thinking: { type: "disabled" },
@@ -63,7 +63,7 @@ export const generateText = ({ config, anthropic, systemPrompt }: LlmDeps) =>
       ...(systemPromptOverride || systemPrompt
         ? { system: systemPromptOverride || systemPrompt }
         : {}),
-    }),
+    }).finalMessage(),
     llmError("Claude API call failed"),
   ).map((response) => {
     if (response.stop_reason === "refusal") {
