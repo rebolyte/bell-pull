@@ -119,7 +119,9 @@ const updateMemories = ({ db }: MemoryDeps) =>
           .insertInto("memories")
           .values(analysis.memories.map((m) => ({ date: m.date ?? null, text: m.text })))
           .execute();
-        console.log(`Created ${analysis.memories.length} memories`);
+        console.log(
+          `Created ${analysis.memories.length} memories: ${JSON.stringify(analysis.memories)}`,
+        );
       }
 
       for (const memory of analysis.editMemories) {
@@ -138,7 +140,11 @@ const updateMemories = ({ db }: MemoryDeps) =>
         await query.execute();
       }
       if (!R.isEmpty(analysis.editMemories)) {
-        console.log(`Edited ${analysis.editMemories.length} memories`);
+        console.log(
+          `Edited ${analysis.editMemories.length} memories: ${
+            JSON.stringify(analysis.editMemories)
+          }`,
+        );
       }
 
       if (!R.isEmpty(analysis.deleteMemories)) {
@@ -147,7 +153,7 @@ const updateMemories = ({ db }: MemoryDeps) =>
         );
         if (!R.isEmpty(ids)) {
           await db.deleteFrom("memories").where("id", "in", ids).execute();
-          console.log(`Deleted ${ids.length} memories`);
+          console.log(`Deleted ${ids.length} memories: ${JSON.stringify(ids)}`);
         }
       }
     })(),

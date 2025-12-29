@@ -91,7 +91,7 @@ export const makeBot = (
       )
       .andTee(([memories, history]) => {
         console.log("memories:", memories);
-        console.log("chat history:", history);
+        // console.log("chat history:", history);
       })
       .map(([memories, history]) => ({
         systemPrompt: makeSystemPrompt(memory.formatMemoriesForPrompt(memories)),
@@ -100,19 +100,21 @@ export const makeBot = (
       .andThen(({ systemPrompt, llmMessages }) =>
         llm.generateText({ messages: llmMessages, systemPrompt })
       )
-      .andThen((responseText) => {
-        const analysisResult = memory.extractMemories(responseText);
-        return analysisResult.asyncAndThen((analysis) =>
-          memory.updateMemories(analysis).map(() => responseText)
-        );
+      .andThen((llmResponse) => {
+        const analysisResult = memory.extractMemories(llmResponse);
+        return analysisResult.asyncAndThen((analysis) => {
+          // don't strip tags if we are debugging
+          const response = config.LOG_LEVEL === "debug" ? llmResponse : analysis.response;
+          return memory.updateMemories(analysis).map(() => response);
+        });
       })
-      .andThen((responseText) =>
-        reply(responseText).andThen(() =>
+      .andThen((response) =>
+        reply(response).andThen(() =>
           messages.storeChatMessage({
             chatId: msgCtx.chatId,
             senderId: BOT_SENDER_ID,
             senderName: BOT_SENDER_NAME,
-            message: responseText,
+            message: response,
             isBot: true,
           })
         )
