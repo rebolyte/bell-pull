@@ -28,7 +28,7 @@ test = "deno test --allow-net --allow-read --allow-env"
 test_watch = "deno test --allow-net --allow-read --allow-env --watch"
 fmt = "deno fmt"
 lint = "deno lint"
-migrate = "deno run --allow-net --allow-read --allow-write --allow-env migrate.ts"
+migrate = "deno run --allow-net --allow-read --allow-write --allow-env --env-file migrate.ts"
 
 [tools]
 deno = '2.5.6'

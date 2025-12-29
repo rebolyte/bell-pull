@@ -1,5 +1,8 @@
 import * as z from "@zod/zod";
-import { safeParse } from "../../utils/validate.ts";
+import { parseToResult } from "../../utils/validate.ts";
+
+// TODO we may also want to do kysely's helper here or in db service
+// type Message = Selectable<MessagesTable>;
 
 export const MessageSchema = z.object({
   id: z.number(),
@@ -22,8 +25,8 @@ export const CreateMessageInputSchema = z.object({
 export type Message = z.output<typeof MessageSchema>;
 export type CreateMessageInput = z.input<typeof CreateMessageInputSchema>;
 
-export const parseMessage = safeParse(MessageSchema);
-export const parseMessageInput = safeParse(CreateMessageInputSchema);
+export const parseMessage = parseToResult(MessageSchema);
+export const parseMessageInput = parseToResult(CreateMessageInputSchema);
 
 export const toInsert = (msg: z.output<typeof CreateMessageInputSchema>) => ({
   chatId: msg.chatId,

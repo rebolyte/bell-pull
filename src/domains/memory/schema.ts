@@ -1,5 +1,5 @@
 import * as z from "@zod/zod";
-import { jsonParsed, safeParse } from "../../utils/validate.ts";
+import { jsonParsed, parseToResult } from "../../utils/validate.ts";
 
 export const MemorySchema = z.object({
   id: z.number(),
@@ -34,8 +34,8 @@ export type CreateMemoryInput = z.input<typeof CreateMemoryInputSchema>;
 export type LLMCreateMemory = z.infer<typeof LLMCreateMemorySchema>;
 export type LLMEditMemory = z.infer<typeof LLMEditMemorySchema>;
 
-export const parseMemory = safeParse(MemorySchema);
-export const parseMemoryInput = safeParse(CreateMemoryInputSchema);
+export const parseMemory = parseToResult(MemorySchema);
+export const parseMemoryInput = parseToResult(CreateMemoryInputSchema);
 
 export const toInsert = (memory: z.output<typeof CreateMemoryInputSchema>) => ({
   date: memory.date ?? null,

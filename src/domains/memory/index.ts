@@ -124,11 +124,17 @@ const updateMemories = ({ db }: MemoryDeps) =>
 
       for (const memory of analysis.editMemories) {
         const id = parseInt(memory.id, 10);
-        if (isNaN(id)) continue;
+        if (isNaN(id)) {
+          continue;
+        }
 
         let query = db.updateTable("memories").where("id", "=", id);
-        if (memory.text !== undefined) query = query.set("text", memory.text);
-        if (memory.date !== undefined) query = query.set("date", memory.date);
+        if (memory.text !== undefined) {
+          query = query.set("text", memory.text);
+        }
+        if (memory.date !== undefined) {
+          query = query.set("date", memory.date);
+        }
         await query.execute();
       }
       if (!R.isEmpty(analysis.editMemories)) {
