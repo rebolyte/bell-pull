@@ -11,6 +11,7 @@
     "hono": "jsr:@hono/hono@^4.10.6",
     "capnweb": "npm:capnweb@^0.2.0",
     "kysely": "npm:kysely@^0.28.8",
+    "luxon": "npm:luxon@^3.4.4",
     "neverthrow": "npm:neverthrow@^8.2.0",
     "node-cron": "npm:node-cron@^4.2.1",
     "rss-parser": "npm:rss-parser@^3.13.0",

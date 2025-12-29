@@ -1,12 +1,16 @@
 import * as z from "@zod/zod";
 import { err, ok, Result } from "neverthrow";
+import { type AppError, appError } from "../errors.ts";
 
-export const toError = (err: unknown): Error => err instanceof Error ? err : new Error(String(err));
+export const toError = (e: unknown): Error => e instanceof Error ? e : new Error(String(e));
 
-export const safeParse = <T>(schema: z.ZodSchema<T>) => (data: unknown): Result<T, z.ZodError> => {
-  const result = schema.safeParse(data);
-  return result.success ? ok(result.data) : err(result.error);
-};
+export const parseToResult =
+  <T>(schema: z.ZodSchema<T>) => (data: unknown): Result<T, AppError> => {
+    const result = schema.safeParse(data);
+    if (result.success) return ok(result.data);
+    const msg = result.error.issues[0]?.message ?? "Validation failed";
+    return err(appError("validation", msg, result.error));
+  };
 
 export const jsonParsed = <T extends z.ZodTypeAny>(schema: T) =>
   z.string().transform((str, ctx) => {

@@ -1,16 +1,16 @@
 import { Result, ResultAsync } from "neverthrow";
 import type { AppConfig } from "../../services/config.ts";
 import {
-  CreateMessageInput,
-  MessageModel,
+  type CreateMessageInput,
+  type Message,
+  parseMessage,
   parseMessageInput,
-  parseMessageRow,
-  toRowInsert,
+  toInsert,
 } from "./schema.ts";
-import { toError } from "../../utils/validate.ts";
+import { dbError } from "../../errors.ts";
 import type { Database } from "../../services/database.ts";
 import type { Logger } from "../../services/logger.ts";
-import { LLMMessageParam } from "../../services/llm.ts";
+import type { LLMMessageParam } from "../../services/llm.ts";
 
 type MessagesDeps = { config: AppConfig; db: Database; logger: Logger };
 
@@ -21,12 +21,12 @@ const storeChatMessage = ({ db, logger }: MessagesDeps) =>
   logger.info("Storing chat message...");
 
   return parseMessageInput(input)
-    .asyncAndThen((input) =>
+    .asyncAndThen((parsed) =>
       ResultAsync.fromPromise(
-        db.insertInto("messages").values(toRowInsert(input)).returningAll()
+        db.insertInto("messages").values(toInsert(parsed)).returningAll()
           .executeTakeFirstOrThrow(),
-        toError,
-      ).andThen(parseMessageRow)
+        dbError("Failed to store message"),
+      ).andThen(parseMessage)
     );
 };
 
@@ -35,47 +35,24 @@ const getChatHistory =
     ResultAsync.fromPromise(
       db.selectFrom("messages")
         .selectAll()
-        .where("chat_id", "=", chatId)
-        .orderBy("created_at", "asc")
+        .where("chatId", "=", chatId)
+        .orderBy("createdAt", "asc")
         .limit(limit)
         .execute(),
-      toError,
-    ).andThen((rows) => Result.combine(rows.map(parseMessageRow)));
+      dbError("Failed to get chat history"),
+    ).andThen((rows) => Result.combine(rows.map(parseMessage)));
 
-const mapToLLM = (history: MessageModel[]) => {
-  const messages: LLMMessageParam[] = [];
-
-  for (const msg of history) {
-    if (msg.isBot) {
-      messages.push({
-        role: "assistant",
-        content: msg.message,
-      });
-    } else {
-      // Format user message with sender name
-      messages.push({
-        role: "user",
-        content: `${msg.senderName} says: ${msg.message}`,
-      });
-    }
-  }
-
-  return messages;
-};
+const mapToLLM = (history: Message[]): LLMMessageParam[] =>
+  history.map((msg): LLMMessageParam =>
+    msg.isBot
+      ? { role: "assistant", content: msg.message }
+      : { role: "user", content: `${msg.senderName} says: ${msg.message}` }
+  );
 
 export const makeMessagesDomain = (deps: MessagesDeps) => ({
   storeChatMessage: storeChatMessage(deps),
   getChatHistory: getChatHistory(deps),
   mapToLLM,
 });
-
-// export const makeMessagesDomain2 = (deps: MessagesDeps) =>
-//   R.pipe(
-//     {
-//       storeChatMessage,
-//       getChatHistory,
-//     },
-//     R.mapValues((f) => f(deps)),
-//   );
 
 export type MessagesDomain = ReturnType<typeof makeMessagesDomain>;

@@ -1,5 +1,5 @@
-import { DateTime } from "https://esm.sh/luxon@3.4.4";
-import * as z from "@zod/zod";
+import { DateTime } from "luxon";
+import * as R from "@remeda/remeda";
 import { ok, Result, ResultAsync } from "neverthrow";
 import { sql } from "kysely";
 import {
@@ -7,15 +7,13 @@ import {
   DeleteMemoriesSchema,
   EditMemoriesSchema,
   type LLMCreateMemory,
-  LLMCreateMemorySchema,
-  LLMDeleteMemoryIdsSchema,
   type LLMEditMemory,
-  LLMEditMemorySchema,
-  type MemoryModel,
-  parseMemoryRow,
+  type Memory,
+  parseMemory,
 } from "./schema.ts";
-import { extractTag, jsonParsed, stripTags, toError } from "../../utils/validate.ts";
-import { Database } from "../../services/database.ts";
+import { extractTag, stripTags } from "../../utils/validate.ts";
+import { type AppError, dbError } from "../../errors.ts";
+import type { Database } from "../../services/database.ts";
 
 type MemoryDeps = { db: Database };
 
@@ -42,15 +40,15 @@ const getAllMemories = ({ db }: MemoryDeps) =>
     db.selectFrom("memories").selectAll().where("date", "is", null).execute();
 
   const fetchDated = includeDate
-    ? ResultAsync.fromPromise(datedQuery(), toError)
-    : ResultAsync.fromPromise(Promise.resolve([]), toError);
+    ? ResultAsync.fromPromise(datedQuery(), dbError("Failed to fetch dated memories"))
+    : ResultAsync.fromPromise(Promise.resolve([]), dbError("Failed to fetch dated memories"));
 
   return fetchDated
     .andThen((dated) =>
-      ResultAsync.fromPromise(datelessQuery(), toError)
+      ResultAsync.fromPromise(datelessQuery(), dbError("Failed to fetch dateless memories"))
         .map((dateless) => [...dated, ...dateless])
     )
-    .andThen((rows) => Result.combine(rows.map(parseMemoryRow)));
+    .andThen((rows) => Result.combine(rows.map(parseMemory)));
 };
 
 const getRelevantMemories = (deps: MemoryDeps) => () => {
@@ -59,33 +57,26 @@ const getRelevantMemories = (deps: MemoryDeps) => () => {
   return getAllMemories(deps)({ includeDate: true, startDate: todayFormatted });
 };
 
-const formatMemoriesForPrompt = (memories: MemoryModel[]) => {
-  if (!memories || memories.length === 0) {
+const formatMemoriesForPrompt = (memories: Memory[]) => {
+  if (R.isEmpty(memories)) {
     return "No stored memories are available.";
   }
 
-  const datedMemories = memories
-    .filter((memory) => memory.date)
-    .map((memory) => {
-      const date = DateTime.fromJSDate(memory.date!).setZone("utc");
-      return `- ${date.toFormat("yyyy-MM-dd")} [ID: ${memory.id}]: ${memory.text}`;
-    });
+  const [dated, undated] = R.partition(memories, (m) => m.date !== null);
 
-  const datelessMemories = memories
-    .filter((memory) => !memory.date)
-    .map((memory) => `- [ID: ${memory.id}]: ${memory.text}`);
+  const formatDated = (m: Memory) =>
+    `- ${DateTime.fromJSDate(m.date!, { zone: "utc" }).toFormat("yyyy-MM-dd")} [ID: ${m.id}]: ${m.text}`;
 
-  let result = "";
+  const formatUndated = (m: Memory) => `- [ID: ${m.id}]: ${m.text}`;
 
-  if (datedMemories.length > 0) {
-    result += "Dated memories:\n" + datedMemories.join("\n") + "\n\n";
-  }
-
-  if (datelessMemories.length > 0) {
-    result += "General memories:\n" + datelessMemories.join("\n");
-  }
-
-  return result;
+  return R.pipe(
+    [
+      R.isEmpty(dated) ? null : `Dated memories:\n${dated.map(formatDated).join("\n")}`,
+      R.isEmpty(undated) ? null : `General memories:\n${undated.map(formatUndated).join("\n")}`,
+    ],
+    R.filter(R.isNonNullish),
+    R.join("\n\n"),
+  );
 };
 
 export type MemoryMessageAnalysis = {
@@ -97,125 +88,77 @@ export type MemoryMessageAnalysis = {
 
 const extractMemories = (
   messageText: string,
-): Result<MemoryMessageAnalysis, Error> => {
+): Result<MemoryMessageAnalysis, never> => {
   const createJSON = extractTag("createMemories")(messageText ?? "");
   const editJSON = extractTag("editMemories")(messageText ?? "");
   const deleteJSON = extractTag("deleteMemories")(messageText ?? "");
 
-  const toCreate = createJSON ? CreateMemoriesSchema.safeParse(createJSON) : { success: false };
-  const toEdit = editJSON ? EditMemoriesSchema.safeParse(editJSON) : { success: false };
-  const toDelete = deleteJSON ? DeleteMemoriesSchema.safeParse(deleteJSON) : { success: false };
+  const toCreate = createJSON ? CreateMemoriesSchema.safeParse(createJSON) : null;
+  const toEdit = editJSON ? EditMemoriesSchema.safeParse(editJSON) : null;
+  const toDelete = deleteJSON ? DeleteMemoriesSchema.safeParse(deleteJSON) : null;
 
   const response = stripTags(["createMemories", "editMemories", "deleteMemories"])(messageText)
     .replace(/\n{3,}/g, "\n\n");
 
   return ok({
-    memories: toCreate.success ? toCreate.data : [],
-    editMemories: toEdit.success ? toEdit.data : [],
-    deleteMemories: toDelete.success ? toDelete.data : [],
+    memories: toCreate?.success ? toCreate.data : [],
+    editMemories: toEdit?.success ? toEdit.data : [],
+    deleteMemories: toDelete?.success ? toDelete.data : [],
     response,
   });
 };
 
-const updateMemories = (_deps: MemoryDeps) =>
-async (
+const updateMemories = ({ db }: MemoryDeps) =>
+(
   analysis: MemoryMessageAnalysis,
-) => {
-  // Create memories based on the analysis
-  if (analysis.memories && analysis.memories.length > 0) {
-    const { sqlite } = await import("https://esm.town/v/stevekrouse/sqlite");
-    const { nanoid } = await import("https://esm.sh/nanoid@5.0.5");
-
-    const createdIds = [];
-
-    for (const memory of analysis.memories) {
-      const memoryId = nanoid(10);
-      createdIds.push(memoryId);
-      await sqlite.execute({
-        sql: `INSERT INTO memories (id, date, text, createdBy, createdDate, tags)
-                VALUES (:id, :date, :text, :createdBy, :createdDate, :tags)`,
-        args: {
-          id: memoryId,
-          date: memory.date ?? null,
-          text: memory.text,
-          createdBy: "telegram",
-          createdDate: Date.now(),
-          tags: "",
-        },
-      });
-    }
-
-    console.log(
-      `Created ${analysis.memories.length} memories with IDs: ${createdIds.join(", ")}`,
-    );
-  }
-
-  // Edit memories if requested
-  if (analysis.editMemories && analysis.editMemories.length > 0) {
-    const { sqlite } = await import("https://esm.town/v/stevekrouse/sqlite");
-
-    const editedIds = [];
-
-    for (const memory of analysis.editMemories) {
-      if (!memory.id) {
-        console.error("Cannot edit memory without ID:", memory);
-        continue;
+): ResultAsync<void, AppError> =>
+  ResultAsync.fromPromise(
+    (async () => {
+      if (!R.isEmpty(analysis.memories)) {
+        await db
+          .insertInto("memories")
+          .values(analysis.memories.map((m) => ({ date: m.date ?? null, text: m.text })))
+          .execute();
+        console.log(
+          `Created ${analysis.memories.length} memories: ${JSON.stringify(analysis.memories)}`,
+        );
       }
 
-      editedIds.push(memory.id);
+      for (const memory of analysis.editMemories) {
+        const id = parseInt(memory.id, 10);
+        if (isNaN(id)) {
+          continue;
+        }
 
-      // Create the SET clause dynamically based on what fields are provided
-      const updateFields = [];
-      const args: Record<string, string | null> = { id: memory.id };
-
-      if (memory.text !== undefined) {
-        updateFields.push("text = :text");
-        args.text = memory.text;
+        let query = db.updateTable("memories").where("id", "=", id);
+        if (memory.text !== undefined) {
+          query = query.set("text", memory.text);
+        }
+        if (memory.date !== undefined) {
+          query = query.set("date", memory.date);
+        }
+        await query.execute();
+      }
+      if (!R.isEmpty(analysis.editMemories)) {
+        console.log(
+          `Edited ${analysis.editMemories.length} memories: ${
+            JSON.stringify(analysis.editMemories)
+          }`,
+        );
       }
 
-      if (memory.date !== undefined) {
-        updateFields.push("date = :date");
-        args.date = memory.date;
+      if (!R.isEmpty(analysis.deleteMemories)) {
+        const ids = analysis.deleteMemories.map((id) => parseInt(id, 10)).filter((id) =>
+          !isNaN(id)
+        );
+        if (!R.isEmpty(ids)) {
+          await db.deleteFrom("memories").where("id", "in", ids).execute();
+          console.log(`Deleted ${ids.length} memories: ${JSON.stringify(ids)}`);
+        }
       }
-
-      if (memory.tags !== undefined) {
-        updateFields.push("tags = :tags");
-        args.tags = memory.tags;
-      }
-
-      // Only proceed if we have fields to update
-      if (updateFields.length > 0) {
-        const setClause = updateFields.join(", ");
-        await sqlite.execute({
-          sql: `UPDATE memories SET ${setClause} WHERE id = :id`,
-          args,
-        });
-      }
-    }
-
-    console.log(
-      `Edited ${editedIds.length} memories with IDs: ${editedIds.join(", ")}`,
-    );
-  }
-
-  // Delete memories if requested
-  if (analysis.deleteMemories && analysis.deleteMemories.length > 0) {
-    const { sqlite } = await import("https://esm.town/v/stevekrouse/sqlite");
-
-    for (const memoryId of analysis.deleteMemories) {
-      await sqlite.execute({
-        sql: `DELETE FROM memories WHERE id = :id`,
-        args: { id: memoryId },
-      });
-    }
-
-    console.log(
-      `Deleted ${analysis.deleteMemories.length} memories with IDs: ${
-        analysis.deleteMemories.join(", ")
-      }`,
-    );
-  }
-};
+    })(),
+    dbError("Failed to update memories"),
+  );
 
 export const makeMemoryDomain = (deps: MemoryDeps) => ({
   getAllMemories: getAllMemories(deps),

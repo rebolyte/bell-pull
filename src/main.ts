@@ -13,7 +13,7 @@ export const run = (opts: RunOptions = {}) => {
   const server = makeServer(container, opts);
 
   return Deno.serve({
-    port: opts.port || container.config.PORT,
+    port: opts.port !== undefined ? opts.port : container.config.PORT,
     signal: opts.signal,
     onListen: ({ port, hostname }) => {
       console.log(`listening on http://${hostname}:${port}`);

@@ -2,6 +2,7 @@ export interface AppConfig {
   PORT: number;
   HOST: string;
   ENV: "development" | "production";
+  LOG_LEVEL: "debug" | "info" | "warn" | "error";
   DATABASE_PATH: string;
   TELEGRAM_BOT_TOKEN: string;
   ANTHROPIC_API_KEY: string;
@@ -12,6 +13,7 @@ export const createConfig = (overrides: Partial<AppConfig> = {}): AppConfig => (
   PORT: Number(Deno.env.get("PORT")) || 8000,
   HOST: Deno.env.get("HOST") || "0.0.0.0",
   ENV: (Deno.env.get("ENV") || "development") as "development" | "production",
+  LOG_LEVEL: (Deno.env.get("LOG_LEVEL") || "info") as "debug" | "info" | "warn" | "error",
   DATABASE_PATH: Deno.env.get("DATABASE_PATH") || "bell-pull.db",
   TELEGRAM_BOT_TOKEN: Deno.env.get("TELEGRAM_BOT_TOKEN") || "",
   ANTHROPIC_API_KEY: Deno.env.get("ANTHROPIC_API_KEY") || "",
