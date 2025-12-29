@@ -1,18 +1,16 @@
 import { Bot, Context, Filter, webhookCallback as telegramWebhookCallback } from "grammy";
 import { ResultAsync } from "neverthrow";
+import * as R from "@remeda/remeda";
 import type { Plugin } from "../../types/index.ts";
 import type { AppConfig } from "../../services/config.ts";
 import type { LLM } from "../../services/llm.ts";
 import type { MemoryDomain } from "../../domains/memory/index.ts";
-import { makeSystemPrompt } from "./prompt.ts";
+import { APOLOGY, makeSystemPrompt } from "./prompt.ts";
 import type { MessagesDomain } from "../../domains/messages/index.ts";
 import { type AppError, telegramError } from "../../errors.ts";
 
 export const BOT_SENDER_ID = "MechMaidBot";
 export const BOT_SENDER_NAME = "Noelle";
-
-const APOLOGY =
-  "I do apologize, but I seem to be experiencing some difficulty at the moment. Perhaps we could try again shortly.";
 
 type BotDeps = {
   config: AppConfig;
@@ -29,6 +27,8 @@ type MessageContext = {
 };
 
 const extractContext = (ctx: Filter<Context, "message">): MessageContext => ({
+  // note that for 1:1 chats, the chatId is the same as the senderId and will not change
+  // for group chats, the chatId will be the groupId and will not change
   chatId: ctx.chat.id.toString(),
   senderId: ctx.message.from.id.toString(),
   senderName: ctx.message.from.username || ctx.message.from.first_name || "Sir/Madam",
@@ -48,7 +48,27 @@ export const makeBot = (
 
     console.log("received:", msgCtx.messageText.slice(0, 100) + "...");
 
-    if (msgCtx.messageText.startsWith("/")) return;
+    // If the message is a /start command, introduce the bot
+    // if (messageText === "/start") {
+    //   const introMessage =
+    //     "Good day. I am Mr. Stevens, at your service. I shall make note of any important matters you wish me to remember and will ensure they're properly attended to at the appropriate time. If I may, I would like to ask you a few questions to understand how I can better serve you and your household.";
+    //   await ctx.reply(introMessage);
+
+    //   // Store the bot's response in chat history
+    //   await storeChatMessage(
+    //     chatId,
+    //     BOT_SENDER_ID,
+    //     BOT_SENDER_NAME,
+    //     introMessage,
+    //     true,
+    //   );
+    //   return;
+    // }
+
+    // If it's another command, ignore it
+    if (msgCtx.messageText.startsWith("/")) {
+      return;
+    }
 
     const reply = (text: string) =>
       ResultAsync.fromPromise(ctx.reply(text), telegramError("Failed to send reply"));
@@ -62,14 +82,20 @@ export const makeBot = (
         isBot: false,
       })
       .andThen(() =>
+        // Retrieve chat history for this chat, which now includes the current message we just stored.
+        // by default, we'll get the last 50 messages.
         ResultAsync.combine([
           memory.getAllMemories(),
           messages.getChatHistory({ chatId: msgCtx.chatId }),
         ])
       )
+      .andTee(([memories, history]) => {
+        console.log("memories:", memories);
+        console.log("chat history:", history);
+      })
       .map(([memories, history]) => ({
         systemPrompt: makeSystemPrompt(memory.formatMemoriesForPrompt(memories)),
-        llmMessages: history.length > 0 ? messages.mapToLLM(history) : [],
+        llmMessages: R.isEmpty(history) ? [] : messages.mapToLLM(history),
       }))
       .andThen(({ systemPrompt, llmMessages }) =>
         llm.generateText({ messages: llmMessages, systemPrompt })

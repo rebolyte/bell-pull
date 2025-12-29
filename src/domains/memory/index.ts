@@ -1,4 +1,5 @@
 import { DateTime } from "luxon";
+import * as R from "@remeda/remeda";
 import { ok, Result, ResultAsync } from "neverthrow";
 import { sql } from "kysely";
 import {
@@ -57,32 +58,25 @@ const getRelevantMemories = (deps: MemoryDeps) => () => {
 };
 
 const formatMemoriesForPrompt = (memories: Memory[]) => {
-  if (!memories || memories.length === 0) {
+  if (R.isEmpty(memories)) {
     return "No stored memories are available.";
   }
 
-  const datedMemories = memories
-    .filter((memory) => memory.date)
-    .map((memory) => {
-      const date = DateTime.fromJSDate(memory.date!).setZone("utc");
-      return `- ${date.toFormat("yyyy-MM-dd")} [ID: ${memory.id}]: ${memory.text}`;
-    });
+  const [dated, undated] = R.partition(memories, (m) => m.date !== null);
 
-  const datelessMemories = memories
-    .filter((memory) => !memory.date)
-    .map((memory) => `- [ID: ${memory.id}]: ${memory.text}`);
+  const formatDated = (m: Memory) =>
+    `- ${DateTime.fromJSDate(m.date!).toFormat("yyyy-MM-dd")} [ID: ${m.id}]: ${m.text}`;
 
-  let result = "";
+  const formatUndated = (m: Memory) => `- [ID: ${m.id}]: ${m.text}`;
 
-  if (datedMemories.length > 0) {
-    result += "Dated memories:\n" + datedMemories.join("\n") + "\n\n";
-  }
-
-  if (datelessMemories.length > 0) {
-    result += "General memories:\n" + datelessMemories.join("\n");
-  }
-
-  return result;
+  return R.pipe(
+    [
+      !R.isEmpty(dated) ? `Dated memories:\n${dated.map(formatDated).join("\n")}` : null,
+      !R.isEmpty(undated) ? `General memories:\n${undated.map(formatUndated).join("\n")}` : null,
+    ],
+    R.filter(R.isNonNullish),
+    R.join("\n\n"),
+  );
 };
 
 export type MemoryMessageAnalysis = {
@@ -107,9 +101,9 @@ const extractMemories = (
     .replace(/\n{3,}/g, "\n\n");
 
   return ok({
-    memories: (toCreate?.success ? toCreate.data : []),
-    editMemories: (toEdit?.success ? toEdit.data : []),
-    deleteMemories: (toDelete?.success ? toDelete.data : []),
+    memories: toCreate?.success ? toCreate.data : [],
+    editMemories: toEdit?.success ? toEdit.data : [],
+    deleteMemories: toDelete?.success ? toDelete.data : [],
     response,
   });
 };
@@ -120,7 +114,7 @@ const updateMemories = ({ db }: MemoryDeps) =>
 ): ResultAsync<void, AppError> =>
   ResultAsync.fromPromise(
     (async () => {
-      if (analysis.memories.length > 0) {
+      if (!R.isEmpty(analysis.memories)) {
         await db
           .insertInto("memories")
           .values(analysis.memories.map((m) => ({ date: m.date ?? null, text: m.text })))
@@ -137,13 +131,15 @@ const updateMemories = ({ db }: MemoryDeps) =>
         if (memory.date !== undefined) query = query.set("date", memory.date);
         await query.execute();
       }
-      if (analysis.editMemories.length > 0) {
+      if (!R.isEmpty(analysis.editMemories)) {
         console.log(`Edited ${analysis.editMemories.length} memories`);
       }
 
-      if (analysis.deleteMemories.length > 0) {
-        const ids = analysis.deleteMemories.map((id) => parseInt(id, 10)).filter((id) => !isNaN(id));
-        if (ids.length > 0) {
+      if (!R.isEmpty(analysis.deleteMemories)) {
+        const ids = analysis.deleteMemories.map((id) => parseInt(id, 10)).filter((id) =>
+          !isNaN(id)
+        );
+        if (!R.isEmpty(ids)) {
           await db.deleteFrom("memories").where("id", "in", ids).execute();
           console.log(`Deleted ${ids.length} memories`);
         }

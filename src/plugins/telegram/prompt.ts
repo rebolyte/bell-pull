@@ -98,3 +98,6 @@ Your goal is to collect this information naturally through conversation and stor
 
 If the conversation is already past the intake stage, then analyze the message content and think about which memories might be worth creating based on the information provided.
 `;
+
+export const APOLOGY =
+  "I do apologize, but I seem to be experiencing some difficulty at the moment. Perhaps we could try again shortly.";
