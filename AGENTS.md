@@ -9,7 +9,7 @@ Bell Pull is a personal AI assistant. It uses a simple architecture: a single SQ
 * validate types: `deno check`
 * validate style: `deno lint`
 * run formatter: `deno fmt`
-* check data in the DB: `sqlite3 bell-pull.db "SELECT * FROM messages ORDER BY created_at DESC LIMIT 20;"
+* check data in the DB: `sqlite3 bell-pull.db "SELECT * FROM messages ORDER BY created_at DESC LIMIT 20;"`
 
 see other tasks available in mise.toml if needed.
 

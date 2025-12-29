@@ -43,7 +43,7 @@ const getChatHistory =
     ).andThen((rows) => Result.combine(rows.map(parseMessage)));
 
 const mapToLLM = (history: Message[]): LLMMessageParam[] =>
-  history.map((msg): LLMMessageParam =>
+  history.map((msg) =>
     msg.isBot
       ? { role: "assistant", content: msg.message }
       : { role: "user", content: `${msg.senderName} says: ${msg.message}` }
