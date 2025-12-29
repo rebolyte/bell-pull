@@ -8,6 +8,7 @@ export interface AppConfig {
   ANTHROPIC_API_KEY: string;
   ANTHROPIC_MODEL: string;
   ANTHROPIC_MAX_TOKENS: number;
+  TIMEZONE: string;
 }
 
 export const createConfig = (overrides: Partial<AppConfig> = {}): AppConfig => ({
@@ -20,5 +21,6 @@ export const createConfig = (overrides: Partial<AppConfig> = {}): AppConfig => (
   ANTHROPIC_API_KEY: Deno.env.get("ANTHROPIC_API_KEY") || "",
   ANTHROPIC_MODEL: Deno.env.get("ANTHROPIC_MODEL") || "claude-haiku-4-5-20251001",
   ANTHROPIC_MAX_TOKENS: Number(Deno.env.get("ANTHROPIC_MAX_TOKENS")) || 4196,
+  TIMEZONE: Deno.env.get("TIMEZONE") || "America/Los_Angeles",
   ...overrides,
 });

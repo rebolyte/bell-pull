@@ -13,9 +13,10 @@ import {
 } from "./schema.ts";
 import { extractTag, stripTags } from "../../utils/validate.ts";
 import { type AppError, dbError } from "../../errors.ts";
+import type { AppConfig } from "../../services/config.ts";
 import type { Database } from "../../services/database.ts";
 
-type MemoryDeps = { db: Database };
+type MemoryDeps = { config: AppConfig; db: Database };
 
 const getAllMemories = ({ db }: MemoryDeps) =>
 (
@@ -52,7 +53,7 @@ const getAllMemories = ({ db }: MemoryDeps) =>
 };
 
 const getRelevantMemories = (deps: MemoryDeps) => () => {
-  const today = DateTime.now().setZone("America/New_York").startOf("day");
+  const today = DateTime.now().setZone(deps.config.TIMEZONE).startOf("day");
   const todayFormatted = today.toFormat("yyyy-MM-dd");
   return getAllMemories(deps)({ includeDate: true, startDate: todayFormatted });
 };
@@ -65,7 +66,9 @@ const formatMemoriesForPrompt = (memories: Memory[]) => {
   const [dated, undated] = R.partition(memories, (m) => m.date !== null);
 
   const formatDated = (m: Memory) =>
-    `- ${DateTime.fromJSDate(m.date!, { zone: "utc" }).toFormat("yyyy-MM-dd")} [ID: ${m.id}]: ${m.text}`;
+    `- ${
+      DateTime.fromJSDate(m.date!, { zone: "utc" }).toFormat("yyyy-MM-dd")
+    } [ID: ${m.id}]: ${m.text}`;
 
   const formatUndated = (m: Memory) => `- [ID: ${m.id}]: ${m.text}`;
 

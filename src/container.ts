@@ -17,7 +17,7 @@ export const bootstrap = (svcs: Services): Container => {
 
   // order matters here if domains reference each other
   context.messages = makeMessagesDomain({ config, db, logger });
-  context.memory = makeMemoryDomain({ db });
+  context.memory = makeMemoryDomain({ config, db });
 
   return context;
 };

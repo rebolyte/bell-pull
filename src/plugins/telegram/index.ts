@@ -154,7 +154,7 @@ const handleMessage = async (
     })
     .map(([memories, history]) => {
       const formattedMemories = memory.formatMemoriesForPrompt(memories);
-      const basePrompt = makeSystemPrompt(formattedMemories);
+      const basePrompt = makeSystemPrompt(config, formattedMemories);
       const systemPrompt = memories.length < 25
         ? `${basePrompt}\n\n${makeIntakePrompt()}`
         : basePrompt;

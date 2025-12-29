@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, it } from "@std/testing/bdd";
 import { expect } from "@std/expect";
 import { useHarness } from "../../utils/harness.ts";
+import type { AppConfig } from "../../services/config.ts";
 import { extractMemories, makeMemoryDomain, MemoryDomain } from "./index.ts";
 import { DateTime } from "luxon";
 import type { Database } from "../../services/database.ts";
@@ -108,7 +109,10 @@ Last line`;
 
   describe("formatMemoriesForPrompt", () => {
     it("should format dated and undated memories correctly", () => {
-      const { formatMemoriesForPrompt } = makeMemoryDomain({ db: {} as Database });
+      const { formatMemoriesForPrompt } = makeMemoryDomain({
+        config: {} as AppConfig,
+        db: {} as Database,
+      });
 
       const memories = [
         { id: 1, text: "Dated memory", date: new Date("2023-10-27T00:00:00.000Z") },
@@ -124,7 +128,10 @@ Last line`;
     });
 
     it("should return fallback message when no memories", () => {
-      const { formatMemoriesForPrompt } = makeMemoryDomain({ db: {} as Database });
+      const { formatMemoriesForPrompt } = makeMemoryDomain({
+        config: {} as AppConfig,
+        db: {} as Database,
+      });
       expect(formatMemoriesForPrompt([])).toBe("No stored memories are available.");
     });
   });
@@ -139,7 +146,7 @@ Last line`;
 
     beforeEach(async () => {
       await harness.reset();
-      memoryDomain = makeMemoryDomain({ db: harness.db });
+      memoryDomain = makeMemoryDomain({ config: {} as AppConfig, db: harness.db });
     });
 
     afterAll(async () => {
@@ -169,7 +176,7 @@ Last line`;
 
     describe("getRelevantMemories", () => {
       it("should return memories for current week plus undated", async () => {
-        const today = DateTime.now().setZone("America/New_York").startOf("day");
+        const today = DateTime.now().setZone("America/Los_Angeles").startOf("day");
         const todayStr = today.toFormat("yyyy-MM-dd");
         const tomorrowStr = today.plus({ days: 1 }).toFormat("yyyy-MM-dd");
 
