@@ -1,4 +1,10 @@
-import { Bot, Context, Filter, webhookCallback as telegramWebhookCallback } from "grammy";
+import {
+  Bot,
+  type CommandContext,
+  Context,
+  Filter,
+  webhookCallback as telegramWebhookCallback,
+} from "grammy";
 import { ResultAsync } from "neverthrow";
 import * as R from "@remeda/remeda";
 import { match } from "ts-pattern";
@@ -6,7 +12,7 @@ import type { Plugin } from "../../types/index.ts";
 import type { AppConfig } from "../../services/config.ts";
 import type { LLMService } from "../../services/llm.ts";
 import type { MemoryDomain } from "../../domains/memory/index.ts";
-import { APOLOGY, makeSystemPrompt } from "./prompt.ts";
+import { APOLOGY, makeIntakePrompt, makeSystemPrompt } from "./prompt.ts";
 import type { MessagesDomain } from "../../domains/messages/index.ts";
 import { type AppError, telegramError } from "../../errors.ts";
 
@@ -27,126 +33,173 @@ type MessageContext = {
   messageText: string;
 };
 
-const extractContext = (ctx: Filter<Context, "message">): MessageContext => ({
+const extractContext = (
+  ctx: Filter<Context, "message"> | CommandContext<Context>,
+): MessageContext => ({
   // note that for 1:1 chats, the chatId is the same as the senderId and will not change
   // for group chats, the chatId will be the groupId and will not change
   chatId: ctx.chat.id.toString(),
-  senderId: ctx.message.from.id.toString(),
-  senderName: ctx.message.from.username || ctx.message.from.first_name || "Sir/Madam",
-  messageText: ctx.message.text || "",
+  senderId: ctx.message!.from.id.toString(),
+  senderName: ctx.message!.from.username || ctx.message!.from.first_name || "Sir/Madam",
+  messageText: ctx.message!.text || "",
 });
 
-export const makeBot = (
-  { config, llm, memory, messages }: BotDeps,
+const makeReply = (ctx: Context) => (text: string) =>
+  ResultAsync.fromPromise(ctx.reply(text), telegramError("Failed to send reply"));
+
+const handleBotError = (
+  error: AppError,
+  reply: (text: string) => ResultAsync<unknown, AppError>,
 ) => {
+  console.error(`[${error.type}] ${error.message}`, error.cause);
+  const errorMessage = match(error.type)
+    .with("db", () => "I am having trouble accessing my records at the moment.")
+    .with("llm", () => "I am experiencing some difficulty processing your request.")
+    .with("telegram", () => "I am unable to deliver my response properly.")
+    .with("validation", () => "I seem to have misunderstood something in your message.")
+    .with("unexpected", () => "Something quite unexpected has occurred.")
+    .exhaustive();
+  reply(`${APOLOGY} ${errorMessage}`);
+};
+
+export const makeBot = ({ config }: { config: AppConfig }) => {
   if (!config.TELEGRAM_BOT_TOKEN) {
     throw new Error("TELEGRAM_BOT_TOKEN is not set");
   }
-  const bot = new Bot(config.TELEGRAM_BOT_TOKEN);
+  return new Bot(config.TELEGRAM_BOT_TOKEN);
+};
 
-  const handleMessage = async (ctx: Filter<Context, "message">) => {
-    const msgCtx = extractContext(ctx);
+const handleStartCommand = async (
+  ctx: CommandContext<Context>,
+  { messages }: BotDeps,
+) => {
+  const msgCtx = extractContext(ctx);
+  const welcomeMessage =
+    "Good day. I am Noelle, at your service. I shall make note of any important matters you wish me to remember and will ensure they are properly attended to at the appropriate time. If I may, I would like to ask you a few questions to understand how I can better serve you and your household.";
 
-    console.log("received:", msgCtx.messageText.slice(0, 100) + "...");
+  const reply = makeReply(ctx);
 
-    // If the message is a /start command, introduce the bot
-    // if (messageText === "/start") {
-    //   const introMessage =
-    //     "Good day. I am Mr. Stevens, at your service. I shall make note of any important matters you wish me to remember and will ensure they're properly attended to at the appropriate time. If I may, I would like to ask you a few questions to understand how I can better serve you and your household.";
-    //   await ctx.reply(introMessage);
+  const result = await reply(welcomeMessage).andThen(() =>
+    messages.storeChatMessage({
+      chatId: msgCtx.chatId,
+      senderId: BOT_SENDER_ID,
+      senderName: BOT_SENDER_NAME,
+      message: welcomeMessage,
+      isBot: true,
+    })
+  );
 
-    //   // Store the bot's response in chat history
-    //   await storeChatMessage(
-    //     chatId,
-    //     BOT_SENDER_ID,
-    //     BOT_SENDER_NAME,
-    //     introMessage,
-    //     true,
-    //   );
-    //   return;
-    // }
+  result.match(
+    () => {},
+    (error) => handleBotError(error, reply),
+  );
+};
 
-    // If it's another command, ignore it
-    if (msgCtx.messageText.startsWith("/")) {
-      return;
-    }
+const handleHelpCommand = async (
+  ctx: CommandContext<Context>,
+  { messages }: BotDeps,
+) => {
+  const msgCtx = extractContext(ctx);
+  const helpMessage =
+    "I am your personal assistant who remembers important information for you. Simply tell me things you would like me to remember, and I will keep them organized for future reference.\n\nAvailable commands:\n/start - Introduction and initial setup\n/help - Show this help message";
 
-    const reply = (text: string) =>
-      ResultAsync.fromPromise(ctx.reply(text), telegramError("Failed to send reply"));
+  const reply = makeReply(ctx);
 
-    const result = await messages
-      .storeChatMessage({
-        chatId: msgCtx.chatId,
-        senderId: msgCtx.senderId,
-        senderName: msgCtx.senderName,
-        message: msgCtx.messageText,
-        isBot: false,
-      })
-      .andThen(() =>
-        // Retrieve chat history for this chat, which now includes the current message we just stored.
-        // by default, we'll get the last 50 messages.
-        ResultAsync.combine([
-          memory.getAllMemories(),
-          messages.getChatHistory({ chatId: msgCtx.chatId }),
-        ])
-      )
-      .andTee(([memories, history]) => {
-        console.log("memories:", memories);
-        // console.log("chat history:", history);
-      })
-      .map(([memories, history]) => ({
-        systemPrompt: makeSystemPrompt(memory.formatMemoriesForPrompt(memories)),
+  const result = await reply(helpMessage).andThen(() =>
+    messages.storeChatMessage({
+      chatId: msgCtx.chatId,
+      senderId: BOT_SENDER_ID,
+      senderName: BOT_SENDER_NAME,
+      message: helpMessage,
+      isBot: true,
+    })
+  );
+
+  result.match(
+    () => {},
+    (error) => handleBotError(error, reply),
+  );
+};
+
+const handleMessage = async (
+  ctx: Filter<Context, "message">,
+  { config, llm, memory, messages }: BotDeps,
+) => {
+  const msgCtx = extractContext(ctx);
+
+  console.log("received:", msgCtx.messageText.slice(0, 100) + "...");
+
+  if (msgCtx.messageText.startsWith("/")) {
+    return;
+  }
+
+  const reply = makeReply(ctx);
+
+  const result = await messages
+    .storeChatMessage({
+      chatId: msgCtx.chatId,
+      senderId: msgCtx.senderId,
+      senderName: msgCtx.senderName,
+      message: msgCtx.messageText,
+      isBot: false,
+    })
+    .andThen(() =>
+      ResultAsync.combine([
+        memory.getAllMemories(),
+        messages.getChatHistory({ chatId: msgCtx.chatId }),
+      ])
+    )
+    .andTee(([memories, history]) => {
+      console.log("memories:", memories);
+    })
+    .map(([memories, history]) => {
+      const formattedMemories = memory.formatMemoriesForPrompt(memories);
+      const basePrompt = makeSystemPrompt(formattedMemories);
+      const systemPrompt = memories.length < 25
+        ? `${basePrompt}\n\n${makeIntakePrompt()}`
+        : basePrompt;
+
+      return {
+        systemPrompt,
         llmMessages: R.isEmpty(history) ? [] : messages.mapToLLM(history),
-      }))
-      .andThen(({ systemPrompt, llmMessages }) =>
-        llm.generateText({ messages: llmMessages, systemPrompt })
+      };
+    })
+    .andThen(({ systemPrompt, llmMessages }) =>
+      llm.generateText({ messages: llmMessages, systemPrompt })
+    )
+    .andThen((llmResponse) => {
+      const analysisResult = memory.extractMemories(llmResponse);
+      return analysisResult.asyncAndThen((analysis) => {
+        const response = config.LOG_LEVEL === "debug" ? llmResponse : analysis.response;
+        return memory.updateMemories(analysis).map(() => response);
+      });
+    })
+    .andThen((response) =>
+      reply(response).andThen(() =>
+        messages.storeChatMessage({
+          chatId: msgCtx.chatId,
+          senderId: BOT_SENDER_ID,
+          senderName: BOT_SENDER_NAME,
+          message: response,
+          isBot: true,
+        })
       )
-      .andThen((llmResponse) => {
-        const analysisResult = memory.extractMemories(llmResponse);
-        return analysisResult.asyncAndThen((analysis) => {
-          // don't strip tags if we are debugging
-          const response = config.LOG_LEVEL === "debug" ? llmResponse : analysis.response;
-          return memory.updateMemories(analysis).map(() => response);
-        });
-      })
-      .andThen((response) =>
-        reply(response).andThen(() =>
-          messages.storeChatMessage({
-            chatId: msgCtx.chatId,
-            senderId: BOT_SENDER_ID,
-            senderName: BOT_SENDER_NAME,
-            message: response,
-            isBot: true,
-          })
-        )
-      );
-
-    result.match(
-      () => {},
-      (error: AppError) => {
-        console.error(`[${error.type}] ${error.message}`, error.cause);
-        const errorMessage = match(error.type)
-          .with("db", () => "I am having trouble accessing my records at the moment.")
-          .with("llm", () => "I am experiencing some difficulty processing your request.")
-          .with("telegram", () => "I am unable to deliver my response properly.")
-          .with("validation", () => "I seem to have misunderstood something in your message.")
-          .with("unexpected", () => "Something quite unexpected has occurred.")
-          .exhaustive();
-        reply(`${APOLOGY} ${errorMessage}`);
-      },
     );
-  };
 
-  bot.on("message", handleMessage);
-
-  return bot;
+  result.match(
+    () => {},
+    (error) => handleBotError(error, reply),
+  );
 };
 
 export const telegramPlugin: Plugin = {
   name: "telegram",
   init: (app, container) => {
-    const { config, llm, memory, messages } = container;
-    const bot = makeBot({ config, llm, memory, messages });
+    const bot = makeBot({ config: container.config });
+
+    bot.command("start", (ctx) => handleStartCommand(ctx, container));
+    bot.command("help", (ctx) => handleHelpCommand(ctx, container));
+    bot.on("message", (ctx) => handleMessage(ctx, container));
 
     // https://grammy.dev/guide/deployment-types
     app.use("/webhook/telegram", telegramWebhookCallback(bot, "hono"));

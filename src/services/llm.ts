@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { ResultAsync } from "neverthrow";
 import { match, P } from "ts-pattern";
+import * as R from "@remeda/remeda";
 import type { AppConfig } from "./config.ts";
 import { type AppError, llmError } from "../errors.ts";
 
@@ -55,7 +56,7 @@ export const generateText = ({ config, anthropic, systemPrompt }: LlmDeps) =>
   ResultAsync.fromPromise(
     anthropic.messages.create({
       model: config.ANTHROPIC_MODEL,
-      max_tokens: 4196,
+      max_tokens: config.ANTHROPIC_MAX_TOKENS,
       thinking: { type: "disabled" },
       temperature: 0.7,
       messages,
@@ -75,6 +76,11 @@ export const generateText = ({ config, anthropic, systemPrompt }: LlmDeps) =>
       cost: estimateCost(config.ANTHROPIC_MODEL, response.usage),
     });
 
+    if (R.isEmpty(response.content) && response.usage.input_tokens >= config.ANTHROPIC_MAX_TOKENS) {
+      console.warn("LLM input tokens exceeded max", response.usage);
+      return "I'm sorry, but this is a lot to take in. Please try again with a shorter message.";
+    }
+
     const content = response.content[0];
 
     return match(content)
@@ -92,7 +98,7 @@ export const generateText = ({ config, anthropic, systemPrompt }: LlmDeps) =>
         (code) => `Search failed: ${code}`,
       )
       .otherwise(() => {
-        console.warn("LLM returned unexpected content", content);
+        console.warn("LLM returned unexpected content", JSON.stringify(response, null, 2));
         return "I'm sorry, but I didn't quite catch your request.";
       });
   });
