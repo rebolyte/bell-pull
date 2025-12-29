@@ -65,7 +65,7 @@ const formatMemoriesForPrompt = (memories: Memory[]) => {
   const [dated, undated] = R.partition(memories, (m) => m.date !== null);
 
   const formatDated = (m: Memory) =>
-    `- ${DateTime.fromJSDate(m.date!).toFormat("yyyy-MM-dd")} [ID: ${m.id}]: ${m.text}`;
+    `- ${DateTime.fromJSDate(m.date!, { zone: "utc" }).toFormat("yyyy-MM-dd")} [ID: ${m.id}]: ${m.text}`;
 
   const formatUndated = (m: Memory) => `- [ID: ${m.id}]: ${m.text}`;
 
