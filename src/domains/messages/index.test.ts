@@ -6,7 +6,7 @@ import { makeMessagesDomain, MessagesDomain } from "./index.ts";
 describe("Messages Domain", () => {
   const harness = useHarness();
   let messagesDomain: MessagesDomain;
-  const logger = { info: () => {}, error: () => {}, warn: () => {}, debug: () => {} } as any;
+  const log = { info: () => {}, error: () => {}, warn: () => {}, debug: () => {} } as any;
   const config = { port: 3000, host: "0.0.0.0", env: "development" } as any;
 
   beforeAll(async () => {
@@ -15,7 +15,7 @@ describe("Messages Domain", () => {
 
   beforeEach(async () => {
     await harness.reset();
-    messagesDomain = makeMessagesDomain({ db: harness.db, logger, config });
+    messagesDomain = makeMessagesDomain({ db: harness.db, log, config });
   });
 
   afterAll(async () => {

@@ -13,10 +13,10 @@ export const bootstrap = (svcs: Services): Container => {
 
   // we could also just pass entire ctx god object down but this is explicit
   // and domains can't accidentally reference dependencies at runtime
-  const { config, db, logger } = svcs;
+  const { config, db, log } = svcs;
 
   // order matters here if domains reference each other
-  context.messages = makeMessagesDomain({ config, db, logger });
+  context.messages = makeMessagesDomain({ config, db, log });
   context.memory = makeMemoryDomain({ config, db });
 
   return context;
@@ -28,7 +28,7 @@ export const makeContainer = (overrides: Partial<Services> = {}) => {
   const svcs: Services = {
     config,
     db: overrides.db ?? createDatabase(config.DATABASE_PATH),
-    logger: overrides.logger ?? makeLogger(),
+    log: overrides.log ?? makeLogger(),
     llm: overrides.llm ?? makeLlmService(config),
   };
 

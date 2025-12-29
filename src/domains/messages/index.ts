@@ -12,13 +12,13 @@ import type { Database } from "../../services/database.ts";
 import type { Logger } from "../../services/logger.ts";
 import type { LLMMessageParam } from "../../services/llm.ts";
 
-type MessagesDeps = { config: AppConfig; db: Database; logger: Logger };
+type MessagesDeps = { config: AppConfig; db: Database; log: Logger };
 
-const storeChatMessage = ({ db, logger }: MessagesDeps) =>
+const storeChatMessage = ({ db, log }: MessagesDeps) =>
 (
   input: CreateMessageInput,
 ) => {
-  logger.info("Storing chat message...");
+  log.info("Storing chat message...");
 
   return parseMessageInput(input)
     .asyncAndThen((parsed) =>

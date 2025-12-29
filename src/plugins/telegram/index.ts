@@ -15,6 +15,7 @@ import type { MemoryDomain } from "../../domains/memory/index.ts";
 import { APOLOGY, makeIntakePrompt, makeSystemPrompt } from "./prompt.ts";
 import type { MessagesDomain } from "../../domains/messages/index.ts";
 import { type AppError, telegramError } from "../../errors.ts";
+import { sendDailyBriefing } from "./briefing.ts";
 
 export const BOT_SENDER_ID = "MechMaidBot";
 export const BOT_SENDER_NAME = "Noelle";
@@ -44,8 +45,13 @@ const extractContext = (
   messageText: ctx.message!.text || "",
 });
 
+// Telegram supports Markdown V2, but it's more restrictive than regular Markdown
+// For simplicity, we'll use the content as is, which should work with basic formatting
 const makeReply = (ctx: Context) => (text: string) =>
-  ResultAsync.fromPromise(ctx.reply(text), telegramError("Failed to send reply"));
+  ResultAsync.fromPromise(
+    ctx.reply(text, { parse_mode: "Markdown" }),
+    telegramError("Failed to send reply"),
+  );
 
 const handleBotError = (
   error: AppError,
@@ -170,6 +176,7 @@ const handleMessage = async (
     .andThen((llmResponse) => {
       const analysisResult = memory.extractMemories(llmResponse);
       return analysisResult.asyncAndThen((analysis) => {
+        // don't strip tags if we are debugging
         const response = config.LOG_LEVEL === "debug" ? llmResponse : analysis.response;
         return memory.updateMemories(analysis).map(() => response);
       });
@@ -205,9 +212,11 @@ export const telegramPlugin: Plugin = {
     app.use("/webhook/telegram", telegramWebhookCallback(bot, "hono"));
   },
   cronJobs: [{
+    name: "telegram-send-daily-briefing",
     schedule: "0 9 * * *",
-    run: async () => {
-      console.log("sending daily brief to Telegram...");
+    run: (container) => {
+      const bot = makeBot({ config: container.config });
+      return sendDailyBriefing(bot, container);
     },
   }],
 };

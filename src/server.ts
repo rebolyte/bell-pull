@@ -1,11 +1,11 @@
 import { Hono } from "hono";
 import { logger } from "hono/logger";
 import { cors } from "hono/cors";
-import cron from "node-cron";
 import type { Container, HonoEnv, Plugin } from "./types/index.ts";
 import apiRoutes from "./routes/api.tsx";
 import { letterboxdPlugin } from "./plugins/letterboxd/index.ts";
 import { telegramPlugin } from "./plugins/telegram/index.ts";
+import { scheduleCron } from "./cron-runner.ts";
 
 export interface ServerOptions {
   enableCrons?: boolean;
@@ -24,17 +24,14 @@ export const makeServer = (container: Container, opts: ServerOptions = { enableC
 
   const plugins: Plugin[] = [telegramPlugin, letterboxdPlugin];
 
-  // 2. Register Crons
-  plugins.forEach((p) => {
-    p.init?.(app, container);
+  const enableCrons = opts.enableCrons !== false;
 
-    if (opts.enableCrons && p.cronJobs) {
-      p.cronJobs.forEach((job) => {
-        cron.schedule(job.schedule, async () => {
-          console.log(`Running ${p.name} job...`);
-          await job.run();
-        });
-      });
+  // 2. Register Crons
+  plugins.forEach(({ init, cronJobs }) => {
+    init?.(app, container);
+
+    if (enableCrons && Array.isArray(cronJobs)) {
+      cronJobs.forEach((job) => scheduleCron(job, container));
     }
   });
 
