@@ -1,9 +1,21 @@
 import { ResultAsync } from "neverthrow";
-import type { Api, CommandContext, Context, Filter } from "grammy";
+import { type Api, Bot, type CommandContext, type Context, type Filter } from "grammy";
 import type { MessagesDomain } from "../../domains/messages/index.ts";
-import { BOT_SENDER_ID, BOT_SENDER_NAME } from "./index.ts";
-import { AppError, appError, telegramError } from "../../errors.ts";
+import { AppError, appError, telegramError, toAppError } from "../../errors.ts";
 import { chunkByLines } from "../../utils/string.ts";
+import { AppConfig } from "../../services/config.ts";
+import { match } from "ts-pattern";
+import { APOLOGY } from "./prompt.ts";
+
+export const BOT_SENDER_ID = "MechMaidBot";
+export const BOT_SENDER_NAME = "Noelle";
+
+export const makeBot = ({ config }: { config: AppConfig }) => {
+  if (!config.TELEGRAM_BOT_TOKEN) {
+    throw new Error("TELEGRAM_BOT_TOKEN is not set");
+  }
+  return new Bot(config.TELEGRAM_BOT_TOKEN);
+};
 
 export type MessageContext = {
   api: Api;
@@ -25,10 +37,35 @@ export const extractContext = (
   messageText: ctx.message!.text || "",
 });
 
+export const handleBotError = (
+  error: AppError,
+  msgCtx: Pick<MessageContext, "api" | "chatId">,
+  messagesDomain: MessagesDomain,
+) => {
+  console.error(`[${error.type}] ${error.message}`, error.cause);
+
+  const errorMessage = match(error.type)
+    .with("db", () => "I am having trouble accessing my records at the moment.")
+    .with("llm", () => "I am experiencing some difficulty processing your request.")
+    .with("telegram", () => "I am unable to deliver my response properly.")
+    .with("validation", () => "I seem to have misunderstood something in your message.")
+    .with("unexpected", () => "Something quite unexpected has occurred.")
+    .exhaustive();
+
+  sendAndStoreMessage(msgCtx, `${APOLOGY} ${errorMessage}`, messagesDomain).match(
+    () => {},
+    toAppError("unexpected", "Critical: Failed to send error message to user"),
+  );
+};
+
 export const sendAndStoreMessage = (
   msgCtx: Pick<MessageContext, "api" | "chatId">,
   content: string,
   messagesDomain: MessagesDomain,
+  { senderId = BOT_SENDER_ID, senderName = BOT_SENDER_NAME }: {
+    senderId?: string;
+    senderName?: string;
+  } = {},
 ): ResultAsync<string[], AppError> => {
   // Telegram has a 4096 character limit per message, so we might need to split it
   const MAX_LENGTH = 4000;
@@ -51,8 +88,8 @@ export const sendAndStoreMessage = (
 
       const dbResult = await messagesDomain.storeChatMessage({
         chatId: msgCtx.chatId,
-        senderId: BOT_SENDER_ID,
-        senderName: BOT_SENDER_NAME,
+        senderId,
+        senderName,
         message: chunk,
         isBot: true,
       });

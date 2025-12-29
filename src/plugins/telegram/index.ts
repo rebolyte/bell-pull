@@ -1,58 +1,24 @@
 import {
-  Bot,
   type CommandContext,
   Context,
   Filter,
   webhookCallback as telegramWebhookCallback,
 } from "grammy";
 import { ResultAsync } from "neverthrow";
-import { match } from "ts-pattern";
 import type { Plugin } from "../../types/index.ts";
 import type { AppConfig } from "../../services/config.ts";
 import type { LLMService } from "../../services/llm.ts";
 import type { MemoryDomain } from "../../domains/memory/index.ts";
-import { APOLOGY, makeIntakePrompt, makeSystemPrompt } from "./prompt.ts";
+import { makeIntakePrompt, makeSystemPrompt } from "./prompt.ts";
 import type { MessagesDomain } from "../../domains/messages/index.ts";
-import { type AppError, toAppError } from "../../errors.ts";
-import { extractContext, type MessageContext, sendAndStoreMessage } from "./lib.ts";
+import { extractContext, handleBotError, makeBot, sendAndStoreMessage } from "./lib.ts";
 import { sendDailyBriefing } from "./briefing.ts";
-
-export const BOT_SENDER_ID = "MechMaidBot";
-export const BOT_SENDER_NAME = "Noelle";
 
 type BotDeps = {
   config: AppConfig;
   llm: LLMService;
   memory: MemoryDomain;
   messages: MessagesDomain;
-};
-
-const handleBotError = (
-  error: AppError,
-  msgCtx: Pick<MessageContext, "api" | "chatId">,
-  messagesDomain: MessagesDomain,
-) => {
-  console.error(`[${error.type}] ${error.message}`, error.cause);
-
-  const errorMessage = match(error.type)
-    .with("db", () => "I am having trouble accessing my records at the moment.")
-    .with("llm", () => "I am experiencing some difficulty processing your request.")
-    .with("telegram", () => "I am unable to deliver my response properly.")
-    .with("validation", () => "I seem to have misunderstood something in your message.")
-    .with("unexpected", () => "Something quite unexpected has occurred.")
-    .exhaustive();
-
-  sendAndStoreMessage(msgCtx, `${APOLOGY} ${errorMessage}`, messagesDomain).match(
-    () => {},
-    toAppError("unexpected", "Critical: Failed to send error message to user"),
-  );
-};
-
-export const makeBot = ({ config }: { config: AppConfig }) => {
-  if (!config.TELEGRAM_BOT_TOKEN) {
-    throw new Error("TELEGRAM_BOT_TOKEN is not set");
-  }
-  return new Bot(config.TELEGRAM_BOT_TOKEN);
 };
 
 const handleStartCommand = async (
