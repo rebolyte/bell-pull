@@ -1,5 +1,18 @@
 import * as R from "@remeda/remeda";
 
+export const extractTag = (tag: string) => (text: string): string | null => {
+  const regex = new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`);
+  const match = text.match(regex);
+  return match ? match[1] : null;
+};
+
+export const stripTag = (tag: string) => (text: string): string =>
+  text.replace(new RegExp(`<${tag}>[\\s\\S]*?<\\/${tag}>`), "").trim();
+
+export const stripTags = (tags: string[]) => (text: string): string =>
+  tags.map(stripTag)
+    .reduce((text, strip) => strip(text), text);
+
 /**
  * Chunk the string by lines into segments < max length, splitting long
  * lines if needed

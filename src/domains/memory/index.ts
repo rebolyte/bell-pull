@@ -11,7 +11,7 @@ import {
   type Memory,
   parseMemory,
 } from "./schema.ts";
-import { extractTag, stripTags } from "../../utils/validate.ts";
+import { extractTag, stripTags } from "../../utils/string.ts";
 import { type AppError, dbError } from "../../errors.ts";
 import type { AppConfig } from "../../services/config.ts";
 import type { Database } from "../../services/database.ts";

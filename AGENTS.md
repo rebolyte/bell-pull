@@ -18,6 +18,7 @@ see other tasks available in mise.toml if needed.
 - Be extremely concise in all your communications and your commit messages. Sacrifice grammar for the sake of concision.
 - Do not add emojis.
 - Do not add comments in any code unless it has high cyclomatic complexity.
+- Do not remove existing comments
 
 ## FP "light" / railway programming
 

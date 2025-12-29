@@ -15,6 +15,7 @@ import type { MemoryDomain } from "../../domains/memory/index.ts";
 import { APOLOGY, makeIntakePrompt, makeSystemPrompt } from "./prompt.ts";
 import type { MessagesDomain } from "../../domains/messages/index.ts";
 import { type AppError, telegramError } from "../../errors.ts";
+import { sendAndStoreMessage } from "./lib.ts";
 import { sendDailyBriefing } from "./briefing.ts";
 
 export const BOT_SENDER_ID = "MechMaidBot";
@@ -58,6 +59,7 @@ const handleBotError = (
   reply: (text: string) => ResultAsync<unknown, AppError>,
 ) => {
   console.error(`[${error.type}] ${error.message}`, error.cause);
+
   const errorMessage = match(error.type)
     .with("db", () => "I am having trouble accessing my records at the moment.")
     .with("llm", () => "I am experiencing some difficulty processing your request.")
@@ -65,7 +67,11 @@ const handleBotError = (
     .with("validation", () => "I seem to have misunderstood something in your message.")
     .with("unexpected", () => "Something quite unexpected has occurred.")
     .exhaustive();
-  reply(`${APOLOGY} ${errorMessage}`);
+
+  reply(`${APOLOGY} ${errorMessage}`).match(
+    () => {},
+    (err) => console.error("Critical: Failed to send error message to user", err),
+  );
 };
 
 export const makeBot = ({ config }: { config: AppConfig }) => {
@@ -158,40 +164,26 @@ const handleMessage = async (
     .andTee(([memories, history]) => {
       console.log("memories:", memories);
     })
-    .map(([memories, history]) => {
+    .andThen(([memories, history]) => {
       const formattedMemories = memory.formatMemoriesForPrompt(memories);
-      const basePrompt = makeSystemPrompt(config, formattedMemories);
       const systemPrompt = memories.length < 25
-        ? `${basePrompt}\n\n${makeIntakePrompt()}`
-        : basePrompt;
+        ? `${makeSystemPrompt(config, formattedMemories)}\n\n${makeIntakePrompt()}`
+        : makeSystemPrompt(config, formattedMemories);
 
-      return {
+      return llm.generateText({
+        messages: messages.mapToLLM(history),
         systemPrompt,
-        llmMessages: R.isEmpty(history) ? [] : messages.mapToLLM(history),
-      };
+      });
     })
-    .andThen(({ systemPrompt, llmMessages }) =>
-      llm.generateText({ messages: llmMessages, systemPrompt })
-    )
-    .andThen((llmResponse) => {
-      const analysisResult = memory.extractMemories(llmResponse);
-      return analysisResult.asyncAndThen((analysis) => {
+    .andThen((llmResponse) =>
+      // extractMemories returns a Result; we convert to Async to keep chain consistent
+      memory.extractMemories(llmResponse).asyncAndThen((analysis) => {
         // don't strip tags if we are debugging
         const response = config.LOG_LEVEL === "debug" ? llmResponse : analysis.response;
         return memory.updateMemories(analysis).map(() => response);
-      });
-    })
-    .andThen((response) =>
-      reply(response).andThen(() =>
-        messages.storeChatMessage({
-          chatId: msgCtx.chatId,
-          senderId: BOT_SENDER_ID,
-          senderName: BOT_SENDER_NAME,
-          message: response,
-          isBot: true,
-        })
-      )
-    );
+      })
+    )
+    .andThen((response) => sendAndStoreMessage(ctx.api, msgCtx.chatId, response, messages));
 
   result.match(
     () => {},

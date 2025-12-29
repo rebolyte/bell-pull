@@ -1,16 +1,14 @@
 import { DateTime } from "luxon";
 import { errAsync, ResultAsync } from "neverthrow";
-import * as R from "@remeda/remeda";
+import type { MessagesDomain } from "../../domains/messages/index.ts";
 import type { Bot } from "grammy";
+import { sendAndStoreMessage } from "./lib.ts";
 import type { AppConfig } from "../../services/config.ts";
 import type { LLMService } from "../../services/llm.ts";
 import type { MemoryDomain } from "../../domains/memory/index.ts";
-import type { MessagesDomain } from "../../domains/messages/index.ts";
 import { backstory, makeBriefingPrompt } from "./prompt.ts";
-import { BOT_SENDER_ID, BOT_SENDER_NAME } from "./index.ts";
-import { AppError, appError, telegramError } from "../../errors.ts";
+import { AppError, appError } from "../../errors.ts";
 import { Memory } from "../../domains/memory/schema.ts";
-import { chunkByLines } from "../../utils/string.ts";
 
 type BriefingDeps = {
   config: AppConfig;
@@ -41,47 +39,6 @@ const generateBriefingContent = (
   });
 };
 
-const sendTelegramMessage = (
-  bot: Bot,
-  chatId: string,
-  content: string,
-  messages: MessagesDomain,
-): ResultAsync<string[], AppError> => {
-  const MAX_LENGTH = 4000;
-
-  const chunks = chunkByLines(MAX_LENGTH, content);
-
-  return ResultAsync.fromPromise(
-    chunks.reduce(async (prevP, chunk) => {
-      await prevP;
-
-      const msgResult = await ResultAsync.fromPromise(
-        bot.api.sendMessage(chatId, chunk, { parse_mode: "Markdown" }),
-        telegramError("Failed to send message chunk"),
-      );
-
-      if (msgResult.isErr()) {
-        throw msgResult.error;
-      }
-
-      const dbResult = await messages.storeChatMessage({
-        chatId,
-        senderId: BOT_SENDER_ID,
-        senderName: BOT_SENDER_NAME,
-        message: chunk,
-        isBot: true,
-      });
-
-      if (dbResult.isErr()) {
-        throw dbResult.error;
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 500));
-    }, Promise.resolve()),
-    (e) => e instanceof AppError ? e : appError("telegram", "Failed to send message in chunks", e),
-  ).map(() => chunks);
-};
-
 export const sendDailyBriefing = (
   bot: Bot,
   deps: BriefingDeps,
@@ -95,8 +52,9 @@ export const sendDailyBriefing = (
     return errAsync(appError("validation", "No chat ID provided or configured"));
   }
 
+  // TODO get relevant memories
   return deps.memory
     .getAllMemories()
     .andThen((memories) => generateBriefingContent(deps, memories, finalToday))
-    .andThen((content) => sendTelegramMessage(bot, finalChatId, content, deps.messages));
+    .andThen((content) => sendAndStoreMessage(bot.api, finalChatId, content, deps.messages));
 };
