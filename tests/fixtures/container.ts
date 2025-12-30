@@ -1,12 +1,22 @@
 import type Anthropic from "@anthropic-ai/sdk";
+import type { Context, Filter } from "grammy";
 import { createTestDb } from "../../src/utils/harness.ts";
-import { bootstrap, type Services } from "../../src/container.ts";
-import type { Container } from "../../src/types/index.ts";
+import { bootstrap } from "../../src/container.ts";
+import type { Container, Services } from "../../src/types/index.ts";
 import type { Database } from "../../src/services/database.ts";
 import type { AppConfig } from "../../src/services/config.ts";
 import { makeLlmService } from "../../src/services/llm.ts";
+import type { BotDeps } from "../../src/plugins/telegram/index.ts";
 import { testConfig } from "./config.ts";
-import { createMockAnthropic, silentLogger, type MockAnthropicOptions } from "./mocks.ts";
+import {
+  createMockAnthropic,
+  createMockGrammyContext,
+  createMockTelegramApi,
+  type MockAnthropicOptions,
+  type MockGrammyContextOptions,
+  type MockTelegramApi,
+  silentLogger,
+} from "./mocks.ts";
 
 export type TestContainerOptions = {
   config?: Partial<AppConfig>;
@@ -14,18 +24,22 @@ export type TestContainerOptions = {
   anthropic?: MockAnthropicOptions;
 };
 
-export type TestContainer = {
+export type TestHarness = {
   container: Container;
   mockAnthropic: ReturnType<typeof createMockAnthropic>;
+  mockApi: MockTelegramApi;
+  deps: BotDeps;
+  createCtx: (opts?: MockGrammyContextOptions) => Filter<Context, "message">;
   cleanup: () => Promise<void>;
 };
 
-export const createTestContainer = async (
+export const createTestHarness = async (
   opts: TestContainerOptions = {},
-): Promise<TestContainer> => {
+): Promise<TestHarness> => {
   const db = opts.db ?? await createTestDb();
   const config = { ...testConfig, ...opts.config };
   const mockAnthropic = createMockAnthropic(opts.anthropic);
+  const mockApi = createMockTelegramApi();
 
   const services: Services = {
     config,
@@ -36,11 +50,20 @@ export const createTestContainer = async (
 
   const container = bootstrap(services);
 
+  const deps: BotDeps = {
+    config: container.config,
+    llm: container.llm,
+    memory: container.memory,
+    messages: container.messages,
+  };
+
   return {
     container,
     mockAnthropic,
-    cleanup: async () => {
-      await db.destroy();
-    },
+    mockApi,
+    deps,
+    createCtx: (ctxOpts) =>
+      createMockGrammyContext(mockApi, ctxOpts) as unknown as Filter<Context, "message">,
+    cleanup: () => db.destroy(),
   };
 };
