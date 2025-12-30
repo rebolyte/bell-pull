@@ -14,7 +14,7 @@ import type { MessagesDomain } from "../../domains/messages/index.ts";
 import { extractContext, handleBotError, makeBot, sendAndStoreMessage } from "./lib.ts";
 import { sendDailyBriefing } from "./briefing.ts";
 
-type BotDeps = {
+export type BotDeps = {
   config: AppConfig;
   llm: LLMService;
   memory: MemoryDomain;
@@ -53,7 +53,7 @@ const handleHelpCommand = async (
   );
 };
 
-const handleMessage = async (
+export const handleMessage = async (
   ctx: Filter<Context, "message">,
   { config, llm, memory, messages: messagesDomain }: BotDeps,
 ) => {
