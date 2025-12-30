@@ -70,3 +70,35 @@ export const silentLogger = {
   warn: () => {},
   debug: () => {},
 };
+
+export type MockGrammyContextOptions = {
+  chatId?: number;
+  userId?: number;
+  username?: string;
+  firstName?: string;
+  text?: string;
+};
+
+export const createMockGrammyContext = (
+  mockApi: MockTelegramApi,
+  opts: MockGrammyContextOptions = {},
+) => {
+  const chatId = opts.chatId ?? 123;
+  const userId = opts.userId ?? 456;
+
+  return {
+    chat: { id: chatId, type: "private" },
+    message: {
+      message_id: 1,
+      date: Math.floor(Date.now() / 1000),
+      from: {
+        id: userId,
+        is_bot: false,
+        username: opts.username,
+        first_name: opts.firstName ?? "TestUser",
+      },
+      text: opts.text ?? "Hello",
+    },
+    api: mockApi,
+  };
+};
