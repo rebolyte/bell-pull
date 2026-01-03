@@ -10,12 +10,8 @@ import { APOLOGY } from "./prompt.ts";
 export const BOT_SENDER_ID = "MechMaidBot";
 export const BOT_SENDER_NAME = "Noelle";
 
-export const makeBot = ({ config }: { config: AppConfig }) => {
-  if (!config.TELEGRAM_BOT_TOKEN) {
-    throw new Error("TELEGRAM_BOT_TOKEN is not set");
-  }
-  return new Bot(config.TELEGRAM_BOT_TOKEN);
-};
+export const makeBot = ({ config }: { config: AppConfig }) =>
+  new Bot(config.TELEGRAM_BOT_TOKEN);
 
 export type MessageContext = {
   api: Api;

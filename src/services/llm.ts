@@ -114,9 +114,6 @@ export const makeLlmService = (
   config: AppConfig,
   opts: { anthropic?: Anthropic; systemPrompt?: string } = {},
 ) => {
-  if (!config.ANTHROPIC_API_KEY) {
-    throw new Error("ANTHROPIC_API_KEY is not set");
-  }
   const deps: LlmDeps = {
     config,
     anthropic: opts.anthropic ?? new Anthropic({ apiKey: config.ANTHROPIC_API_KEY }),
