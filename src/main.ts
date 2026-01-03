@@ -8,15 +8,17 @@ export interface RunOptions extends ServerOptions {
   signal?: AbortSignal;
 }
 
-export const run = (opts: RunOptions = {}) => {
-  const container = opts.container ?? makeContainer();
+export const run = async (opts: RunOptions = {}) => {
+  const container = opts.container ?? await makeContainer();
   const server = makeServer(container, opts);
+
+  const { log } = container;
 
   return Deno.serve({
     port: opts.port !== undefined ? opts.port : container.config.PORT,
     signal: opts.signal,
     onListen: ({ port, hostname }) => {
-      console.log(`listening on http://${hostname}:${port}`);
+      log.info(`listening on http://${hostname}:${port}`);
     },
   }, server.fetch);
 };

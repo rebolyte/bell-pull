@@ -1,6 +1,9 @@
 {
   "imports": {
     "@anthropic-ai/sdk": "npm:@anthropic-ai/sdk@^0.70.1",
+    "@logtape/hono": "jsr:@logtape/hono@^1.3.5",
+    "@logtape/logtape": "jsr:@logtape/logtape@^1.3.5",
+    "@logtape/pretty": "jsr:@logtape/pretty@^1.3.5",
     "@remeda/remeda": "jsr:@remeda/remeda@^2.32.0",
     "@std/cli": "jsr:@std/cli@^1.0.6",
     "@std/expect": "jsr:@std/expect@^1.0.17",

@@ -3,7 +3,7 @@ import { makeMessagesDomain } from "./domains/messages/index.ts";
 import { makeMemoryDomain } from "./domains/memory/index.ts";
 import { createDatabase } from "./services/database.ts";
 import { makeLogger } from "./services/logger.ts";
-import { createConfig, type AppConfig } from "./services/config.ts";
+import { type AppConfig, createConfig } from "./services/config.ts";
 import { makeLlmService } from "./services/llm.ts";
 
 export const bootstrap = (svcs: Services): Container => {
@@ -22,7 +22,7 @@ export const bootstrap = (svcs: Services): Container => {
   return context;
 };
 
-export const makeContainer = (
+export const makeContainer = async (
   overrides?: Omit<Partial<Services>, "config"> & { config?: Partial<AppConfig> },
 ) => {
   const config = createConfig(overrides?.config);
@@ -30,7 +30,7 @@ export const makeContainer = (
   const svcs: Services = {
     config,
     db: overrides?.db ?? createDatabase(config.DATABASE_PATH),
-    log: overrides?.log ?? makeLogger(),
+    log: overrides?.log ?? await makeLogger(config),
     llm: overrides?.llm ?? makeLlmService(config),
   };
 

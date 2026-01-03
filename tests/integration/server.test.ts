@@ -8,7 +8,7 @@ Deno.test("Integration Test: Server Lifecycle", async (t) => {
   const db = await createTestDb();
 
   // 2. Setup Container
-  const container = makeContainer({
+  const container = await makeContainer({
     db,
     config: {
       TELEGRAM_BOT_TOKEN: "test-token",
@@ -19,7 +19,7 @@ Deno.test("Integration Test: Server Lifecycle", async (t) => {
 
   // 3. Start Server
   const abortController = new AbortController();
-  const server = run({
+  const server = await run({
     port: 0,
     container,
     signal: abortController.signal,

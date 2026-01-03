@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { logger } from "hono/logger";
+import { honoLogger } from "@logtape/hono";
 import { cors } from "hono/cors";
 import type { Container, HonoEnv, Plugin } from "./types/index.ts";
 import apiRoutes from "./routes/api.tsx";
@@ -15,7 +15,9 @@ export const makeServer = (container: Container, opts: ServerOptions = { enableC
   const app = new Hono<HonoEnv>();
 
   // Middleware
-  app.use("*", logger());
+  app.use(honoLogger({
+    category: ["app", "hono"],
+  }));
   app.use("*", cors());
   app.use("*", async (c, next) => {
     c.set("container", container);

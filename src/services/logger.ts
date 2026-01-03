@@ -1,11 +1,38 @@
-export type Logger = {
-  info: (msg: string) => void;
-  error: (msg: string, cause?: unknown) => void;
-  warn: (msg: string) => void;
-};
+import {
+  configure,
+  getConsoleSink,
+  getJsonLinesFormatter,
+  getLogger,
+  type Logger as LogtapeLogger,
+  type LogLevel,
+} from "@logtape/logtape";
+import { getPrettyFormatter } from "@logtape/pretty";
+import { AppConfig } from "./config.ts";
 
-export const makeLogger = (): Logger => ({
-  info: (msg) => console.log(msg),
-  error: (msg, cause) => console.error(msg, cause),
-  warn: (msg) => console.warn(msg),
-});
+export type Logger = LogtapeLogger;
+export type { LogLevel };
+
+export const makeLogger = async (config: AppConfig): Promise<Logger> => {
+  const { ENV, LOG_LEVEL } = config;
+
+  const pretty = getPrettyFormatter({
+    properties: true,
+    icons: false,
+  });
+
+  const jsonl = getJsonLinesFormatter();
+
+  await configure({
+    sinks: {
+      console: getConsoleSink({
+        formatter: ENV === "development" ? pretty : jsonl,
+      }),
+    },
+    loggers: [
+      { category: ["app", "server"], sinks: ["console"], lowestLevel: LOG_LEVEL },
+      { category: ["app", "hono"], sinks: ["console"], lowestLevel: LOG_LEVEL },
+    ],
+  });
+
+  return getLogger(["app", "server"]);
+};

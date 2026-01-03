@@ -1,10 +1,20 @@
 import { z } from "@zod/zod";
+import type { LogLevel } from "./logger.ts";
+
+const logLevels: readonly LogLevel[] = [
+  "trace",
+  "debug",
+  "info",
+  "warning",
+  "error",
+  "fatal",
+];
 
 const ConfigSchema = z.object({
   PORT: z.coerce.number().default(8000),
   HOST: z.string().default("0.0.0.0"),
   ENV: z.enum(["development", "production"]).default("development"),
-  LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
+  LOG_LEVEL: z.enum(logLevels).default("info"),
   DATABASE_PATH: z.string().default("bell-pull.db"),
   TELEGRAM_BOT_TOKEN: z.string().min(1, "TELEGRAM_BOT_TOKEN required"),
   TELEGRAM_CHAT_ID: z.string().min(1, "TELEGRAM_CHAT_ID required"),
