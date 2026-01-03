@@ -84,7 +84,7 @@ export const makeServer = (container: Container, opts: ServerOptions = { enableC
 
   // Error handler
   app.onError((err, c) => {
-    console.error(`Error: ${err.message}`);
+    container.log.error`Error: ${err.message}`;
     return c.json({
       error: err.message,
     }, 500);

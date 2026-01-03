@@ -3,6 +3,7 @@ import { ResultAsync } from "neverthrow";
 import { match, P } from "ts-pattern";
 import * as R from "@remeda/remeda";
 import type { AppConfig } from "./config.ts";
+import type { Logger } from "./logger.ts";
 import { type AppError, llmError } from "../errors.ts";
 
 export type LLMMessageParam = Anthropic.MessageParam;
@@ -10,6 +11,7 @@ export type LLMMessageParam = Anthropic.MessageParam;
 type LlmDeps = {
   config: AppConfig;
   anthropic: Anthropic;
+  log: Logger;
   systemPrompt?: string;
 };
 
@@ -46,7 +48,7 @@ export const estimateCost = (
   return `$${cost.toFixed(4)}`;
 };
 
-export const generateText = ({ config, anthropic, systemPrompt }: LlmDeps) =>
+export const generateText = ({ config, anthropic, log, systemPrompt }: LlmDeps) =>
 (
   { messages, systemPrompt: systemPromptOverride }: {
     messages: LLMMessageParam[];
@@ -54,9 +56,7 @@ export const generateText = ({ config, anthropic, systemPrompt }: LlmDeps) =>
   },
 ): ResultAsync<string, AppError> => {
   if (!R.isEmpty(messages) && messages.at(-1)?.role === "assistant") {
-    console.log(
-      "[generateText] last message is from assistant, this will be used to constrain model response (see docs)",
-    );
+    log.info`[generateText] last message is from assistant, this will be used to constrain model response (see docs)`;
   }
 
   return ResultAsync.fromPromise(
@@ -73,17 +73,17 @@ export const generateText = ({ config, anthropic, systemPrompt }: LlmDeps) =>
     llmError("Claude API call failed"),
   ).map((response) => {
     if (response.stop_reason === "refusal") {
-      console.warn("LLM refused to generate text", response.content[0]);
+      log.warn`LLM refused to generate text ${{ content: response.content[0] }}`;
       return "I apologize, but I can't do that.";
     }
 
-    console.log("usage:", {
+    log.info`usage: ${{
       ...response.usage,
       cost: estimateCost(config.ANTHROPIC_MODEL, response.usage),
-    });
+    }}`;
 
     if (R.isEmpty(response.content)) {
-      console.warn("LLM returned empty content", response);
+      log.warn`LLM returned empty content ${{ response }}`;
       return "I'm sorry, but I wasn't able to generate a response. Perhaps we could try again shortly?";
     }
 
@@ -104,7 +104,7 @@ export const generateText = ({ config, anthropic, systemPrompt }: LlmDeps) =>
         (code) => `Search failed: ${code}`,
       )
       .otherwise(() => {
-        console.warn("LLM returned unexpected content", JSON.stringify(response, null, 2));
+        log.warn`LLM returned unexpected content ${{ response }}`;
         return "I'm sorry, but I didn't quite catch your request.";
       });
   });
@@ -112,11 +112,13 @@ export const generateText = ({ config, anthropic, systemPrompt }: LlmDeps) =>
 
 export const makeLlmService = (
   config: AppConfig,
+  log: Logger,
   opts: { anthropic?: Anthropic; systemPrompt?: string } = {},
 ) => {
   const deps: LlmDeps = {
     config,
     anthropic: opts.anthropic ?? new Anthropic({ apiKey: config.ANTHROPIC_API_KEY }),
+    log,
     systemPrompt: opts.systemPrompt,
   };
 

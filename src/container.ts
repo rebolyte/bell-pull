@@ -17,7 +17,7 @@ export const bootstrap = (svcs: Services): Container => {
 
   // order matters here if domains reference each other
   context.messages = makeMessagesDomain({ config, db, log });
-  context.memory = makeMemoryDomain({ config, db });
+  context.memory = makeMemoryDomain({ config, db, log });
 
   return context;
 };
@@ -26,12 +26,13 @@ export const makeContainer = async (
   overrides?: Omit<Partial<Services>, "config"> & { config?: Partial<AppConfig> },
 ) => {
   const config = createConfig(overrides?.config);
+  const log = overrides?.log ?? await makeLogger(config);
 
   const svcs: Services = {
     config,
     db: overrides?.db ?? createDatabase(config.DATABASE_PATH),
-    log: overrides?.log ?? await makeLogger(config),
-    llm: overrides?.llm ?? makeLlmService(config),
+    log,
+    llm: overrides?.llm ?? makeLlmService(config, log),
   };
 
   return bootstrap(svcs);

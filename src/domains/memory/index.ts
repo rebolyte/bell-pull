@@ -15,8 +15,9 @@ import { extractTag, stripTags } from "../../utils/string.ts";
 import { type AppError, dbError } from "../../errors.ts";
 import type { AppConfig } from "../../services/config.ts";
 import type { Database } from "../../services/database.ts";
+import type { Logger } from "../../services/logger.ts";
 
-type MemoryDeps = { config: AppConfig; db: Database };
+type MemoryDeps = { config: AppConfig; db: Database; log: Logger };
 
 const getAllMemories = ({ db }: MemoryDeps) =>
 (
@@ -111,7 +112,7 @@ const extractMemories = (
   });
 };
 
-const updateMemories = ({ db }: MemoryDeps) =>
+const updateMemories = ({ db, log }: MemoryDeps) =>
 (
   analysis: MemoryMessageAnalysis,
 ): ResultAsync<void, AppError> =>
@@ -122,9 +123,7 @@ const updateMemories = ({ db }: MemoryDeps) =>
           .insertInto("memories")
           .values(analysis.memories.map((m) => ({ date: m.date ?? null, text: m.text })))
           .execute();
-        console.log(
-          `Created ${analysis.memories.length} memories: ${JSON.stringify(analysis.memories)}`,
-        );
+        log.info`Created ${analysis.memories.length} memories: ${{ memories: analysis.memories }}`;
       }
 
       for (const memory of analysis.editMemories) {
@@ -143,11 +142,7 @@ const updateMemories = ({ db }: MemoryDeps) =>
         await query.execute();
       }
       if (!R.isEmpty(analysis.editMemories)) {
-        console.log(
-          `Edited ${analysis.editMemories.length} memories: ${
-            JSON.stringify(analysis.editMemories)
-          }`,
-        );
+        log.info`Edited ${analysis.editMemories.length} memories: ${{ editMemories: analysis.editMemories }}`;
       }
 
       if (!R.isEmpty(analysis.deleteMemories)) {
@@ -156,7 +151,7 @@ const updateMemories = ({ db }: MemoryDeps) =>
         );
         if (!R.isEmpty(ids)) {
           await db.deleteFrom("memories").where("id", "in", ids).execute();
-          console.log(`Deleted ${ids.length} memories: ${JSON.stringify(ids)}`);
+          log.info`Deleted ${ids.length} memories: ${{ ids }}`;
         }
       }
     })(),
