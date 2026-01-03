@@ -7,6 +7,7 @@ import {
 import { ResultAsync } from "neverthrow";
 import type { Plugin } from "../../types/index.ts";
 import type { AppConfig } from "../../services/config.ts";
+import type { Logger } from "../../services/logger.ts";
 import type { LLMService } from "../../services/llm.ts";
 import type { MemoryDomain } from "../../domains/memory/index.ts";
 import { makeIntakePrompt, makeSystemPrompt } from "./prompt.ts";
@@ -16,6 +17,7 @@ import { sendDailyBriefing } from "./briefing.ts";
 
 type BotDeps = {
   config: AppConfig;
+  log: Logger;
   llm: LLMService;
   memory: MemoryDomain;
   messages: MessagesDomain;
@@ -23,7 +25,7 @@ type BotDeps = {
 
 const handleStartCommand = async (
   ctx: CommandContext<Context>,
-  { messages: messagesDomain }: BotDeps,
+  { log, messages: messagesDomain }: BotDeps,
 ) => {
   const msgCtx = extractContext(ctx);
   const welcomeMessage =
@@ -33,13 +35,13 @@ const handleStartCommand = async (
 
   result.match(
     () => {},
-    (error) => handleBotError(error, msgCtx, messagesDomain),
+    (error) => handleBotError(error, msgCtx, messagesDomain, log),
   );
 };
 
 const handleHelpCommand = async (
   ctx: CommandContext<Context>,
-  { messages: messagesDomain }: BotDeps,
+  { log, messages: messagesDomain }: BotDeps,
 ) => {
   const msgCtx = extractContext(ctx);
   const helpMessage =
@@ -49,17 +51,17 @@ const handleHelpCommand = async (
 
   result.match(
     () => {},
-    (error) => handleBotError(error, msgCtx, messagesDomain),
+    (error) => handleBotError(error, msgCtx, messagesDomain, log),
   );
 };
 
 const handleMessage = async (
   ctx: Filter<Context, "message">,
-  { config, llm, memory, messages: messagesDomain }: BotDeps,
+  { config, log, llm, memory, messages: messagesDomain }: BotDeps,
 ) => {
   const msgCtx = extractContext(ctx);
 
-  console.log("received:", msgCtx.messageText.slice(0, 100) + "...");
+  log.info`received: ${msgCtx.messageText.slice(0, 100)}...`;
 
   if (msgCtx.messageText.startsWith("/")) {
     return;
@@ -80,7 +82,7 @@ const handleMessage = async (
       ])
     )
     .andTee(([memories, _history]) => {
-      console.log("memories:", memories);
+      log.debug`memories: ${{ memories }}`;
     })
     .andThen(([memories, history]) => {
       const formattedMemories = memory.formatMemoriesForPrompt(memories);
@@ -105,7 +107,7 @@ const handleMessage = async (
 
   result.match(
     () => {},
-    (error) => handleBotError(error, msgCtx, messagesDomain),
+    (error) => handleBotError(error, msgCtx, messagesDomain, log),
   );
 };
 

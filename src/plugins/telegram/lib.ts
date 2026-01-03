@@ -4,6 +4,7 @@ import type { MessagesDomain } from "../../domains/messages/index.ts";
 import { AppError, appError, telegramError, toAppError } from "../../errors.ts";
 import { chunkByLines } from "../../utils/string.ts";
 import { AppConfig } from "../../services/config.ts";
+import type { Logger } from "../../services/logger.ts";
 import { match } from "ts-pattern";
 import { APOLOGY } from "./prompt.ts";
 
@@ -37,8 +38,9 @@ export const handleBotError = (
   error: AppError,
   msgCtx: Pick<MessageContext, "api" | "chatId">,
   messagesDomain: MessagesDomain,
+  log: Logger,
 ) => {
-  console.error(`[${error.type}] ${error.message}`, error.cause);
+  log.error`[${error.type}] ${error.message} ${{ cause: error.cause }}`;
 
   const errorMessage = match(error.type)
     .with("db", () => "I am having trouble accessing my records at the moment.")
