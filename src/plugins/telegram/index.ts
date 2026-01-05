@@ -23,7 +23,7 @@ export type BotDeps = {
   messages: MessagesDomain;
 };
 
-const handleStartCommand = async (
+export const handleStartCommand = async (
   ctx: CommandContext<Context>,
   { log, messages: messagesDomain }: BotDeps,
 ) => {
@@ -39,7 +39,7 @@ const handleStartCommand = async (
   );
 };
 
-const handleHelpCommand = async (
+export const handleHelpCommand = async (
   ctx: CommandContext<Context>,
   { log, messages: messagesDomain }: BotDeps,
 ) => {

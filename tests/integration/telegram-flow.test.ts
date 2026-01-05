@@ -2,7 +2,11 @@ import { describe, it } from "@std/testing/bdd";
 import { expect } from "@std/expect";
 import { assertSpyCalls } from "@std/testing/mock";
 import { createTestHarness } from "../fixtures/container.ts";
-import { handleMessage } from "../../src/plugins/telegram/index.ts";
+import {
+  handleMessage,
+  handleHelpCommand,
+  handleStartCommand,
+} from "../../src/plugins/telegram/index.ts";
 
 describe("Telegram Message Flow", () => {
   describe("handleMessage", () => {
@@ -161,6 +165,99 @@ describe("Telegram Message Flow", () => {
 
         assertSpyCalls(h.mockApi.sendMessage, 1);
         expect(h.mockApi.sent[0].text).toContain("difficulty processing");
+      } finally {
+        await h.cleanup();
+      }
+    });
+
+    it("handles DB failure gracefully", async () => {
+      const h = await createTestHarness({
+        anthropic: { responses: ["test"] },
+      });
+
+      try {
+        await h.container.db.destroy();
+        await handleMessage(h.createCtx({ text: "Hello" }), h.deps);
+
+        assertSpyCalls(h.mockApi.sendMessage, 1);
+        expect(h.mockApi.sent[0].text).toContain("trouble accessing");
+      } finally {
+        // already destroyed
+      }
+    });
+  });
+
+  describe("handleStartCommand", () => {
+    it("sends welcome message and stores in history", async () => {
+      const h = await createTestHarness({
+        anthropic: { responses: [] },
+      });
+
+      try {
+        await handleStartCommand(h.createCtx({ text: "/start" }), h.deps);
+
+        assertSpyCalls(h.mockApi.sendMessage, 1);
+        expect(h.mockApi.sent[0].text).toContain("Good day");
+        expect(h.mockApi.sent[0].text).toContain("Noelle");
+
+        const history = (await h.container.messages.getChatHistory({ chatId: "123" }))
+          ._unsafeUnwrap();
+        expect(history).toHaveLength(1);
+        expect(history[0]).toMatchObject({ isBot: true });
+      } finally {
+        await h.cleanup();
+      }
+    });
+  });
+
+  describe("handleHelpCommand", () => {
+    it("sends help message with available commands", async () => {
+      const h = await createTestHarness({
+        anthropic: { responses: [] },
+      });
+
+      try {
+        await handleHelpCommand(h.createCtx({ text: "/help" }), h.deps);
+
+        assertSpyCalls(h.mockApi.sendMessage, 1);
+        expect(h.mockApi.sent[0].text).toContain("personal assistant");
+        expect(h.mockApi.sent[0].text).toContain("/start");
+        expect(h.mockApi.sent[0].text).toContain("/help");
+      } finally {
+        await h.cleanup();
+      }
+    });
+  });
+
+  describe("message chunking", () => {
+    it("splits long responses into multiple messages", async () => {
+      const longResponse = "A".repeat(4500);
+      const h = await createTestHarness({
+        anthropic: { responses: [longResponse] },
+      });
+
+      try {
+        await handleMessage(h.createCtx({ text: "Give me a long response" }), h.deps);
+
+        expect(h.mockApi.sent.length).toBeGreaterThan(1);
+        const totalLength = h.mockApi.sent.reduce((acc, m) => acc + m.text.length, 0);
+        expect(totalLength).toBe(longResponse.length);
+      } finally {
+        await h.cleanup();
+      }
+    });
+  });
+
+  describe("edge cases", () => {
+    it("handles empty message text", async () => {
+      const h = await createTestHarness({
+        anthropic: { responses: ["I didn't catch that."] },
+      });
+
+      try {
+        await handleMessage(h.createCtx({ text: "" }), h.deps);
+
+        assertSpyCalls(h.mockAnthropic.streamSpy, 1);
       } finally {
         await h.cleanup();
       }
