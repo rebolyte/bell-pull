@@ -49,14 +49,21 @@ export const createMockAnthropic = (opts: MockAnthropicOptions = {}) => {
   };
 };
 
+export type MockTelegramApiOptions = {
+  failWith?: Error;
+};
+
 export type MockTelegramApi = {
   sendMessage: Spy<[string, string, unknown?], Promise<{ message_id: number }>>;
   sent: Array<{ chatId: string; text: string }>;
 };
 
-export const createMockTelegramApi = (): MockTelegramApi => {
+export const createMockTelegramApi = (opts: MockTelegramApiOptions = {}): MockTelegramApi => {
   const sent: Array<{ chatId: string; text: string }> = [];
   const sendMessage = spy((chatId: string, text: string, _opts?: unknown) => {
+    if (opts.failWith) {
+      return Promise.reject(opts.failWith);
+    }
     sent.push({ chatId, text });
     return Promise.resolve({ message_id: sent.length });
   });

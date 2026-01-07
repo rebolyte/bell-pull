@@ -185,6 +185,22 @@ describe("Telegram Message Flow", () => {
         // already destroyed
       }
     });
+
+    it("handles Telegram API failure gracefully", async () => {
+      const h = await createTestHarness({
+        anthropic: { responses: ["Here is my response."] },
+        telegram: { failWith: new Error("Telegram API unavailable") },
+      });
+
+      try {
+        await handleMessage(h.createCtx({ text: "Hello" }), h.deps);
+
+        // sendMessage called twice: once for response (fails), once for error msg (also fails)
+        assertSpyCalls(h.mockApi.sendMessage, 2);
+      } finally {
+        await h.cleanup();
+      }
+    });
   });
 
   describe("handleStartCommand", () => {
@@ -230,8 +246,9 @@ describe("Telegram Message Flow", () => {
   });
 
   describe("message chunking", () => {
-    it("splits long responses into multiple messages", async () => {
-      const longResponse = "A".repeat(4500);
+    it("splits long responses into multiple messages under 4000 chars each", async () => {
+      const lines = Array.from({ length: 100 }, (_, i) => `Line ${i + 1}: ${"x".repeat(50)}`);
+      const longResponse = lines.join("\n");
       const h = await createTestHarness({
         anthropic: { responses: [longResponse] },
       });
@@ -240,8 +257,12 @@ describe("Telegram Message Flow", () => {
         await handleMessage(h.createCtx({ text: "Give me a long response" }), h.deps);
 
         expect(h.mockApi.sent.length).toBeGreaterThan(1);
-        const totalLength = h.mockApi.sent.reduce((acc, m) => acc + m.text.length, 0);
-        expect(totalLength).toBe(longResponse.length);
+        h.mockApi.sent.forEach((msg) => {
+          expect(msg.text.length).toBeLessThanOrEqual(4000);
+        });
+        const combined = h.mockApi.sent.map((m) => m.text).join("\n");
+        expect(combined).toContain("Line 1:");
+        expect(combined).toContain("Line 100:");
       } finally {
         await h.cleanup();
       }
@@ -258,6 +279,45 @@ describe("Telegram Message Flow", () => {
         await handleMessage(h.createCtx({ text: "" }), h.deps);
 
         assertSpyCalls(h.mockAnthropic.streamSpy, 1);
+        expect(h.mockApi.sent[0].text).toBe("I didn't catch that.");
+
+        const history = (await h.container.messages.getChatHistory({ chatId: "123" }))
+          ._unsafeUnwrap();
+        expect(history[0]).toMatchObject({ message: "", isBot: false });
+        expect(history[1]).toMatchObject({ message: "I didn't catch that.", isBot: true });
+      } finally {
+        await h.cleanup();
+      }
+    });
+
+    it("adds intake prompt when fewer than 25 memories", async () => {
+      const h = await createTestHarness({
+        anthropic: { responses: ["Hello!"] },
+      });
+
+      try {
+        await handleMessage(h.createCtx({ text: "Hi" }), h.deps);
+
+        const systemPrompt = h.mockAnthropic.streamSpy.calls[0].args[0].system;
+        expect(systemPrompt).toContain("intake");
+      } finally {
+        await h.cleanup();
+      }
+    });
+
+    it("omits intake prompt when 25+ memories exist", async () => {
+      const h = await createTestHarness({
+        anthropic: { responses: ["Hello!"] },
+      });
+
+      try {
+        const memories = Array.from({ length: 25 }, (_, i) => ({ text: `Memory ${i}`, date: null }));
+        await h.container.db.insertInto("memories").values(memories).execute();
+
+        await handleMessage(h.createCtx({ text: "Hi" }), h.deps);
+
+        const systemPrompt = h.mockAnthropic.streamSpy.calls[0].args[0].system as string;
+        expect(systemPrompt.toLowerCase()).not.toContain("intake");
       } finally {
         await h.cleanup();
       }

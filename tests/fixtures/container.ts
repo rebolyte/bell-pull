@@ -15,6 +15,7 @@ import {
   type MockAnthropicOptions,
   type MockGrammyContextOptions,
   type MockTelegramApi,
+  type MockTelegramApiOptions,
   silentLogger,
 } from "./mocks.ts";
 
@@ -22,6 +23,7 @@ export type TestContainerOptions = {
   config?: Partial<AppConfig>;
   db?: Database;
   anthropic?: MockAnthropicOptions;
+  telegram?: MockTelegramApiOptions;
 };
 
 export type TestHarness = {
@@ -39,7 +41,7 @@ export const createTestHarness = async (
   const db = opts.db ?? await createTestDb();
   const config = { ...testConfig, ...opts.config };
   const mockAnthropic = createMockAnthropic(opts.anthropic);
-  const mockApi = createMockTelegramApi();
+  const mockApi = createMockTelegramApi(opts.telegram);
 
   const services: Services = {
     config,
