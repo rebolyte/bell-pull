@@ -3,10 +3,22 @@ set -euo pipefail
 
 # To be run from local machine
 
-# TODO get VPS IP and SSH port from .env (don't want to commit this)
 IMAGE="ghcr.io/rebolyte/bell-pull:latest"
-VPS="user@your-vps-ip"
-SSH_PORT=22
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+if [[ ! -f "$PROJECT_ROOT/.env" ]]; then
+    echo "Error: .env file not found at $PROJECT_ROOT/.env"
+    exit 1
+fi
+
+source "$PROJECT_ROOT/.env"
+
+
+if [[ -z "${VPS_IP:-}" ]] || [[ -z "${VPS_USER:-}" ]]; then
+    echo "Error: VPS_IP and VPS_USER must be set in .env"
+    exit 1
+fi
 
 if [[ -n $(git status -s) ]]; then
     echo "Error: There are uncommitted changes in the working directory"
@@ -15,15 +27,10 @@ if [[ -n $(git status -s) ]]; then
 fi
 
 # Build and push
-docker build -t $IMAGE .
+docker build -t $IMAGE "$PROJECT_ROOT"
 docker push $IMAGE
 
 # Deploy on VPS
-
-# ssh -p $PORT root@1.2.3.4 "unzip $APP_PATH/artifact.zip -d $APP_PATH && $APP_PATH/scripts/deploy.sh"
-
-# TODO reference the .env file in the VPS
-# TODO mount DB file
-ssh -p $SSH_PORT $VPS "$APP_PATH/scripts/restart-container.sh"
+ssh -p ${VPS_SSH_PORT:-22} ${VPS_USER}@${VPS_IP} 'bash -s' < "$SCRIPT_DIR/restart-container.sh"
 
 echo "Deployed!"

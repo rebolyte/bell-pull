@@ -39,21 +39,23 @@ Mise will set up the Deno environment, and Deno will handle its dependencies aut
 
 ## Deployment
 
-One time:
+### Local one-time setup
 
 1. Log into GHCR
 
 ```bash
 # Create a token at: GitHub → Settings → Developer settings → Personal access tokens
 # Needs: write:packages, read:packages
-echo $GITHUB_TOKEN | docker login ghcr.io -u YOUR_USERNAME --password-stdin
+echo $GITHUB_TOKEN | docker login ghcr.io -u $YOUR_USERNAME --password-stdin
 ```
 
-### VPS setup
+### VPS one-time setup
 
-1. Log into GHCR
-2. Copy .env file
-3. Set up Caddy
+1. Install Docker
+2. `echo $GITHUB_TOKEN | docker login ghcr.io -u $YOUR_USERNAME $ --password-stdin`
+3. `mkdir ~/bell-pull-data`
+4. Create `~/bell-pull-data/.env` with `DATABASE_PATH=/app/data/bell-pull.db`
+5. Install Caddy, copy Caddyfile to `/etc/caddy/Caddyfile`
 
 
 ### Subsequent deploys:
@@ -61,7 +63,6 @@ echo $GITHUB_TOKEN | docker login ghcr.io -u YOUR_USERNAME --password-stdin
 ```
 mise run deploy
 ```
-
 
 ## Inspiration
 
