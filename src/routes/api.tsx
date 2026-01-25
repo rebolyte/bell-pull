@@ -18,9 +18,8 @@ const Layout = (props: LayoutProps) => (
       <meta charset="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <title>{props.title}</title>
-      <script
-        type="module"
-        dangerouslySetInnerHTML={{
+      {/* deno-fmt-ignore */}
+      <script type="module" dangerouslySetInnerHTML={{
           __html: `
           import { newHttpBatchRpcSession } from 'https://cdn.jsdelivr.net/npm/capnweb@0.2.0/+esm';
 
@@ -41,15 +40,11 @@ const Layout = (props: LayoutProps) => (
           console.log('Cap\\'n Web RPC client initialized');
         `,
         }}
-      >
-      </script>
-      <script
-        defer
-        src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
-      >
-      </script>
-      <style
-        dangerouslySetInnerHTML={{
+      />
+      {/* deno-fmt-ignore */}
+      <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" />
+      {/* deno-fmt-ignore */}
+      <style dangerouslySetInnerHTML={{
           __html: `
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body {

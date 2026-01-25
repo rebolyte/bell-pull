@@ -3,7 +3,7 @@ import type { AppConfig } from "../../src/services/config.ts";
 export const testConfig: AppConfig = {
   PORT: 0,
   HOST: "localhost",
-  ENV: "development",
+  APP_ENV: "dev",
   LOG_LEVEL: "error",
   DATABASE_PATH: ":memory:",
   RATE_LIMIT_DELAY_MS: 0,

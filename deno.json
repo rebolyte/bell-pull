@@ -1,4 +1,13 @@
 {
+  "$schema": "https://raw.githubusercontent.com/denoland/deno/main/cli/schemas/config-file.v1.json",
+  "name": "bell-pull",
+  "version": "0.0.1",
+  "description": "A Telegram bot that sends daily briefings and reminders",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rebolyte/bell-pull"
+  },
   "imports": {
     "@anthropic-ai/sdk": "npm:@anthropic-ai/sdk@^0.70.1",
     "@logtape/hono": "jsr:@logtape/hono@^1.3.5",
