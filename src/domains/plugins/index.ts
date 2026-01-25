@@ -1,7 +1,7 @@
 import { ok, Result, ResultAsync } from "neverthrow";
 import { sql } from "kysely";
 import { parsePluginConfigRow, type PluginConfigRow } from "./schema.ts";
-import { type AppError, dbError, validationError } from "../../errors.ts";
+import { type AppError, dbError } from "../../errors.ts";
 import type { Database } from "../../services/database.ts";
 import type { Logger } from "../../services/logger.ts";
 

@@ -1,8 +1,8 @@
 import { Google } from "arctic";
 import * as z from "@zod/zod";
 import { ResultAsync } from "neverthrow";
-import type { Container, CronJob, Plugin } from "../../types/index.ts";
-import { secret, oauthManaged, cron } from "../../services/config-schema.ts";
+import type { Container, Plugin } from "../../types/index.ts";
+import { cron, oauthManaged, secret } from "../../services/config-schema.ts";
 import { appError } from "../../errors.ts";
 import { refreshPluginToken } from "../../services/oauth.ts";
 

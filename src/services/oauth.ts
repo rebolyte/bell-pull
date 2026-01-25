@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import { generateState, generateCodeVerifier } from "arctic";
-import { ResultAsync } from "neverthrow";
+import { errAsync, ResultAsync } from "neverthrow";
 import type { Plugin, HonoEnv, Container } from "../types/index.ts";
 import { type AppError, appError } from "../errors.ts";
 
@@ -131,9 +131,7 @@ export const refreshPluginToken = (
   container: Container,
 ): ResultAsync<OAuthTokens, AppError> => {
   if (!plugin.oauth) {
-    return ResultAsync.fromSafePromise(
-      Promise.reject(appError("oauth", "Plugin has no OAuth config")),
-    );
+    return errAsync(appError("oauth", "Plugin has no OAuth config"));
   }
 
   const { createProvider } = plugin.oauth;
@@ -146,16 +144,12 @@ export const refreshPluginToken = (
     }>(plugin.name)
     .andThen((configRow) => {
       if (!configRow) {
-        return ResultAsync.fromSafePromise<never, AppError>(
-          Promise.reject(appError("oauth", "Plugin not configured")),
-        );
+        return errAsync(appError("oauth", "Plugin not configured"));
       }
 
       const config = configRow.config;
       if (!config.refreshToken) {
-        return ResultAsync.fromSafePromise<never, AppError>(
-          Promise.reject(appError("oauth", "No refresh token available")),
-        );
+        return errAsync(appError("oauth", "No refresh token available"));
       }
 
       const provider = createProvider(config.clientId, config.clientSecret, "");
@@ -170,13 +164,8 @@ export const refreshPluginToken = (
           tokenExpiresAt: tokens.accessTokenExpiresAt()?.toISOString() ?? null,
         };
 
-        const updatedConfig = {
-          ...config,
-          ...newTokens,
-        };
-
         return container.plugins
-          .setConfig(plugin.name, updatedConfig)
+          .setConfig(plugin.name, { ...config, ...newTokens })
           .map(() => newTokens);
       });
     });
