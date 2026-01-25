@@ -6,6 +6,7 @@ export const testConfig: AppConfig = {
   ENV: "development",
   LOG_LEVEL: "error",
   DATABASE_PATH: ":memory:",
+  RATE_LIMIT_DELAY_MS: 0,
   TELEGRAM_BOT_TOKEN: "test-bot-token",
   TELEGRAM_CHAT_ID: "123456",
   ANTHROPIC_API_KEY: "test-api-key",

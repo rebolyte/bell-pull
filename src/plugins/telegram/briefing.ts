@@ -57,6 +57,11 @@ export const sendDailyBriefing = (
     .getAllMemories()
     .andThen((memories) => generateBriefingContent(deps, memories, finalToday))
     .andThen((content) =>
-      sendAndStoreMessage({ api: bot.api, chatId: finalChatId }, content, deps.messages)
+      sendAndStoreMessage({
+        msgCtx: { api: bot.api, chatId: finalChatId },
+        content,
+        messagesDomain: deps.messages,
+        config: deps.config,
+      }),
     );
 };
