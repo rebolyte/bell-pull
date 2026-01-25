@@ -16,8 +16,8 @@ export class AppError extends Error {
 export const appError = (type: ErrorType, message: string, cause?: unknown) =>
   new AppError(type, message, { cause });
 
-export const toAppError = (type: ErrorType, message: string) =>
-  (cause: unknown) => appError(type, message, cause);
+export const toAppError = (type: ErrorType, message: string) => (cause: unknown) =>
+  appError(type, message, cause);
 
 export const dbError = (msg: string) => toAppError("db", msg);
 export const llmError = (msg: string) => toAppError("llm", msg);

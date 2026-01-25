@@ -56,7 +56,8 @@ export const generateText = ({ config, anthropic, log, systemPrompt }: LlmDeps) 
   },
 ): ResultAsync<string, AppError> => {
   if (!R.isEmpty(messages) && messages.at(-1)?.role === "assistant") {
-    log.info`[generateText] last message is from assistant, this will be used to constrain model response (see docs)`;
+    log
+      .info`[generateText] last message is from assistant, this will be used to constrain model response (see docs)`;
   }
 
   return ResultAsync.fromPromise(

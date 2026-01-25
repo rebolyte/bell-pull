@@ -4,12 +4,12 @@ Bell Pull is a personal AI assistant. It uses a simple architecture: a single SQ
 
 ## Validate your changes
 
-* start the API with file watching: `mise run dev`
-* run tests: `mise run test`, `mise run test:watch`, `mise run test --filter <test name string/regexp>` (ex: `--filter "my"` or `--filter "/.*Memories$/"`), or `mise run test --reporter dot` (for quick verification)
-* validate types: `deno check`
-* validate style: `deno lint`
-* run formatter: `deno fmt`
-* check data in the DB: `sqlite3 bell-pull.db "SELECT * FROM messages ORDER BY created_at DESC LIMIT 20;"`
+- start the API with file watching: `mise run dev`
+- run tests: `mise run test`, `mise run test:watch`, `mise run test --filter <test name string/regexp>` (ex: `--filter "my"` or `--filter "/.*Memories$/"`), or `mise run test --reporter dot` (for quick verification)
+- validate types: `deno check`
+- validate style: `deno lint`
+- run formatter: `deno fmt`
+- check data in the DB: `sqlite3 bell-pull.db "SELECT * FROM messages ORDER BY created_at DESC LIMIT 20;"`
 
 see other tasks available in mise.toml if needed.
 
@@ -26,10 +26,10 @@ State is the mind-killer. I'm going for "FP light", so call out any choices made
 
 Avoid:
 
-* Classes (unless wrapping a stateful resource like a connection pool)
-* `this`
-* Mutation (use Remeda's set, merge, omit for immutable updates)
-* Throwing errors (errors are values, return Result instead)
-* God services that do multiple things
+- Classes (unless wrapping a stateful resource like a connection pool)
+- `this`
+- Mutation (use Remeda's set, merge, omit for immutable updates)
+- Throwing errors (errors are values, return Result instead)
+- God services that do multiple things
 
-The theme: data in, data out, effects at the edges. 
+The theme: data in, data out, effects at the edges.
