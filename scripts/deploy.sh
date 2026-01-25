@@ -24,6 +24,12 @@ if [[ -n $(git status -s) ]]; then
     exit 1
 fi
 
+CURRENT_BRANCH=$(git -C "$PROJECT_ROOT" rev-parse --abbrev-ref HEAD)
+if [[ "$CURRENT_BRANCH" != "main" ]]; then
+    echo "Error: Must be on main branch to deploy"
+    exit 1
+fi
+
 # Calculate calver: YYYY.MM.patch
 CURRENT_VERSION=$(deno eval "console.log(JSON.parse(Deno.readTextFileSync('$PROJECT_ROOT/deno.json')).version)")
 YEAR_MONTH="$(date +%Y).$(date +%m)"
