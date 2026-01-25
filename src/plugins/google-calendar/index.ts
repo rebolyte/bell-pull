@@ -74,7 +74,9 @@ const fetchCalendarEvents = async (
   });
 
   const response = await fetch(
-    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${params}`,
+    `https://www.googleapis.com/calendar/v3/calendars/${
+      encodeURIComponent(calendarId)
+    }/events?${params}`,
     {
       headers: { Authorization: `Bearer ${accessToken}` },
     },
@@ -88,7 +90,9 @@ const fetchCalendarEvents = async (
 
   const data = await response.json();
 
-  return (data.items || []).map((event: { summary?: string; start?: { dateTime?: string; date?: string } }) => ({
+  return (data.items || []).map((
+    event: { summary?: string; start?: { dateTime?: string; date?: string } },
+  ) => ({
     summary: event.summary || "Untitled",
     start: event.start?.dateTime || event.start?.date || "",
   }));
@@ -106,12 +110,16 @@ export const googleCalendarPlugin: Plugin<GoogleCalendarConfig> = {
   cronJobs: (config) => [
     {
       name: "google-calendar-sync",
-      schedule: config.syncSchedule,
+      schedule: config?.syncSchedule ?? "0 */6 * * *",
       run: (container) =>
         ResultAsync.fromPromise(
           (async () => {
             const accessToken = await getValidToken(container);
-            const events = await fetchCalendarEvents(accessToken, config.calendarId, container.log);
+            const events = await fetchCalendarEvents(
+              accessToken,
+              config?.calendarId ?? "primary",
+              container.log,
+            );
             container.log.info`Fetched ${events.length} calendar events`;
 
             for (const event of events) {

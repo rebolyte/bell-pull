@@ -3,6 +3,8 @@ import { newHttpBatchRpcResponse } from "capnweb";
 import { PluginsRpcService } from "../services/plugins-rpc.ts";
 import type { HonoEnv, Plugin } from "../types/index.ts";
 
+const api = new Hono<HonoEnv>();
+
 // Layout component
 type LayoutProps = {
   title: string;
@@ -16,7 +18,9 @@ const Layout = (props: LayoutProps) => (
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <title>{props.title}</title>
       {/* deno-fmt-ignore */}
-      <script type="module" dangerouslySetInnerHTML={{
+      <script
+        type="module"
+        dangerouslySetInnerHTML={{
           __html: `
           import { newHttpBatchRpcSession } from 'https://cdn.jsdelivr.net/npm/capnweb@0.2.0/+esm';
 
@@ -39,9 +43,13 @@ const Layout = (props: LayoutProps) => (
         }}
       />
       {/* deno-fmt-ignore */}
-      <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" />
+      <script
+        defer
+        src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
+      />
       {/* deno-fmt-ignore */}
-      <style dangerouslySetInnerHTML={{
+      <style
+        dangerouslySetInnerHTML={{
           __html: `
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body {
@@ -203,13 +211,22 @@ api.get("/dashboard", (c) => {
         }`}
         x-init="loadPlugins()"
       >
-        <h2>Plugin Configuration <span class="badge">Data Sources</span></h2>
+        <h2>
+          Plugin Configuration <span class="badge">Data Sources</span>
+        </h2>
 
         <div style="margin-bottom: 1rem;">
-          <select x-on:change="selectPlugin($event.target.value)" style="padding: 0.75rem; border: 2px solid #e0e0e0; border-radius: 0.5rem; min-width: 200px;">
+          <select
+            x-on:change="selectPlugin($event.target.value)"
+            style="padding: 0.75rem; border: 2px solid #e0e0e0; border-radius: 0.5rem; min-width: 200px;"
+          >
             <option value="">Select a plugin...</option>
             <template x-for="plugin in plugins" x-bind:key="plugin.name">
-              <option x-bind:value="plugin.name" x-text="plugin.displayName + (plugin.enabled ? '' : ' (disabled)')"></option>
+              <option
+                x-bind:value="plugin.name"
+                x-text="plugin.displayName + (plugin.enabled ? '' : ' (disabled)')"
+              >
+              </option>
             </template>
           </select>
         </div>
@@ -218,32 +235,59 @@ api.get("/dashboard", (c) => {
           <div>
             <div style="display: flex; align-items: center; margin-bottom: 1rem;">
               <strong x-text="selectedPlugin.displayName"></strong>
-              <span x-show="selectedPlugin.hasOAuth" class="badge" x-bind:class="oauthStatus.connected ? 'badge-success' : 'badge-warning'" x-text="oauthStatus.connected ? 'Connected' : 'Not connected'"></span>
+              <span
+                x-show="selectedPlugin.hasOAuth"
+                class="badge"
+                x-bind:class="oauthStatus.connected ? 'badge-success' : 'badge-warning'"
+                x-text="oauthStatus.connected ? 'Connected' : 'Not connected'"
+              >
+              </span>
             </div>
 
             <template x-if="selectedPlugin.hasOAuth">
               <div class="form-group" style="margin-bottom: 1rem;">
                 <label>Callback URL (for OAuth app config)</label>
                 <div style="display: flex; align-items: center;">
-                  <input type="text" readonly x-bind:value="window.location.origin + '/oauth/' + selectedPlugin.name + '/callback'" style="flex: 1; max-width: 400px; background: #f0f0f0;" />
-                  <button type="button" class="toggle-btn" x-on:click="navigator.clipboard.writeText(window.location.origin + '/oauth/' + selectedPlugin.name + '/callback')">Copy</button>
+                  <input
+                    type="text"
+                    readonly
+                    x-bind:value="window.location.origin + '/oauth/' + selectedPlugin.name + '/callback'"
+                    style="flex: 1; max-width: 400px; background: #f0f0f0;"
+                  />
+                  <button
+                    type="button"
+                    class="toggle-btn"
+                    x-on:click="navigator.clipboard.writeText(window.location.origin + '/oauth/' + selectedPlugin.name + '/callback')"
+                  >
+                    Copy
+                  </button>
                 </div>
               </div>
             </template>
 
             <template x-if="selectedPlugin.hasOAuth && !oauthStatus.connected">
               <div style="margin-bottom: 1rem;">
-                <a x-bind:href="'/oauth/' + selectedPlugin.name + '/authorize'" class="button" style="display: inline-block; background: #667eea; color: white; padding: 0.75rem 1.5rem; border-radius: 0.5rem; text-decoration: none; font-weight: 600;">
+                <a
+                  x-bind:href="'/oauth/' + selectedPlugin.name + '/authorize'"
+                  class="button"
+                  style="display: inline-block; background: #667eea; color: white; padding: 0.75rem 1.5rem; border-radius: 0.5rem; text-decoration: none; font-weight: 600;"
+                >
                   Connect
                 </a>
               </div>
             </template>
 
-            <template x-for="field in selectedPlugin.fields.filter(f => f.type !== 'oauth-managed')" x-bind:key="field.key">
+            <template
+              x-for="field in selectedPlugin.fields.filter(f => f.type !== 'oauth-managed')"
+              x-bind:key="field.key"
+            >
               <div class="form-group">
                 <label x-text="field.key + (field.required ? ' *' : '')"></label>
                 <template x-if="field.enumValues">
-                  <select x-model="config[field.key]" style="width: 100%; max-width: 400px;">
+                  <select
+                    x-model="config[field.key]"
+                    style="width: 100%; max-width: 400px;"
+                  >
                     <template x-for="opt in field.enumValues" x-bind:key="opt">
                       <option x-bind:value="opt" x-text="opt"></option>
                     </template>
@@ -251,9 +295,19 @@ api.get("/dashboard", (c) => {
                 </template>
                 <template x-if="!field.enumValues && field.type !== 'boolean'">
                   <span style="display: flex; align-items: center;">
-                    <input x-bind:type="getInputType(field)" x-model="config[field.key]" x-bind:placeholder="field.defaultValue || ''" />
+                    <input
+                      x-bind:type="getInputType(field)"
+                      x-model="config[field.key]"
+                      x-bind:placeholder="field.defaultValue || ''"
+                    />
                     <template x-if="field.type === 'secret'">
-                      <button type="button" class="toggle-btn" x-on:click="showSecrets[field.key] = !showSecrets[field.key]" x-text="showSecrets[field.key] ? 'Hide' : 'Show'"></button>
+                      <button
+                        type="button"
+                        class="toggle-btn"
+                        x-on:click="showSecrets[field.key] = !showSecrets[field.key]"
+                        x-text="showSecrets[field.key] ? 'Hide' : 'Show'"
+                      >
+                      </button>
                     </template>
                   </span>
                 </template>
@@ -263,7 +317,12 @@ api.get("/dashboard", (c) => {
               </div>
             </template>
 
-            <button x-on:click="saveConfig()" x-bind:disabled="saving" x-text="saving ? 'Saving...' : 'Save Configuration'"></button>
+            <button
+              x-on:click="saveConfig()"
+              x-bind:disabled="saving"
+              x-text="saving ? 'Saving...' : 'Save Configuration'"
+            >
+            </button>
 
             <template x-if="message">
               <div x-bind:class="message.type" x-text="message.text"></div>

@@ -51,7 +51,14 @@ export type ApiResponse<T> = {
 };
 
 // Plugin config types
-export type FieldType = "text" | "secret" | "cron" | "number" | "boolean" | "enum" | "oauth-managed";
+export type FieldType =
+  | "text"
+  | "secret"
+  | "cron"
+  | "number"
+  | "boolean"
+  | "enum"
+  | "oauth-managed";
 
 export type FieldInfo = {
   key: string;

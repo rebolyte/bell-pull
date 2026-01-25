@@ -1,11 +1,7 @@
 import { zodToJsonSchema } from "zod-to-json-schema";
 import type { Container, Plugin } from "../types/index.ts";
 import type { PluginInfo, PluginRpcMethods } from "../types/shared.ts";
-import {
-  extractFieldsFromSchema,
-  maskSecrets,
-  mergeWithExistingSecrets,
-} from "./config-schema.ts";
+import { extractFieldsFromSchema, maskSecrets, mergeWithExistingSecrets } from "./config-schema.ts";
 import { ExampleRpcService } from "./example-rpc.ts";
 
 export class PluginsRpcService extends ExampleRpcService implements PluginRpcMethods {
@@ -22,9 +18,7 @@ export class PluginsRpcService extends ExampleRpcService implements PluginRpcMet
 
     return this.plugins.map((plugin) => {
       const stored = configs.find((c) => c.pluginName === plugin.name);
-      const fields = plugin.configSchema
-        ? extractFieldsFromSchema(plugin.configSchema)
-        : [];
+      const fields = plugin.configSchema ? extractFieldsFromSchema(plugin.configSchema) : [];
 
       return {
         name: plugin.name,
@@ -33,9 +27,7 @@ export class PluginsRpcService extends ExampleRpcService implements PluginRpcMet
         enabled: stored?.enabled ?? false,
         configured: !!stored,
         fields,
-        jsonSchema: plugin.configSchema
-          ? zodToJsonSchema(plugin.configSchema)
-          : null,
+        jsonSchema: plugin.configSchema ? zodToJsonSchema(plugin.configSchema) : null,
       };
     });
   }
@@ -47,9 +39,7 @@ export class PluginsRpcService extends ExampleRpcService implements PluginRpcMet
     const result = await this.container.plugins.getConfig(pluginName);
     if (result.isErr() || !result.value) return null;
 
-    const fields = plugin.configSchema
-      ? extractFieldsFromSchema(plugin.configSchema)
-      : [];
+    const fields = plugin.configSchema ? extractFieldsFromSchema(plugin.configSchema) : [];
 
     return maskSecrets(result.value.config as Record<string, unknown>, fields);
   }
@@ -78,9 +68,7 @@ export class PluginsRpcService extends ExampleRpcService implements PluginRpcMet
       ? (existingResult.value.config as Record<string, unknown>)
       : {};
 
-    const fields = plugin.configSchema
-      ? extractFieldsFromSchema(plugin.configSchema)
-      : [];
+    const fields = plugin.configSchema ? extractFieldsFromSchema(plugin.configSchema) : [];
 
     const mergedConfig = mergeWithExistingSecrets(config, existingConfig, fields);
 

@@ -3,13 +3,19 @@ import * as z from "@zod/zod";
 export const secret = <T extends z.ZodTypeAny>(schema: T): T =>
   schema.describe("field:secret") as T;
 
-export const cron = <T extends z.ZodTypeAny>(schema: T): T =>
-  schema.describe("field:cron") as T;
+export const cron = <T extends z.ZodTypeAny>(schema: T): T => schema.describe("field:cron") as T;
 
 export const oauthManaged = <T extends z.ZodTypeAny>(schema: T): T =>
   schema.describe("field:oauth-managed") as T;
 
-export type FieldType = "text" | "secret" | "cron" | "number" | "boolean" | "enum" | "oauth-managed";
+export type FieldType =
+  | "text"
+  | "secret"
+  | "cron"
+  | "number"
+  | "boolean"
+  | "enum"
+  | "oauth-managed";
 
 export const getFieldType = (schema: z.ZodTypeAny): FieldType => {
   const desc = schema.description ?? "";
@@ -37,20 +43,20 @@ export const getEnumValues = (schema: z.ZodTypeAny): string[] | null => {
 
 export const getDefaultValue = (schema: z.ZodTypeAny): unknown => {
   if (schema instanceof z.ZodDefault) {
-    return schema._def.defaultValue();
+    return schema._def.defaultValue;
   }
   return undefined;
 };
 
 const unwrapSchema = (schema: z.ZodTypeAny): z.ZodTypeAny => {
   if (schema instanceof z.ZodOptional || schema instanceof z.ZodNullable) {
-    return unwrapSchema(schema.unwrap());
+    return unwrapSchema(schema.unwrap() as z.ZodTypeAny);
   }
   if (schema instanceof z.ZodDefault) {
-    return unwrapSchema(schema._def.innerType);
+    return unwrapSchema(schema._def.innerType as z.ZodTypeAny);
   }
-  if (schema instanceof z.ZodEffects) {
-    return unwrapSchema(schema._def.schema);
+  if (schema instanceof z.ZodPipe) {
+    return unwrapSchema(schema._def.in as z.ZodTypeAny);
   }
   return schema;
 };
