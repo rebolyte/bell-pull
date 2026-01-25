@@ -221,6 +221,16 @@ api.get("/dashboard", (c) => {
               <span x-show="selectedPlugin.hasOAuth" class="badge" x-bind:class="oauthStatus.connected ? 'badge-success' : 'badge-warning'" x-text="oauthStatus.connected ? 'Connected' : 'Not connected'"></span>
             </div>
 
+            <template x-if="selectedPlugin.hasOAuth">
+              <div class="form-group" style="margin-bottom: 1rem;">
+                <label>Callback URL (for OAuth app config)</label>
+                <div style="display: flex; align-items: center;">
+                  <input type="text" readonly x-bind:value="window.location.origin + '/oauth/' + selectedPlugin.name + '/callback'" style="flex: 1; max-width: 400px; background: #f0f0f0;" />
+                  <button type="button" class="toggle-btn" x-on:click="navigator.clipboard.writeText(window.location.origin + '/oauth/' + selectedPlugin.name + '/callback')">Copy</button>
+                </div>
+              </div>
+            </template>
+
             <template x-if="selectedPlugin.hasOAuth && !oauthStatus.connected">
               <div style="margin-bottom: 1rem;">
                 <a x-bind:href="'/oauth/' + selectedPlugin.name + '/authorize'" class="button" style="display: inline-block; background: #667eea; color: white; padding: 0.75rem 1.5rem; border-radius: 0.5rem; text-decoration: none; font-weight: 600;">
