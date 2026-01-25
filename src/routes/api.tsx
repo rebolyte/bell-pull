@@ -1,6 +1,5 @@
 import { Hono } from "hono";
 import { newHttpBatchRpcResponse } from "capnweb";
-import { ExampleRpcService } from "../services/example-rpc.ts";
 import { PluginsRpcService } from "../services/plugins-rpc.ts";
 import type { HonoEnv, Plugin } from "../types/index.ts";
 
@@ -31,17 +30,6 @@ const Layout = (props: LayoutProps) => (
               return await stub[method](...params);
             } catch (error) {
               console.error('RPC error:', error);
-              throw error;
-            }
-          };
-
-          // Helper for plugins RPC calls
-          window.pluginsRpc = async function(method, ...params) {
-            try {
-              const stub = window.newHttpBatchRpcSession('/api/plugins');
-              return await stub[method](...params);
-            } catch (error) {
-              console.error('Plugins RPC error:', error);
               throw error;
             }
           };
@@ -185,25 +173,25 @@ api.get("/dashboard", (c) => {
           showSecrets: {},
 
           async loadPlugins() {
-            this.plugins = await window.pluginsRpc('getPlugins');
+            this.plugins = await window.rpc('getPlugins');
           },
 
           async selectPlugin(name) {
             this.selectedPlugin = this.plugins.find(p => p.name === name);
-            this.config = await window.pluginsRpc('getPluginConfig', name) || {};
-            this.oauthStatus = await window.pluginsRpc('getOAuthStatus', name);
+            this.config = await window.rpc('getPluginConfig', name) || {};
+            this.oauthStatus = await window.rpc('getOAuthStatus', name);
             this.message = null;
           },
 
           async saveConfig() {
             this.saving = true;
-            const result = await window.pluginsRpc('setPluginConfig', this.selectedPlugin.name, this.config);
+            const result = await window.rpc('setPluginConfig', this.selectedPlugin.name, this.config);
             this.saving = false;
             this.message = result.success ? { type: 'success', text: 'Saved!' } : { type: 'error', text: result.error };
           },
 
           async toggleEnabled(name, enabled) {
-            await window.pluginsRpc('setPluginEnabled', name, enabled);
+            await window.rpc('setPluginEnabled', name, enabled);
             await this.loadPlugins();
           },
 
@@ -574,25 +562,9 @@ api.post("/messages", async (c) => {
   );
 });
 
-// Single RPC endpoint using Cap'n Web
-api.all("/rpc", async (c) => {
-  const request = c.req.raw;
-  const response = await newHttpBatchRpcResponse(
-    request,
-    new ExampleRpcService(),
-  );
-
-  // Add CORS header
-  response.headers.set("Access-Control-Allow-Origin", "*");
-
-  return response;
-});
-
 export const makeApiRoutes = (plugins: Plugin[]) => {
-  const pluginsApi = new Hono<HonoEnv>();
-
-  // Plugins RPC endpoint
-  pluginsApi.all("/plugins", async (c) => {
+  // RPC endpoint with all methods (example + plugins)
+  api.all("/rpc", async (c) => {
     const container = c.get("container");
     const request = c.req.raw;
     const response = await newHttpBatchRpcResponse(
@@ -603,10 +575,7 @@ export const makeApiRoutes = (plugins: Plugin[]) => {
     return response;
   });
 
-  // Mount base api routes
-  pluginsApi.route("/", api);
-
-  return pluginsApi;
+  return api;
 };
 
 export default api;

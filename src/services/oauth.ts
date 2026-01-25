@@ -1,23 +1,9 @@
 import { Hono } from "hono";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import { generateState, generateCodeVerifier } from "arctic";
+import { ResultAsync } from "neverthrow";
 import type { Plugin, HonoEnv, Container } from "../types/index.ts";
-
-type OAuthState = {
-  pluginName: string;
-  nonce: string;
-};
-
-const encodeState = (state: OAuthState): string =>
-  btoa(JSON.stringify(state));
-
-const decodeState = (encoded: string): OAuthState | null => {
-  try {
-    return JSON.parse(atob(encoded));
-  } catch {
-    return null;
-  }
-};
+import { type AppError, appError } from "../errors.ts";
 
 const getBaseUrl = (req: Request): string => {
   const url = new URL(req.url);
@@ -40,23 +26,22 @@ export const registerOAuthRoutes = (
     );
 
     if (config.isErr()) {
-      return c.text("Plugin config not found", 400);
+      return c.text("Plugin config error", 400);
     }
 
     if (!config.value) {
-      return c.text("Plugin not configured - add clientId and clientSecret first", 400);
+      return c.text("Configure clientId and clientSecret first", 400);
     }
 
     const { clientId, clientSecret } = config.value.config;
     if (!clientId || !clientSecret) {
-      return c.text("Missing clientId or clientSecret in plugin config", 400);
+      return c.text("Missing clientId or clientSecret", 400);
     }
 
     const redirectUri = `${getBaseUrl(c.req.raw)}${basePath}/callback`;
     const provider = createProvider(clientId, clientSecret, redirectUri);
 
-    const nonce = generateState();
-    const state = encodeState({ pluginName: plugin.name, nonce });
+    const state = generateState();
     const codeVerifier = generateCodeVerifier();
 
     setCookie(c, "oauth_state", state, {
@@ -93,11 +78,6 @@ export const registerOAuthRoutes = (
 
     if (stateParam !== storedState) {
       return c.text("Invalid state parameter", 400);
-    }
-
-    const state = decodeState(stateParam);
-    if (!state || state.pluginName !== plugin.name) {
-      return c.text("Invalid state", 400);
     }
 
     const configResult = await container.plugins.getConfig<{
@@ -140,43 +120,64 @@ export const registerOAuthRoutes = (
   });
 };
 
-export const refreshPluginToken = async (
+export type OAuthTokens = {
+  accessToken: string;
+  refreshToken: string | null;
+  tokenExpiresAt: string | null;
+};
+
+export const refreshPluginToken = (
   plugin: Plugin,
   container: Container,
-): Promise<boolean> => {
-  if (!plugin.oauth) return false;
-
-  const configResult = await container.plugins.getConfig<{
-    clientId: string;
-    clientSecret: string;
-    refreshToken?: string;
-  }>(plugin.name);
-
-  if (configResult.isErr() || !configResult.value) return false;
-
-  const config = configResult.value.config;
-  if (!config.refreshToken) return false;
-
-  const redirectUri = ""; // not needed for refresh
-  const provider = plugin.oauth.createProvider(
-    config.clientId,
-    config.clientSecret,
-    redirectUri,
-  );
-
-  try {
-    const tokens = await provider.refreshAccessToken(config.refreshToken);
-
-    const updatedConfig = {
-      ...config,
-      accessToken: tokens.accessToken(),
-      refreshToken: tokens.refreshToken() ?? config.refreshToken,
-      tokenExpiresAt: tokens.accessTokenExpiresAt()?.toISOString(),
-    };
-
-    const saveResult = await container.plugins.setConfig(plugin.name, updatedConfig);
-    return saveResult.isOk();
-  } catch {
-    return false;
+): ResultAsync<OAuthTokens, AppError> => {
+  if (!plugin.oauth) {
+    return ResultAsync.fromSafePromise(
+      Promise.reject(appError("oauth", "Plugin has no OAuth config")),
+    );
   }
+
+  const { createProvider } = plugin.oauth;
+
+  return container.plugins
+    .getConfig<{
+      clientId: string;
+      clientSecret: string;
+      refreshToken?: string;
+    }>(plugin.name)
+    .andThen((configRow) => {
+      if (!configRow) {
+        return ResultAsync.fromSafePromise<never, AppError>(
+          Promise.reject(appError("oauth", "Plugin not configured")),
+        );
+      }
+
+      const config = configRow.config;
+      if (!config.refreshToken) {
+        return ResultAsync.fromSafePromise<never, AppError>(
+          Promise.reject(appError("oauth", "No refresh token available")),
+        );
+      }
+
+      const provider = createProvider(config.clientId, config.clientSecret, "");
+
+      return ResultAsync.fromPromise(
+        provider.refreshAccessToken(config.refreshToken),
+        (e) => appError("oauth", `Token refresh failed: ${e}`),
+      ).andThen((tokens) => {
+        const newTokens: OAuthTokens = {
+          accessToken: tokens.accessToken(),
+          refreshToken: tokens.refreshToken() ?? config.refreshToken ?? null,
+          tokenExpiresAt: tokens.accessTokenExpiresAt()?.toISOString() ?? null,
+        };
+
+        const updatedConfig = {
+          ...config,
+          ...newTokens,
+        };
+
+        return container.plugins
+          .setConfig(plugin.name, updatedConfig)
+          .map(() => newTokens);
+      });
+    });
 };

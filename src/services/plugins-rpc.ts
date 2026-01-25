@@ -1,4 +1,3 @@
-import { RpcTarget } from "capnweb";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import type { Container, Plugin } from "../types/index.ts";
 import type { PluginInfo, PluginRpcMethods } from "../types/shared.ts";
@@ -7,8 +6,9 @@ import {
   maskSecrets,
   mergeWithExistingSecrets,
 } from "./config-schema.ts";
+import { ExampleRpcService } from "./example-rpc.ts";
 
-export class PluginsRpcService extends RpcTarget implements PluginRpcMethods {
+export class PluginsRpcService extends ExampleRpcService implements PluginRpcMethods {
   constructor(
     private container: Container,
     private plugins: Plugin[],
