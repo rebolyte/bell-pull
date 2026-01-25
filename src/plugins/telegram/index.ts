@@ -88,6 +88,8 @@ export const handleMessage = async (
     .andThen(() =>
       ResultAsync.combine([
         memory.getAllMemories(),
+        // Retrieve chat history for this chat, which now includes the current message we just stored.
+        // by default, we'll get the last 50 messages
         messagesDomain.getChatHistory({ chatId: msgCtx.chatId }),
       ])
     )
@@ -114,7 +116,7 @@ export const handleMessage = async (
       })
     )
     .andThen((response) =>
-      sendAndStoreMessage({ msgCtx, content: response, messagesDomain, config }),
+      sendAndStoreMessage({ msgCtx, content: response, messagesDomain, config })
     );
 
   result.match(

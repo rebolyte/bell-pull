@@ -62,6 +62,6 @@ export const sendDailyBriefing = (
         content,
         messagesDomain: deps.messages,
         config: deps.config,
-      }),
+      })
     );
 };

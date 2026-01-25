@@ -122,7 +122,8 @@ describe("Telegram Message Flow", () => {
 
         await handleMessage(h.createCtx({ text: "What did I say earlier?" }), h.deps);
 
-        const llmMessages = (h.mockAnthropic.streamSpy.calls[0].args[0] as StreamArgs).messages ?? [];
+        const llmMessages = (h.mockAnthropic.streamSpy.calls[0].args[0] as StreamArgs).messages ??
+          [];
         expect(llmMessages).toHaveLength(3);
         expect(llmMessages[0].role).toBe("user");
         expect(llmMessages[0].content).toContain("What did I say earlier");
