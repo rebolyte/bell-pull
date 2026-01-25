@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/denoland/deno/main/cli/schemas/config-file.v1.json",
   "name": "bell-pull",
-  "version": "0.0.1",
+  "version": "2026.01.1",
   "description": "A Telegram bot that sends daily briefings and reminders",
   "license": "MIT",
   "repository": {
@@ -31,7 +31,10 @@
   },
   "compilerOptions": {
     "strict": true,
-    "lib": ["deno.window", "deno.unstable"],
+    "lib": [
+      "deno.window",
+      "deno.unstable"
+    ],
     "jsx": "precompile",
     "jsxImportSource": "hono/jsx"
   },
@@ -45,7 +48,9 @@
   },
   "lint": {
     "rules": {
-      "tags": ["recommended"]
+      "tags": [
+        "recommended"
+      ]
     }
   }
 }
