@@ -2,8 +2,8 @@ import { describe, it } from "@std/testing/bdd";
 import { expect } from "@std/expect";
 import { assertSpyCalls } from "@std/testing/mock";
 import { DateTime } from "luxon";
-import { createTestHarness } from "../fixtures/container.ts";
-import { sendDailyBriefing } from "../../src/plugins/telegram/briefing.ts";
+import { createTestHarness } from "../../../tests/fixtures/container.ts";
+import { sendDailyBriefing } from "./briefing.ts";
 
 const makeMockBot = (mockApi: { sendMessage: unknown }) => ({ api: mockApi }) as any;
 

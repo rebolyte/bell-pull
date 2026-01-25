@@ -1,12 +1,8 @@
 import { describe, it } from "@std/testing/bdd";
 import { expect } from "@std/expect";
 import { assertSpyCalls } from "@std/testing/mock";
-import { createTestHarness } from "../fixtures/container.ts";
-import {
-  handleMessage,
-  handleHelpCommand,
-  handleStartCommand,
-} from "../../src/plugins/telegram/index.ts";
+import { createTestHarness } from "../../../tests/fixtures/container.ts";
+import { handleHelpCommand, handleMessage, handleStartCommand } from "./index.ts";
 
 describe("Telegram Message Flow", () => {
   describe("handleMessage", () => {
@@ -311,7 +307,10 @@ describe("Telegram Message Flow", () => {
       });
 
       try {
-        const memories = Array.from({ length: 25 }, (_, i) => ({ text: `Memory ${i}`, date: null }));
+        const memories = Array.from(
+          { length: 25 },
+          (_, i) => ({ text: `Memory ${i}`, date: null }),
+        );
         await h.container.db.insertInto("memories").values(memories).execute();
 
         await handleMessage(h.createCtx({ text: "Hi" }), h.deps);
