@@ -29,6 +29,9 @@ test_watch = "deno test --allow-net --allow-read --allow-env --watch"
 fmt = "deno fmt"
 lint = "deno lint"
 migrate = "deno run --allow-net --allow-read --allow-write --allow-env --env-file migrate.ts"
+docker_build = "docker build -t bell-pull ."
+docker_run = "docker run --rm -p 8000:8000 -v $(pwd)/data:/app/data --env-file .env -e DATABASE_PATH=/app/data/bell-pull.db -e APP_ENV=prod bell-pull"
+deploy = "bash ./scripts/deploy.sh"
 
 [tools]
 deno = '2.5.6'

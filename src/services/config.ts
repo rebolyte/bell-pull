@@ -13,7 +13,7 @@ const logLevels: readonly LogLevel[] = [
 const ConfigSchema = z.object({
   PORT: z.coerce.number().default(8000),
   HOST: z.string().default("0.0.0.0"),
-  ENV: z.enum(["development", "production"]).default("development"),
+  APP_ENV: z.enum(["dev", "prod"]).default("dev"),
   LOG_LEVEL: z.enum(logLevels).default("info"),
   DATABASE_PATH: z.string().default("bell-pull.db"),
   RATE_LIMIT_DELAY_MS: z.coerce.number().default(500),
@@ -31,7 +31,7 @@ export const createConfig = (overrides: Partial<AppConfig> = {}): AppConfig => {
   const raw = {
     PORT: Deno.env.get("PORT"),
     HOST: Deno.env.get("HOST"),
-    ENV: Deno.env.get("ENV"),
+    APP_ENV: Deno.env.get("APP_ENV"),
     LOG_LEVEL: Deno.env.get("LOG_LEVEL"),
     DATABASE_PATH: Deno.env.get("DATABASE_PATH"),
     RATE_LIMIT_DELAY_MS: Deno.env.get("RATE_LIMIT_DELAY_MS"),

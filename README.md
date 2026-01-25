@@ -44,7 +44,7 @@ Mise will set up the Deno environment, and Deno will handle its dependencies aut
 1. Log into GHCR
 
 ```bash
-# Create a token at: GitHub → Settings → Developer settings → Personal access tokens
+# Create a token at: GitHub -> Settings -> Developer settings -> Personal access tokens
 # Needs: write:packages, read:packages
 echo $GITHUB_TOKEN | docker login ghcr.io -u $YOUR_USERNAME --password-stdin
 ```
@@ -55,8 +55,17 @@ echo $GITHUB_TOKEN | docker login ghcr.io -u $YOUR_USERNAME --password-stdin
 2. `echo $GITHUB_TOKEN | docker login ghcr.io -u $YOUR_USERNAME $ --password-stdin`
 3. `mkdir ~/bell-pull-data`
 4. Create `~/bell-pull-data/.env` with `DATABASE_PATH=/app/data/bell-pull.db`
-5. Install Caddy, copy Caddyfile to `/etc/caddy/Caddyfile`
+5. Install Caddy, copy Caddyfile to `/etc/caddy/Caddyfile`, `systemctl reload caddy`
 
+### Telegram setup
+
+Once you have your domain set up, set your Telegram bot's webhook callback with a GET request to `https://api.telegram.org/bot<token>/setWebhook?url=<url>` where `url` is `$YOUR_FQDN/webhook/telegram`. Example:
+
+```bash
+curl -X GET 'https://api.telegram.org/bot1234:xxx/setWebhook?url=https%3A%2F%2Frando.trycloudflare.com%2Fwebhook%2Ftelegram'
+```
+
+See dos [here](https://grammy.dev/guide/deployment-types#how-to-use-webhooks) and [here](https://core.telegram.org/bots/api#setwebhook).
 
 ### Subsequent deploys:
 

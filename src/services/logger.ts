@@ -13,7 +13,7 @@ export type Logger = LogtapeLogger;
 export type { LogLevel };
 
 export const makeLogger = async (config: AppConfig): Promise<Logger> => {
-  const { ENV, LOG_LEVEL } = config;
+  const { APP_ENV, LOG_LEVEL } = config;
 
   const pretty = getPrettyFormatter({
     properties: true,
@@ -25,7 +25,7 @@ export const makeLogger = async (config: AppConfig): Promise<Logger> => {
   await configure({
     sinks: {
       console: getConsoleSink({
-        formatter: ENV === "development" ? pretty : jsonl,
+        formatter: APP_ENV === "dev" ? pretty : jsonl,
       }),
     },
     loggers: [

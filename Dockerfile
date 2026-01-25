@@ -3,14 +3,14 @@ FROM denoland/deno:alpine-2.6.6
 WORKDIR /app
 
 # Cache dependencies (optional but speeds up rebuilds)
-COPY deno.json deno.lock* ./src
+COPY deno.json deno.lock* ./
 RUN deno install
 
 # Copy source
 COPY . .
 
 # Cache the main module
-RUN deno cache main.ts
+RUN deno cache src/main.ts
 
 EXPOSE 8000
 
