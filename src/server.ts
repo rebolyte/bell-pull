@@ -1,11 +1,11 @@
 import { Hono } from "hono";
 import { honoLogger } from "@logtape/hono";
 import { cors } from "hono/cors";
-import type { Container, HonoEnv, Plugin } from "./types/index.ts";
-import apiRoutes from "./routes/api.tsx";
-import { letterboxdPlugin } from "./plugins/letterboxd/index.ts";
-import { telegramPlugin } from "./plugins/telegram/index.ts";
+import type { Container, HonoEnv } from "./types/index.ts";
+import { makeApiRoutes } from "./routes/api.tsx";
+import { plugins } from "./plugins/registry.ts";
 import { scheduleCron } from "./cron-runner.ts";
+import { registerOAuthRoutes } from "./services/oauth.ts";
 
 export interface ServerOptions {
   enableCrons?: boolean;
@@ -24,16 +24,18 @@ export const makeServer = (container: Container, opts: ServerOptions = { enableC
     await next();
   });
 
-  const plugins: Plugin[] = [telegramPlugin, letterboxdPlugin];
-
   const enableCrons = opts.enableCrons !== false;
 
-  // 2. Register Crons
-  plugins.forEach(({ init, cronJobs }) => {
-    init?.(app, container);
+  // Register plugin routes and crons
+  plugins.forEach((plugin) => {
+    plugin.init?.(app, container);
+    registerOAuthRoutes(app, plugin, container);
 
-    if (enableCrons && Array.isArray(cronJobs)) {
-      cronJobs.forEach((job) => scheduleCron(job, container));
+    if (enableCrons) {
+      const jobs = typeof plugin.cronJobs === "function"
+        ? plugin.cronJobs({}) // TODO: pass actual config when available
+        : plugin.cronJobs ?? [];
+      jobs.forEach((job) => scheduleCron(job, container));
     }
   });
 
@@ -75,7 +77,7 @@ export const makeServer = (container: Container, opts: ServerOptions = { enableC
   });
 
   // Mount API routes
-  app.route("/api", apiRoutes);
+  app.route("/api", makeApiRoutes(plugins));
 
   // 404 handler
   app.notFound((c) => {

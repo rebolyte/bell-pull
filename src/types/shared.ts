@@ -50,6 +50,44 @@ export type ApiResponse<T> = {
   error?: string;
 };
 
+// Plugin config types
+export type FieldType = "text" | "secret" | "cron" | "number" | "boolean" | "enum" | "oauth-managed";
+
+export type FieldInfo = {
+  key: string;
+  type: FieldType;
+  required: boolean;
+  defaultValue?: unknown;
+  enumValues?: string[];
+};
+
+export type PluginInfo = {
+  name: string;
+  displayName: string;
+  hasOAuth: boolean;
+  enabled: boolean;
+  configured: boolean;
+  fields: FieldInfo[];
+  jsonSchema: unknown;
+};
+
+export interface PluginRpcMethods {
+  getPlugins(): Promise<PluginInfo[]>;
+  getPluginConfig(pluginName: string): Promise<Record<string, unknown> | null>;
+  setPluginConfig(
+    pluginName: string,
+    config: Record<string, unknown>,
+  ): Promise<{ success: boolean; error?: string }>;
+  setPluginEnabled(
+    pluginName: string,
+    enabled: boolean,
+  ): Promise<{ success: boolean; error?: string }>;
+  getOAuthStatus(pluginName: string): Promise<{
+    connected: boolean;
+    expiresAt?: string;
+  }>;
+}
+
 // RPC method interfaces (for documentation and type safety)
 export interface ExampleRpcMethods {
   // Simple greeting

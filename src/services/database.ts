@@ -24,9 +24,17 @@ export interface MessagesTable {
   createdAt: Generated<string>;
 }
 
+export interface PluginConfigsTable {
+  pluginName: string;
+  config: string; // JSON blob
+  enabled: number;
+  updatedAt: Generated<string>;
+}
+
 export interface DatabaseSchema {
   memories: MemoriesTable;
   messages: MessagesTable;
+  pluginConfigs: PluginConfigsTable;
 }
 
 export type Database = Kysely<DatabaseSchema>;

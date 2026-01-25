@@ -1,10 +1,8 @@
 import { Hono } from "hono";
 import { newHttpBatchRpcResponse } from "capnweb";
 import { ExampleRpcService } from "../services/example-rpc.ts";
-import type { CalculationResult, Todo, User } from "../types/shared.ts";
-import type { HonoEnv } from "../types/index.ts";
-
-const api = new Hono<HonoEnv>();
+import { PluginsRpcService } from "../services/plugins-rpc.ts";
+import type { HonoEnv, Plugin } from "../types/index.ts";
 
 // Layout component
 type LayoutProps = {
@@ -33,6 +31,17 @@ const Layout = (props: LayoutProps) => (
               return await stub[method](...params);
             } catch (error) {
               console.error('RPC error:', error);
+              throw error;
+            }
+          };
+
+          // Helper for plugins RPC calls
+          window.pluginsRpc = async function(method, ...params) {
+            try {
+              const stub = window.newHttpBatchRpcSession('/api/plugins');
+              return await stub[method](...params);
+            } catch (error) {
+              console.error('Plugins RPC error:', error);
               throw error;
             }
           };
@@ -132,6 +141,19 @@ const Layout = (props: LayoutProps) => (
             font-size: 0.875rem;
             margin-left: 0.5rem;
           }
+          .badge-success { background: #28a745; }
+          .badge-warning { background: #ffc107; color: #333; }
+          .form-group { margin-bottom: 1rem; }
+          .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: #333; }
+          .form-group input[type="text"],
+          .form-group input[type="password"],
+          .form-group input[type="number"] { width: 100%; max-width: 400px; }
+          .form-group select { padding: 0.75rem; border: 2px solid #e0e0e0; border-radius: 0.5rem; }
+          .toggle-btn { background: none; border: none; cursor: pointer; padding: 0.25rem; margin-left: 0.5rem; }
+          .plugin-card { border-left-color: #28a745; }
+          .plugin-card.disabled { border-left-color: #dc3545; opacity: 0.7; }
+          .error { color: #dc3545; margin-top: 0.5rem; }
+          .success { color: #28a745; margin-top: 0.5rem; }
         `,
         }}
       />
@@ -149,6 +171,108 @@ api.get("/dashboard", (c) => {
       <h1>
         RPC Dashboard <span class="badge">Powered by Cap'n Web</span>
       </h1>
+
+      {/* Plugin Configuration */}
+      <div
+        class="card plugin-card"
+        x-data={`{
+          plugins: [],
+          selectedPlugin: null,
+          config: {},
+          oauthStatus: {},
+          saving: false,
+          message: null,
+          showSecrets: {},
+
+          async loadPlugins() {
+            this.plugins = await window.pluginsRpc('getPlugins');
+          },
+
+          async selectPlugin(name) {
+            this.selectedPlugin = this.plugins.find(p => p.name === name);
+            this.config = await window.pluginsRpc('getPluginConfig', name) || {};
+            this.oauthStatus = await window.pluginsRpc('getOAuthStatus', name);
+            this.message = null;
+          },
+
+          async saveConfig() {
+            this.saving = true;
+            const result = await window.pluginsRpc('setPluginConfig', this.selectedPlugin.name, this.config);
+            this.saving = false;
+            this.message = result.success ? { type: 'success', text: 'Saved!' } : { type: 'error', text: result.error };
+          },
+
+          async toggleEnabled(name, enabled) {
+            await window.pluginsRpc('setPluginEnabled', name, enabled);
+            await this.loadPlugins();
+          },
+
+          getInputType(field) {
+            if (field.type === 'secret') return this.showSecrets[field.key] ? 'text' : 'password';
+            if (field.type === 'number') return 'number';
+            return 'text';
+          }
+        }`}
+        x-init="loadPlugins()"
+      >
+        <h2>Plugin Configuration <span class="badge">Data Sources</span></h2>
+
+        <div style="margin-bottom: 1rem;">
+          <select x-on:change="selectPlugin($event.target.value)" style="padding: 0.75rem; border: 2px solid #e0e0e0; border-radius: 0.5rem; min-width: 200px;">
+            <option value="">Select a plugin...</option>
+            <template x-for="plugin in plugins" x-bind:key="plugin.name">
+              <option x-bind:value="plugin.name" x-text="plugin.displayName + (plugin.enabled ? '' : ' (disabled)')"></option>
+            </template>
+          </select>
+        </div>
+
+        <template x-if="selectedPlugin">
+          <div>
+            <div style="display: flex; align-items: center; margin-bottom: 1rem;">
+              <strong x-text="selectedPlugin.displayName"></strong>
+              <span x-show="selectedPlugin.hasOAuth" class="badge" x-bind:class="oauthStatus.connected ? 'badge-success' : 'badge-warning'" x-text="oauthStatus.connected ? 'Connected' : 'Not connected'"></span>
+            </div>
+
+            <template x-if="selectedPlugin.hasOAuth && !oauthStatus.connected">
+              <div style="margin-bottom: 1rem;">
+                <a x-bind:href="'/oauth/' + selectedPlugin.name + '/authorize'" class="button" style="display: inline-block; background: #667eea; color: white; padding: 0.75rem 1.5rem; border-radius: 0.5rem; text-decoration: none; font-weight: 600;">
+                  Connect
+                </a>
+              </div>
+            </template>
+
+            <template x-for="field in selectedPlugin.fields.filter(f => f.type !== 'oauth-managed')" x-bind:key="field.key">
+              <div class="form-group">
+                <label x-text="field.key + (field.required ? ' *' : '')"></label>
+                <template x-if="field.enumValues">
+                  <select x-model="config[field.key]" style="width: 100%; max-width: 400px;">
+                    <template x-for="opt in field.enumValues" x-bind:key="opt">
+                      <option x-bind:value="opt" x-text="opt"></option>
+                    </template>
+                  </select>
+                </template>
+                <template x-if="!field.enumValues && field.type !== 'boolean'">
+                  <span style="display: flex; align-items: center;">
+                    <input x-bind:type="getInputType(field)" x-model="config[field.key]" x-bind:placeholder="field.defaultValue || ''" />
+                    <template x-if="field.type === 'secret'">
+                      <button type="button" class="toggle-btn" x-on:click="showSecrets[field.key] = !showSecrets[field.key]" x-text="showSecrets[field.key] ? 'Hide' : 'Show'"></button>
+                    </template>
+                  </span>
+                </template>
+                <template x-if="field.type === 'boolean'">
+                  <input type="checkbox" x-model="config[field.key]" />
+                </template>
+              </div>
+            </template>
+
+            <button x-on:click="saveConfig()" x-bind:disabled="saving" x-text="saving ? 'Saving...' : 'Save Configuration'"></button>
+
+            <template x-if="message">
+              <div x-bind:class="message.type" x-text="message.text"></div>
+            </template>
+          </div>
+        </template>
+      </div>
 
       {/* Counter Example */}
       <div
@@ -463,5 +587,26 @@ api.all("/rpc", async (c) => {
 
   return response;
 });
+
+export const makeApiRoutes = (plugins: Plugin[]) => {
+  const pluginsApi = new Hono<HonoEnv>();
+
+  // Plugins RPC endpoint
+  pluginsApi.all("/plugins", async (c) => {
+    const container = c.get("container");
+    const request = c.req.raw;
+    const response = await newHttpBatchRpcResponse(
+      request,
+      new PluginsRpcService(container, plugins),
+    );
+    response.headers.set("Access-Control-Allow-Origin", "*");
+    return response;
+  });
+
+  // Mount base api routes
+  pluginsApi.route("/", api);
+
+  return pluginsApi;
+};
 
 export default api;
