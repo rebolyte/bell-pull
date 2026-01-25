@@ -1,9 +1,10 @@
 import { Google } from "arctic";
 import * as z from "@zod/zod";
 import { ResultAsync } from "neverthrow";
-import type { CronJob, Plugin } from "../../types/index.ts";
+import type { Container, CronJob, Plugin } from "../../types/index.ts";
 import { secret, oauthManaged, cron } from "../../services/config-schema.ts";
 import { appError } from "../../errors.ts";
+import { refreshPluginToken } from "../../services/oauth.ts";
 
 const configSchema = z.object({
   clientId: z.string().min(1),
@@ -18,20 +19,53 @@ const configSchema = z.object({
 
 type GoogleCalendarConfig = z.infer<typeof configSchema>;
 
-const fetchCalendarEvents = async (
-  config: GoogleCalendarConfig,
-  // deno-lint-ignore no-explicit-any
-  log: any,
-): Promise<{ summary: string; start: string }[]> => {
+const isTokenExpired = (expiresAt: string | undefined): boolean => {
+  if (!expiresAt) return true;
+  const buffer = 5 * 60 * 1000; // 5 min buffer
+  return new Date(expiresAt).getTime() - buffer < Date.now();
+};
+
+const getValidToken = async (
+  container: Container,
+): Promise<string> => {
+  const configResult = await container.plugins.getConfig<GoogleCalendarConfig>(
+    googleCalendarPlugin.name,
+  );
+
+  if (configResult.isErr() || !configResult.value) {
+    throw new Error("Plugin not configured");
+  }
+
+  let config = configResult.value.config;
+
+  if (isTokenExpired(config.tokenExpiresAt)) {
+    container.log.info`Google Calendar token expired, refreshing...`;
+    const refreshResult = await refreshPluginToken(googleCalendarPlugin, container);
+
+    if (refreshResult.isErr()) {
+      throw new Error(`Token refresh failed: ${refreshResult.error.message}`);
+    }
+
+    config = { ...config, accessToken: refreshResult.value.accessToken };
+  }
+
   if (!config.accessToken) {
     throw new Error("Not authenticated");
   }
 
+  return config.accessToken;
+};
+
+const fetchCalendarEvents = async (
+  accessToken: string,
+  calendarId: string,
+  // deno-lint-ignore no-explicit-any
+  log: any,
+): Promise<{ summary: string; start: string }[]> => {
   const now = new Date();
   const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
   const params = new URLSearchParams({
-    calendarId: config.calendarId,
     timeMin: now.toISOString(),
     timeMax: weekFromNow.toISOString(),
     singleEvents: "true",
@@ -40,11 +74,9 @@ const fetchCalendarEvents = async (
   });
 
   const response = await fetch(
-    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(config.calendarId)}/events?${params}`,
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${params}`,
     {
-      headers: {
-        Authorization: `Bearer ${config.accessToken}`,
-      },
+      headers: { Authorization: `Bearer ${accessToken}` },
     },
   );
 
@@ -78,7 +110,8 @@ export const googleCalendarPlugin: Plugin<GoogleCalendarConfig> = {
       run: (container) =>
         ResultAsync.fromPromise(
           (async () => {
-            const events = await fetchCalendarEvents(config, container.log);
+            const accessToken = await getValidToken(container);
+            const events = await fetchCalendarEvents(accessToken, config.calendarId, container.log);
             container.log.info`Fetched ${events.length} calendar events`;
 
             for (const event of events) {
