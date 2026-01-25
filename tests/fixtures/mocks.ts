@@ -1,5 +1,6 @@
-import { spy, type Spy } from "@std/testing/mock";
+import { type Spy, spy } from "@std/testing/mock";
 import type Anthropic from "@anthropic-ai/sdk";
+import { Logger } from "../../src/services/logger.ts";
 
 type MessageResponse = Anthropic.Messages.Message;
 type StreamResponse = { finalMessage: () => Promise<MessageResponse> };
@@ -16,8 +17,16 @@ export const makeMessageResponse = (text: string): MessageResponse => ({
   model: "claude-haiku-3-5-20241022",
   stop_reason: "end_turn",
   stop_sequence: null,
-  content: [{ type: "text", text }],
-  usage: { input_tokens: 100, output_tokens: 50 },
+  content: [{ type: "text", text, citations: null }],
+  usage: {
+    input_tokens: 100,
+    output_tokens: 50,
+    cache_creation: null,
+    cache_creation_input_tokens: null,
+    cache_read_input_tokens: null,
+    server_tool_use: null,
+    service_tier: null,
+  },
 });
 
 export const createMockAnthropic = (opts: MockAnthropicOptions = {}) => {
@@ -54,7 +63,7 @@ export type MockTelegramApiOptions = {
 };
 
 export type MockTelegramApi = {
-  sendMessage: Spy<[string, string, unknown?], Promise<{ message_id: number }>>;
+  sendMessage: Spy<unknown, [string, string, unknown?], Promise<{ message_id: number }>>;
   sent: Array<{ chatId: string; text: string }>;
 };
 
@@ -76,7 +85,7 @@ export const silentLogger = {
   error: () => {},
   warn: () => {},
   debug: () => {},
-};
+} as unknown as Logger;
 
 export type MockGrammyContextOptions = {
   chatId?: number;
@@ -84,6 +93,7 @@ export type MockGrammyContextOptions = {
   username?: string;
   firstName?: string;
   text?: string;
+  match?: string;
 };
 
 export const createMockGrammyContext = (
@@ -107,5 +117,6 @@ export const createMockGrammyContext = (
       text: opts.text ?? "Hello",
     },
     api: mockApi,
+    match: opts?.match ?? (opts?.text?.startsWith("/") ? opts.text : "/start"),
   };
 };

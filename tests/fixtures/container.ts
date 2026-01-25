@@ -47,13 +47,16 @@ export const createTestHarness = async (
     config,
     db,
     log: silentLogger,
-    llm: makeLlmService(config, { anthropic: mockAnthropic.client }),
+    llm: makeLlmService(config, silentLogger, {
+      anthropic: mockAnthropic.client,
+    }),
   };
 
   const container = bootstrap(services);
 
   const deps: BotDeps = {
     config: container.config,
+    log: container.log,
     llm: container.llm,
     memory: container.memory,
     messages: container.messages,

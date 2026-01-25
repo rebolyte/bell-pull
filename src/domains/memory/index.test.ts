@@ -5,6 +5,7 @@ import type { AppConfig } from "../../services/config.ts";
 import { extractMemories, makeMemoryDomain, MemoryDomain } from "./index.ts";
 import { DateTime } from "luxon";
 import type { Database } from "../../services/database.ts";
+import { silentLogger } from "../../../tests/fixtures/mocks.ts";
 
 describe("Memory Domain", () => {
   describe("extractMemories", () => {
@@ -112,6 +113,7 @@ Last line`;
       const { formatMemoriesForPrompt } = makeMemoryDomain({
         config: {} as AppConfig,
         db: {} as Database,
+        log: silentLogger,
       });
 
       const memories = [
@@ -131,6 +133,7 @@ Last line`;
       const { formatMemoriesForPrompt } = makeMemoryDomain({
         config: {} as AppConfig,
         db: {} as Database,
+        log: silentLogger,
       });
       expect(formatMemoriesForPrompt([])).toBe("No stored memories are available.");
     });
@@ -146,7 +149,11 @@ Last line`;
 
     beforeEach(async () => {
       await harness.reset();
-      memoryDomain = makeMemoryDomain({ config: {} as AppConfig, db: harness.db });
+      memoryDomain = makeMemoryDomain({
+        config: {} as AppConfig,
+        db: harness.db,
+        log: silentLogger,
+      });
     });
 
     afterAll(async () => {

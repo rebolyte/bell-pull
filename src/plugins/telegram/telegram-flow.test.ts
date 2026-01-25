@@ -1,8 +1,11 @@
 import { describe, it } from "@std/testing/bdd";
 import { expect } from "@std/expect";
 import { assertSpyCalls } from "@std/testing/mock";
+import type { CommandContext, Context } from "grammy";
 import { createTestHarness } from "../../../tests/fixtures/container.ts";
 import { handleHelpCommand, handleMessage, handleStartCommand } from "./index.ts";
+
+type StreamArgs = { messages?: { role?: string; content?: unknown }[]; system?: string };
 
 describe("Telegram Message Flow", () => {
   describe("handleMessage", () => {
@@ -31,7 +34,8 @@ describe("Telegram Message Flow", () => {
 
         // Verify LLM called with user message
         assertSpyCalls(h.mockAnthropic.streamSpy, 1);
-        expect(h.mockAnthropic.streamSpy.calls[0].args[0].messages[0]).toMatchObject({
+        const args0 = h.mockAnthropic.streamSpy.calls[0].args[0] as StreamArgs;
+        expect(args0.messages?.[0]).toMatchObject({
           role: "user",
           content: expect.stringContaining("Remind me about my doctor"),
         });
@@ -116,7 +120,7 @@ describe("Telegram Message Flow", () => {
 
         await handleMessage(h.createCtx({ text: "What did I say earlier?" }), h.deps);
 
-        const llmMessages = h.mockAnthropic.streamSpy.calls[0].args[0].messages;
+        const llmMessages = (h.mockAnthropic.streamSpy.calls[0].args[0] as StreamArgs).messages;
         expect(llmMessages).toEqual([
           { role: "user", content: "TestUser says: Hello there" },
           { role: "assistant", content: "Good day!" },
@@ -141,7 +145,7 @@ describe("Telegram Message Flow", () => {
 
         await handleMessage(h.createCtx({ text: "What do I have scheduled?" }), h.deps);
 
-        const systemPrompt = h.mockAnthropic.streamSpy.calls[0].args[0].system;
+        const systemPrompt = (h.mockAnthropic.streamSpy.calls[0].args[0] as StreamArgs).system;
         expect(systemPrompt).toContain("Meeting with Bob");
         expect(systemPrompt).toContain("formal language");
       } finally {
@@ -206,7 +210,10 @@ describe("Telegram Message Flow", () => {
       });
 
       try {
-        await handleStartCommand(h.createCtx({ text: "/start" }), h.deps);
+        await handleStartCommand(
+          h.createCtx({ text: "/start" }) as unknown as CommandContext<Context>,
+          h.deps,
+        );
 
         assertSpyCalls(h.mockApi.sendMessage, 1);
         expect(h.mockApi.sent[0].text).toContain("Good day");
@@ -229,7 +236,10 @@ describe("Telegram Message Flow", () => {
       });
 
       try {
-        await handleHelpCommand(h.createCtx({ text: "/help" }), h.deps);
+        await handleHelpCommand(
+          h.createCtx({ text: "/help" }) as unknown as CommandContext<Context>,
+          h.deps,
+        );
 
         assertSpyCalls(h.mockApi.sendMessage, 1);
         expect(h.mockApi.sent[0].text).toContain("personal assistant");
@@ -294,7 +304,7 @@ describe("Telegram Message Flow", () => {
       try {
         await handleMessage(h.createCtx({ text: "Hi" }), h.deps);
 
-        const systemPrompt = h.mockAnthropic.streamSpy.calls[0].args[0].system;
+        const systemPrompt = (h.mockAnthropic.streamSpy.calls[0].args[0] as StreamArgs).system;
         expect(systemPrompt).toContain("intake");
       } finally {
         await h.cleanup();
@@ -315,7 +325,8 @@ describe("Telegram Message Flow", () => {
 
         await handleMessage(h.createCtx({ text: "Hi" }), h.deps);
 
-        const systemPrompt = h.mockAnthropic.streamSpy.calls[0].args[0].system as string;
+        const systemPrompt = (h.mockAnthropic.streamSpy.calls[0].args[0] as StreamArgs)
+          .system as string;
         expect(systemPrompt.toLowerCase()).not.toContain("intake");
       } finally {
         await h.cleanup();

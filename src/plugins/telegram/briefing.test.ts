@@ -34,7 +34,9 @@ describe("Daily Briefing", () => {
         expect(result.isOk()).toBe(true);
         assertSpyCalls(h.mockAnthropic.streamSpy, 1);
 
-        const prompt = h.mockAnthropic.streamSpy.calls[0].args[0].messages[0].content as string;
+        const prompt =
+          (h.mockAnthropic.streamSpy.calls[0].args[0] as { messages: { content?: string }[] })
+            .messages[0].content as string;
         expect(prompt).toContain("Doctor appointment");
         expect(prompt).toContain("concise briefs");
 
@@ -55,7 +57,9 @@ describe("Daily Briefing", () => {
         const fixedDate = DateTime.fromISO("2024-01-15", { zone: "America/Los_Angeles" }); // Monday
         await sendDailyBriefing(makeMockBot(h.mockApi), h.container, "123", fixedDate);
 
-        const prompt = h.mockAnthropic.streamSpy.calls[0].args[0].messages[0].content as string;
+        const prompt =
+          (h.mockAnthropic.streamSpy.calls[0].args[0] as { messages: { content?: string }[] })
+            .messages[0].content as string;
         expect(prompt).toMatch(/Today:.*Monday/);
         expect(prompt).toMatch(/Tomorrow:.*Tuesday/);
       } finally {
@@ -91,7 +95,9 @@ describe("Daily Briefing", () => {
         const result = await sendDailyBriefing(makeMockBot(h.mockApi), h.container, "123");
 
         expect(result.isOk()).toBe(true);
-        const prompt = h.mockAnthropic.streamSpy.calls[0].args[0].messages[0].content as string;
+        const prompt =
+          (h.mockAnthropic.streamSpy.calls[0].args[0] as { messages: { content?: string }[] })
+            .messages[0].content as string;
         expect(prompt).toContain("No stored memories");
       } finally {
         await h.cleanup();
@@ -127,7 +133,9 @@ describe("Daily Briefing", () => {
 
         await sendDailyBriefing(makeMockBot(h.mockApi), h.container, "123");
 
-        const prompt = h.mockAnthropic.streamSpy.calls[0].args[0].messages[0].content as string;
+        const prompt =
+          (h.mockAnthropic.streamSpy.calls[0].args[0] as { messages: { content?: string }[] })
+            .messages[0].content as string;
         expect(prompt).toContain("Dated memories");
         expect(prompt).toContain("General memories");
       } finally {
