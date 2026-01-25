@@ -52,7 +52,7 @@ echo $GITHUB_TOKEN | docker login ghcr.io -u $YOUR_USERNAME --password-stdin
 ### VPS one-time setup
 
 1. Install Docker
-2. `echo $GITHUB_TOKEN | docker login ghcr.io -u $YOUR_USERNAME $ --password-stdin`
+2. `echo $GITHUB_TOKEN | docker login ghcr.io -u $YOUR_USERNAME --password-stdin`
 3. `mkdir ~/bell-pull-data`
 4. Create `~/bell-pull-data/.env` with `DATABASE_PATH=/app/data/bell-pull.db`
 5. Install Caddy, copy Caddyfile to `/etc/caddy/Caddyfile`, `systemctl reload caddy`
