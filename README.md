@@ -65,7 +65,7 @@ Once you have your domain set up, set your Telegram bot's webhook callback with 
 curl -X GET 'https://api.telegram.org/bot1234:xxx/setWebhook?url=https%3A%2F%2Frando.trycloudflare.com%2Fwebhook%2Ftelegram'
 ```
 
-See dos [here](https://grammy.dev/guide/deployment-types#how-to-use-webhooks) and [here](https://core.telegram.org/bots/api#setwebhook).
+See docs [here](https://grammy.dev/guide/deployment-types#how-to-use-webhooks) and [here](https://core.telegram.org/bots/api#setwebhook).
 
 ### Subsequent deploys:
 
