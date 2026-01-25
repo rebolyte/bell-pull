@@ -29,7 +29,7 @@ export interface Plugin<TConfig = unknown> {
   configSchema?: z.ZodSchema<TConfig>;
   oauth?: OAuthSetup;  // plugin owns its provider
   init?: (app: Hono<HonoEnv>, container: Container) => void;
-  cronJobs?: CronJob[];
+  cronJobs?: CronJob[] | ((config: TConfig) => CronJob[]);  // static or config-driven
   onIngest?: (text: string) => Promise<string | null>;
 }
 ```
@@ -41,18 +41,101 @@ Zod `.describe()` drives UI rendering:
 ```typescript
 // Helpers
 const secret = <T extends z.ZodTypeAny>(schema: T) => schema.describe('field:secret');
+const cron = <T extends z.ZodTypeAny>(schema: T) => schema.describe('field:cron');
 
 // Usage
 z.object({
-  apiKey: secret(z.string()),           // password input + reveal toggle
-  username: z.string(),                  // text input
-  syncHours: z.number().default(24),     // number input
-  units: z.enum(['imperial', 'metric']), // dropdown
-  enabled: z.boolean(),                  // toggle
+  apiKey: secret(z.string()),              // password input + reveal toggle
+  username: z.string(),                     // text input
+  syncHours: z.number().default(24),        // number input
+  units: z.enum(['imperial', 'metric']),    // dropdown
+  enabled: z.boolean(),                     // toggle
+  schedule: cron(z.string().default('0 9 * * *')),  // cron input + presets
 })
 ```
 
 OAuth-managed fields (accessToken, refreshToken, tokenExpiresAt) hidden from form, populated by callback.
+
+## Config-Driven Cron Schedules
+
+Schedules stored in config, editable via admin UI:
+
+```typescript
+// Helper for cron field
+const cron = <T extends z.ZodTypeAny>(schema: T) => schema.describe('field:cron');
+
+// google-calendar/index.ts
+const configSchema = z.object({
+  clientId: z.string(),
+  clientSecret: secret(z.string()),
+  calendarId: z.string().default('primary'),
+  syncSchedule: cron(z.string().default('0 */6 * * *')),  // every 6 hours
+});
+
+export const googleCalendarPlugin: Plugin<z.infer<typeof configSchema>> = {
+  name: 'google-calendar',
+  configSchema,
+  oauth: { /* ... */ },
+  cronJobs: (config) => [{
+    name: 'google-calendar-sync',
+    schedule: config.syncSchedule,
+    run: (container) => syncCalendar(container, config),
+  }],
+};
+```
+
+```typescript
+// telegram/index.ts - multiple schedules
+const configSchema = z.object({
+  botToken: secret(z.string()),
+  chatId: z.string(),
+  briefingSchedule: cron(z.string().default('0 9 * * *')),   // 9am daily
+  reminderSchedule: cron(z.string().default('0 18 * * *')),  // 6pm daily
+});
+
+export const telegramPlugin: Plugin<z.infer<typeof configSchema>> = {
+  name: 'telegram',
+  configSchema,
+  cronJobs: (config) => [
+    {
+      name: 'daily-briefing',
+      schedule: config.briefingSchedule,
+      run: (container) => sendBriefing(container, config),
+    },
+    {
+      name: 'evening-reminder',
+      schedule: config.reminderSchedule,
+      run: (container) => sendReminder(container, config),
+    },
+  ],
+};
+```
+
+UI renders `field:cron` as text input with helper (common presets dropdown or validation hint).
+
+## Cron Re-registration
+
+When config changes, crons must be re-registered:
+
+```typescript
+// server.ts or cron-runner.ts
+const registerPluginCrons = (plugin: Plugin, config: unknown, container: Container) => {
+  const jobs = typeof plugin.cronJobs === 'function'
+    ? plugin.cronJobs(config)
+    : plugin.cronJobs ?? [];
+
+  jobs.forEach((job) => scheduleCron(job, container));  // replaces existing by name
+};
+
+// On config update (RPC handler)
+setPluginConfig: async (name, newConfig) => {
+  await pluginDomain.setConfig(name, newConfig);
+  const plugin = plugins.find(p => p.name === name);
+  registerPluginCrons(plugin, newConfig, container);  // re-register with new schedules
+}
+```
+
+Existing `scheduleCron` already supports replacing tasks by name.
 
 ## OAuth Flow
 
