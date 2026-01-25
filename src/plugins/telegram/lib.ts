@@ -11,8 +11,7 @@ import { APOLOGY } from "./prompt.ts";
 export const BOT_SENDER_ID = "MechMaidBot";
 export const BOT_SENDER_NAME = "Noelle";
 
-export const makeBot = ({ config }: { config: AppConfig }) =>
-  new Bot(config.TELEGRAM_BOT_TOKEN);
+export const makeBot = ({ config }: { config: AppConfig }) => new Bot(config.TELEGRAM_BOT_TOKEN);
 
 export type MessageContext = {
   api: Api;
@@ -50,20 +49,28 @@ export const handleBotError = (
     .with("unexpected", () => "Something quite unexpected has occurred.")
     .exhaustive();
 
-  sendAndStoreMessage(msgCtx, `${APOLOGY} ${errorMessage}`, messagesDomain).match(
+  sendAndStoreMessage({ msgCtx, content: `${APOLOGY} ${errorMessage}`, messagesDomain }).match(
     () => {},
     toAppError("unexpected", "Critical: Failed to send error message to user"),
   );
 };
 
 export const sendAndStoreMessage = (
-  msgCtx: Pick<MessageContext, "api" | "chatId">,
-  content: string,
-  messagesDomain: MessagesDomain,
-  { senderId = BOT_SENDER_ID, senderName = BOT_SENDER_NAME }: {
+  {
+    msgCtx,
+    content,
+    senderId = BOT_SENDER_ID,
+    senderName = BOT_SENDER_NAME,
+    messagesDomain,
+    config,
+  }: {
+    msgCtx: Pick<MessageContext, "api" | "chatId">;
+    content: string;
     senderId?: string;
     senderName?: string;
-  } = {},
+    messagesDomain: MessagesDomain;
+    config?: AppConfig;
+  },
 ): ResultAsync<string[], AppError> => {
   // Telegram has a 4096 character limit per message, so we might need to split it
   const MAX_LENGTH = 4000;
@@ -71,10 +78,9 @@ export const sendAndStoreMessage = (
   const chunks = chunkByLines(MAX_LENGTH, content);
 
   return ResultAsync.fromPromise(
-    chunks.reduce(async (prevP, chunk) => {
+    chunks.reduce(async (prevP, chunk, index) => {
       await prevP;
 
-      // Telegram supports Markdown V2, but it's more restrictive than regular Markdown
       const msgResult = await ResultAsync.fromPromise(
         msgCtx.api.sendMessage(msgCtx.chatId, chunk, { parse_mode: "Markdown" }),
         telegramError("Failed to send message chunk"),
@@ -96,7 +102,9 @@ export const sendAndStoreMessage = (
         throw dbResult.error;
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      if (index < chunks.length - 1) {
+        await new Promise((resolve) => setTimeout(resolve, config?.RATE_LIMIT_DELAY_MS ?? 500));
+      }
     }, Promise.resolve()),
     (e) => e instanceof AppError ? e : appError("telegram", "Failed to send message in chunks", e),
   ).map(() => chunks);

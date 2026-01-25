@@ -41,11 +41,13 @@ const Layout = (props: LayoutProps) => (
           console.log('Cap\\'n Web RPC client initialized');
         `,
         }}
-      ></script>
+      >
+      </script>
       <script
         defer
         src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
-      ></script>
+      >
+      </script>
       <style
         dangerouslySetInnerHTML={{
           __html: `
@@ -321,8 +323,7 @@ api.get("/dashboard", (c) => {
         x-data="{ name: 'Alice', email: 'alice@example.com', user: null }"
       >
         <h2>
-          Create User (Typed RPC){" "}
-          <span class="badge">Cap'n Web + Shared Types</span>
+          Create User (Typed RPC) <span class="badge">Cap'n Web + Shared Types</span>
         </h2>
         <div>
           <input
@@ -420,7 +421,8 @@ api.get("/dashboard", (c) => {
               <span
                 x-text="' [' + todo.priority + ']'"
                 style="font-size: 0.875rem; color: #666;"
-              ></span>
+              >
+              </span>
               <span
                 x-show="todo.completed"
                 style="color: green; margin-left: 0.5rem;"
@@ -431,7 +433,7 @@ api.get("/dashboard", (c) => {
           </template>
         </div>
       </div>
-    </Layout>
+    </Layout>,
   );
 });
 
@@ -449,7 +451,7 @@ api.post("/messages", async (c) => {
     (error) => {
       console.error("Failed to store message:", error);
       return c.json({ success: false, error: JSON.parse(error.message) }, 500);
-    }
+    },
   );
 });
 
@@ -458,7 +460,7 @@ api.all("/rpc", async (c) => {
   const request = c.req.raw;
   const response = await newHttpBatchRpcResponse(
     request,
-    new ExampleRpcService()
+    new ExampleRpcService(),
   );
 
   // Add CORS header

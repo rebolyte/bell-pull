@@ -1,7 +1,7 @@
 import { assertEquals } from "@std/assert";
-import { createTestDb } from "../../src/utils/harness.ts";
-import { makeContainer } from "../../src/container.ts";
-import { run } from "../../src/main.ts";
+import { createTestDb } from "./utils/harness.ts";
+import { makeContainer } from "./container.ts";
+import { run } from "./main.ts";
 
 Deno.test("Integration Test: Server Lifecycle", async (t) => {
   // 1. Setup DB

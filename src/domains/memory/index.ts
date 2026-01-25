@@ -142,7 +142,9 @@ const updateMemories = ({ db, log }: MemoryDeps) =>
         await query.execute();
       }
       if (!R.isEmpty(analysis.editMemories)) {
-        log.info`Edited ${analysis.editMemories.length} memories: ${{ editMemories: analysis.editMemories }}`;
+        log.info`Edited ${analysis.editMemories.length} memories: ${{
+          editMemories: analysis.editMemories,
+        }}`;
       }
 
       if (!R.isEmpty(analysis.deleteMemories)) {

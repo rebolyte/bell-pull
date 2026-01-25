@@ -16,7 +16,7 @@ Create interface extending `RpcTarget` (optional) or just define method signatur
 
 ```typescript
 export interface MyMethods {
-    hello(name: string): Promise<string>;
+  hello(name: string): Promise<string>;
 }
 ```
 
@@ -26,12 +26,12 @@ Implement class extending `RpcTarget`.
 
 ```typescript
 class MyService extends RpcTarget implements MyMethods {
-    /* ... */
+  /* ... */
 }
 ```
 
 Serve with `newHttpBatchRpcResponse(req, new MyService())`.
- 
+
 4. **Interactive UI**:
 
 For independent UI events (clicks), create a **new session** for each event handler. Do not reuse a global batch session for sequential user interactions.

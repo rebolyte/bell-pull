@@ -15,7 +15,7 @@ import type { MessagesDomain } from "../../domains/messages/index.ts";
 import { extractContext, handleBotError, makeBot, sendAndStoreMessage } from "./lib.ts";
 import { sendDailyBriefing } from "./briefing.ts";
 
-type BotDeps = {
+export type BotDeps = {
   config: AppConfig;
   log: Logger;
   llm: LLMService;
@@ -23,15 +23,20 @@ type BotDeps = {
   messages: MessagesDomain;
 };
 
-const handleStartCommand = async (
+export const handleStartCommand = async (
   ctx: CommandContext<Context>,
-  { log, messages: messagesDomain }: BotDeps,
+  { config, log, messages: messagesDomain }: BotDeps,
 ) => {
   const msgCtx = extractContext(ctx);
   const welcomeMessage =
     "Good day. I am Noelle, at your service. I shall make note of any important matters you wish me to remember and will ensure they are properly attended to at the appropriate time. If I may, I would like to ask you a few questions to understand how I can better serve you and your household.";
 
-  const result = await sendAndStoreMessage(msgCtx, welcomeMessage, messagesDomain);
+  const result = await sendAndStoreMessage({
+    msgCtx,
+    content: welcomeMessage,
+    messagesDomain,
+    config,
+  });
 
   result.match(
     () => {},
@@ -39,15 +44,20 @@ const handleStartCommand = async (
   );
 };
 
-const handleHelpCommand = async (
+export const handleHelpCommand = async (
   ctx: CommandContext<Context>,
-  { log, messages: messagesDomain }: BotDeps,
+  { config, log, messages: messagesDomain }: BotDeps,
 ) => {
   const msgCtx = extractContext(ctx);
   const helpMessage =
     "I am your personal assistant who remembers important information for you. Simply tell me things you would like me to remember, and I will keep them organized for future reference.\n\nAvailable commands:\n/start - Introduction and initial setup\n/help - Show this help message";
 
-  const result = await sendAndStoreMessage(msgCtx, helpMessage, messagesDomain);
+  const result = await sendAndStoreMessage({
+    msgCtx,
+    content: helpMessage,
+    messagesDomain,
+    config,
+  });
 
   result.match(
     () => {},
@@ -55,7 +65,7 @@ const handleHelpCommand = async (
   );
 };
 
-const handleMessage = async (
+export const handleMessage = async (
   ctx: Filter<Context, "message">,
   { config, log, llm, memory, messages: messagesDomain }: BotDeps,
 ) => {
@@ -78,6 +88,8 @@ const handleMessage = async (
     .andThen(() =>
       ResultAsync.combine([
         memory.getAllMemories(),
+        // Retrieve chat history for this chat, which now includes the current message we just stored.
+        // by default, we'll get the last 50 messages
         messagesDomain.getChatHistory({ chatId: msgCtx.chatId }),
       ])
     )
@@ -103,7 +115,9 @@ const handleMessage = async (
         return memory.updateMemories(analysis).map(() => response);
       })
     )
-    .andThen((response) => sendAndStoreMessage(msgCtx, response, messagesDomain));
+    .andThen((response) =>
+      sendAndStoreMessage({ msgCtx, content: response, messagesDomain, config })
+    );
 
   result.match(
     () => {},
