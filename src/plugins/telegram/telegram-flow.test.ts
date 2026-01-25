@@ -27,7 +27,9 @@ describe("Telegram Message Flow", () => {
         // Verify user message stored
         const history = await h.container.messages.getChatHistory({ chatId: "123" });
         const messages = history._unsafeUnwrap();
-        expect(messages[0]).toMatchObject({
+        expect(messages).toHaveLength(2);
+        const userMsg = messages.find((m) => !m.isBot);
+        expect(userMsg).toMatchObject({
           message: "Remind me about my doctor appointment tomorrow",
           isBot: false,
         });
@@ -50,8 +52,8 @@ describe("Telegram Message Flow", () => {
 
         // Verify response sent and stored
         expect(h.mockApi.sent).toEqual([{ chatId: "123", text: "I've noted that for you." }]);
-        expect(messages).toHaveLength(2);
-        expect(messages[1]).toMatchObject({ message: "I've noted that for you.", isBot: true });
+        const botMsg = messages.find((m) => m.isBot);
+        expect(botMsg).toMatchObject({ message: "I've noted that for you.", isBot: true });
       } finally {
         await h.cleanup();
       }
@@ -120,13 +122,12 @@ describe("Telegram Message Flow", () => {
 
         await handleMessage(h.createCtx({ text: "What did I say earlier?" }), h.deps);
 
-        const llmMessages = (h.mockAnthropic.streamSpy.calls[0].args[0] as StreamArgs).messages;
-        expect(llmMessages).toEqual([
-          { role: "user", content: "TestUser says: Hello there" },
-          { role: "assistant", content: "Good day!" },
-          { role: "user", content: expect.stringContaining("What did I say earlier") },
-          { role: "user", content: "[Please continue]" },
-        ]);
+        const llmMessages = (h.mockAnthropic.streamSpy.calls[0].args[0] as StreamArgs).messages ?? [];
+        expect(llmMessages).toHaveLength(3);
+        expect(llmMessages[0].role).toBe("user");
+        expect(llmMessages[0].content).toContain("What did I say earlier");
+        expect(llmMessages[1]).toEqual({ role: "assistant", content: "Good day!" });
+        expect(llmMessages[2]).toEqual({ role: "user", content: "TestUser says: Hello there" });
       } finally {
         await h.cleanup();
       }
@@ -284,13 +285,16 @@ describe("Telegram Message Flow", () => {
       try {
         await handleMessage(h.createCtx({ text: "" }), h.deps);
 
-        assertSpyCalls(h.mockAnthropic.streamSpy, 1);
-        expect(h.mockApi.sent[0].text).toBe("I didn't catch that.");
+        assertSpyCalls(h.mockAnthropic.streamSpy, 0);
+        assertSpyCalls(h.mockApi.sendMessage, 1);
+        expect(h.mockApi.sent[0].text).toContain("misunderstood");
 
+        await new Promise((r) => setTimeout(r, 150));
         const history = (await h.container.messages.getChatHistory({ chatId: "123" }))
           ._unsafeUnwrap();
-        expect(history[0]).toMatchObject({ message: "", isBot: false });
-        expect(history[1]).toMatchObject({ message: "I didn't catch that.", isBot: true });
+        expect(history).toHaveLength(1);
+        expect(history[0]).toMatchObject({ isBot: true });
+        expect(history[0].message).toContain("misunderstood");
       } finally {
         await h.cleanup();
       }

@@ -33,10 +33,9 @@ export const createMockAnthropic = (opts: MockAnthropicOptions = {}) => {
   const responses = opts.responses ?? ["Default mock response"];
   let callIndex = 0;
 
-  // Create the stream implementation that returns a StreamResponse
   const streamImpl = (_params: unknown): StreamResponse => {
     if (opts.failWith) {
-      throw opts.failWith;
+      return { finalMessage: () => Promise.reject(opts.failWith) };
     }
     const text = responses[callIndex++] ?? responses.at(-1)!;
     return {
