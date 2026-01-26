@@ -57,7 +57,52 @@ docker login ghcr.io -u $YOUR_USERNAME
 2. `docker login ghcr.io -u $YOUR_USERNAME` (interactively paste in GH token)
 3. `mkdir ~/bell-pull-data`
 4. Manually create or `scp` up `~/bell-pull-data/.env` with config/auth and `DATABASE_PATH=/app/data/bell-pull.db`
-5. Install Caddy, copy Caddyfile to `/etc/caddy/Caddyfile`, `systemctl reload caddy`
+5. Install Traefik, add this service to your docker-compose.yml:
+
+<details>
+<summary>docker-compose.yml</summary>
+
+```yaml
+# set env vars in /etc/environment
+
+services:
+  traefik:
+    image: traefik:v3.6
+    container_name: traefik
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.letsencrypt.acme.email=$YOUR_EMAIL
+      - --certificatesresolvers.letsencrypt.acme.storage=/etc/traefik/acme.json
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./acme.json:/etc/traefik/acme.json
+
+  bellpull:
+    image: ghcr.io/rebolyte/bell-pull:latest
+    container_name: bellpull
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.bellpull.rule=Host(`bellpull.${DOMAINNAME}`)
+      - traefik.http.routers.bellpull.entrypoints=websecure
+      - traefik.http.routers.bellpull.tls.certresolver=letsencrypt
+      - traefik.http.services.bellpull.loadbalancer.server.port=8000
+    env_file:
+      - ~/bell-pull-data/.env
+    volumes:
+      - ~/bell-pull-data:/app/data
+```
+
+</details>
 
 ### Telegram setup
 
