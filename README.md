@@ -25,13 +25,14 @@ Mise will set up the Deno environment, and Deno will handle its dependencies aut
 
 ## Quick Start
 
-1. Start the server:
+1. Copy `.env.example` to `.env` and fill in values
+2. Start the server:
 
    ```bash
    mise run dev
    ```
 
-2. Open the interactive dashboard:
+3. Open the interactive dashboard:
 
    ```
    http://localhost:8000/api/dashboard
