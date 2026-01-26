@@ -8,6 +8,23 @@ import type { Logger } from "../../services/logger.ts";
 import { match } from "ts-pattern";
 import { APOLOGY } from "./prompt.ts";
 
+export const withRetry = async <T>(
+  fn: () => Promise<T>,
+  attempts = 3,
+  delayMs = 500,
+): Promise<T> => {
+  try {
+    return await fn();
+  } catch (error) {
+    const code = (error as { cause?: { code?: string } })?.cause?.code;
+    if (code === "ECONNRESET" && attempts > 1) {
+      await new Promise((r) => setTimeout(r, delayMs));
+      return withRetry(fn, attempts - 1, delayMs);
+    }
+    throw error;
+  }
+};
+
 export const BOT_SENDER_ID = "MechMaidBot";
 export const BOT_SENDER_NAME = "Noelle";
 
@@ -82,7 +99,7 @@ export const sendAndStoreMessage = (
       await prevP;
 
       const msgResult = await ResultAsync.fromPromise(
-        msgCtx.api.sendMessage(msgCtx.chatId, chunk, { parse_mode: "Markdown" }),
+        withRetry(() => msgCtx.api.sendMessage(msgCtx.chatId, chunk, { parse_mode: "Markdown" })),
         telegramError("Failed to send message chunk"),
       );
 
