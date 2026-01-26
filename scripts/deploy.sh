@@ -62,7 +62,7 @@ git -C "$PROJECT_ROOT" tag "$TAG" -m ""
 git -C "$PROJECT_ROOT" push origin "$TAG"
 
 # Build and push Docker images
-docker build -t "$IMAGE_BASE:$VERSION" -t "$IMAGE_BASE:latest" "$PROJECT_ROOT"
+docker build --platform linux/amd64 -t "$IMAGE_BASE:$VERSION" -t "$IMAGE_BASE:latest" "$PROJECT_ROOT"
 docker push "$IMAGE_BASE:$VERSION"
 docker push "$IMAGE_BASE:latest"
 

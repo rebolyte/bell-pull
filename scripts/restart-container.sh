@@ -4,7 +4,7 @@ set -euo pipefail
 # To be run on server. Run from directory containing docker-compose.yml, or set COMPOSE_DIR.
 
 COMPOSE_DIR="${COMPOSE_DIR:-.}"
-SERVICE_NAME="${SERVICE_NAME:-bell-pull}"
+SERVICE_NAME="${SERVICE_NAME:-bellpull}"
 DATA_DIR=~/bell-pull-data
 
 mkdir -p "$DATA_DIR"
