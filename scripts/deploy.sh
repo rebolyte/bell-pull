@@ -70,6 +70,6 @@ docker push "$IMAGE_BASE:latest"
 gh release create "$TAG" --title "Release $TAG" --generate-notes
 
 # Deploy to VPS
-# ssh -p ${VPS_SSH_PORT:-22} ${VPS_USER}@${VPS_IP} 'bash -s' < "$SCRIPT_DIR/restart-container.sh"
+ssh -p ${VPS_SSH_PORT:-22} ${VPS_USER}@${VPS_IP} "COMPOSE_DIR=${VPS_COMPOSE_DIR} bash -s" < "$SCRIPT_DIR/restart-container.sh"
 
 echo "Deployed $TAG!"
