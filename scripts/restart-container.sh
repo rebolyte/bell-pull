@@ -16,7 +16,7 @@ if [[ ! -f "$DATA_DIR/.env" ]]; then
 fi
 
 cd "$COMPOSE_DIR"
-docker-compose pull "$SERVICE_NAME"
-docker-compose up -d "$SERVICE_NAME"
+docker compose pull "$SERVICE_NAME"
+docker compose up -d "$SERVICE_NAME"
 
 echo "Container started"
