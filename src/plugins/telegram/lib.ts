@@ -8,6 +8,10 @@ import type { Logger } from "../../services/logger.ts";
 import { match } from "ts-pattern";
 import { APOLOGY } from "./prompt.ts";
 
+type RetryableError = {
+  cause?: { code?: string; error?: { code?: string } };
+};
+
 export const withRetry = async <T>(
   fn: () => Promise<T>,
   attempts = 3,
@@ -16,7 +20,9 @@ export const withRetry = async <T>(
   try {
     return await fn();
   } catch (error) {
-    const code = (error as { cause?: { code?: string } })?.cause?.code;
+    const err = error as RetryableError;
+    const code = err?.cause?.code ?? err?.cause?.error?.code;
+
     if (code === "ECONNRESET" && attempts > 1) {
       await new Promise((r) => setTimeout(r, delayMs));
       return withRetry(fn, attempts - 1, delayMs);

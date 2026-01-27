@@ -49,4 +49,30 @@ describe("withRetry", () => {
     await expect(withRetry(fn)).rejects.toThrow("other error");
     expect(attempts).toBe(1);
   });
+
+  it("retries on grammy HttpError with nested ECONNRESET", async () => {
+    let attempts = 0;
+    const fn = () => {
+      attempts++;
+      if (attempts === 1) {
+        const error = {
+          cause: {
+            error: {
+              message: "request to https://api.telegram.org/bot1234:xxxx/sendMessage failed, reason: socket hang up",
+              type: "system",
+              errno: "ECONNRESET",
+              code: "ECONNRESET",
+            },
+            name: "HttpError",
+          },
+        };
+        return Promise.reject(error);
+      }
+      return Promise.resolve("ok");
+    };
+
+    const result = await withRetry(fn, 3, 10);
+    expect(result).toBe("ok");
+    expect(attempts).toBe(2);
+  });
 });
