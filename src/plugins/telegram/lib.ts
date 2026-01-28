@@ -62,7 +62,7 @@ export const handleBotError = (
   messagesDomain: MessagesDomain,
   log: Logger,
 ) => {
-  log.error`[${error.type}] ${error.message} ${{ cause: error.cause }}`;
+  log.error("Bot error", { error });
 
   const errorMessage = match(error.type)
     .with("db", () => "I am having trouble accessing my records at the moment.")

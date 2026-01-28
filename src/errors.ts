@@ -1,5 +1,18 @@
 export type ErrorType = "db" | "llm" | "telegram" | "validation" | "unexpected";
 
+const serializeError = (err: unknown): unknown => {
+  if (err instanceof Error) {
+    return {
+      ...err,
+      name: err.name,
+      message: err.message,
+      stack: err.stack,
+      cause: err.cause ? serializeError(err.cause) : undefined,
+    };
+  }
+  return err;
+};
+
 export class AppError extends Error {
   readonly _tag = "AppError";
 
@@ -10,6 +23,16 @@ export class AppError extends Error {
   ) {
     super(message, options);
     this.name = `AppError.${type}`;
+  }
+
+  toJSON() {
+    return {
+      _tag: this._tag,
+      type: this.type,
+      name: this.name,
+      message: this.message,
+      cause: serializeError(this.cause),
+    };
   }
 }
 
