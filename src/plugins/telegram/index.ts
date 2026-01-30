@@ -143,7 +143,7 @@ export const telegramPlugin: Plugin = {
   },
   cronJobs: [{
     name: "telegram-send-daily-briefing",
-    schedule: "0 9 * * *",
+    schedule: "0 7 * * *",
     run: (container) => {
       const bot = makeBot({ config: container.config });
       return sendDailyBriefing(bot, container);
