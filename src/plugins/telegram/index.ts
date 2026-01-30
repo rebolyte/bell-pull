@@ -13,7 +13,7 @@ import type { MemoryDomain } from "../../domains/memory/index.ts";
 import { makeIntakePrompt, makeSystemPrompt } from "./prompt.ts";
 import type { MessagesDomain } from "../../domains/messages/index.ts";
 import { extractContext, handleBotError, makeBot, sendAndStoreMessage } from "./lib.ts";
-import { defaultRetry, type RetryFn } from "../../utils/retry.ts";
+import { withRetry, type RetryFn } from "../../utils/retry.ts";
 import { sendDailyBriefing } from "./briefing.ts";
 
 export type BotDeps = {
@@ -27,7 +27,7 @@ export type BotDeps = {
 
 export const handleStartCommand = async (
   ctx: CommandContext<Context>,
-  { config, log, messages: messagesDomain, retry = defaultRetry }: BotDeps,
+  { config, log, messages: messagesDomain, retry = withRetry() }: BotDeps,
 ) => {
   const msgCtx = extractContext(ctx);
   const welcomeMessage =
@@ -49,7 +49,7 @@ export const handleStartCommand = async (
 
 export const handleHelpCommand = async (
   ctx: CommandContext<Context>,
-  { config, log, messages: messagesDomain, retry = defaultRetry }: BotDeps,
+  { config, log, messages: messagesDomain, retry = withRetry() }: BotDeps,
 ) => {
   const msgCtx = extractContext(ctx);
   const helpMessage =
@@ -71,7 +71,7 @@ export const handleHelpCommand = async (
 
 export const handleMessage = async (
   ctx: Filter<Context, "message">,
-  { config, log, llm, memory, messages: messagesDomain, retry = defaultRetry }: BotDeps,
+  { config, log, llm, memory, messages: messagesDomain, retry = withRetry() }: BotDeps,
 ) => {
   const msgCtx = extractContext(ctx);
 
