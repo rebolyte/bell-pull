@@ -7,6 +7,7 @@ import type { Database } from "../../src/services/database.ts";
 import type { AppConfig } from "../../src/services/config.ts";
 import { makeLlmService } from "../../src/services/llm.ts";
 import type { BotDeps } from "../../src/plugins/telegram/index.ts";
+import { withRetry } from "../../src/utils/retry.ts";
 import { testConfig } from "./config.ts";
 import {
   createMockAnthropic,
@@ -54,12 +55,15 @@ export const createTestHarness = async (
 
   const container = bootstrap(services);
 
+  const fastRetry = <T>(fn: () => Promise<T>) => withRetry(fn, 3, 10);
+
   const deps: BotDeps = {
     config: container.config,
     log: container.log,
     llm: container.llm,
     memory: container.memory,
     messages: container.messages,
+    retry: fastRetry,
   };
 
   return {
