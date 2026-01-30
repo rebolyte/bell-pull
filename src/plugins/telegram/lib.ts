@@ -3,7 +3,7 @@ import { type Api, Bot, type CommandContext, type Context, type Filter } from "g
 import type { MessagesDomain } from "../../domains/messages/index.ts";
 import { AppError, appError, telegramError, toAppError } from "../../errors.ts";
 import { chunkByLines } from "../../utils/string.ts";
-import { defaultRetry, type RetryFn } from "../../utils/retry.ts";
+import { withRetry, type RetryFn } from "../../utils/retry.ts";
 import { AppConfig } from "../../services/config.ts";
 import type { Logger } from "../../services/logger.ts";
 import { match } from "ts-pattern";
@@ -39,7 +39,7 @@ export const handleBotError = (
   msgCtx: Pick<MessageContext, "api" | "chatId">,
   messagesDomain: MessagesDomain,
   log: Logger,
-  retry: RetryFn = defaultRetry,
+  retry: RetryFn = withRetry(),
 ) => {
   log.error("Bot error", { error });
 
@@ -65,7 +65,7 @@ export const sendAndStoreMessage = (
     senderName = BOT_SENDER_NAME,
     messagesDomain,
     config,
-    retry = defaultRetry,
+    retry = withRetry(),
   }: {
     msgCtx: Pick<MessageContext, "api" | "chatId">;
     content: string;

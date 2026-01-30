@@ -55,7 +55,7 @@ export const createTestHarness = async (
 
   const container = bootstrap(services);
 
-  const fastRetry = <T>(fn: () => Promise<T>) => withRetry(fn, 3, 10);
+  const fastRetry = withRetry({ attempts: 3, delayMs: 10 });
 
   const deps: BotDeps = {
     config: container.config,
