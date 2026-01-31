@@ -13,7 +13,8 @@ export const scheduleCron = (job: CronJob, container: Container) => {
     }
   });
 
-  const task = cron.schedule(job.schedule, () =>
+  const schedule = job.schedule ?? "0 0 * * *";
+  const task = cron.schedule(schedule, () =>
     job.run(container).match(
       () => {
         log.info(`${job.name} job completed successfully`);

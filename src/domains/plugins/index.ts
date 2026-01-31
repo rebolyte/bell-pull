@@ -14,7 +14,8 @@ export type PluginConfig<T = unknown> = {
   updatedAt: string;
 };
 
-const getConfig = ({ db }: PluginsDeps) =>
+const getConfig =
+  ({ db }: PluginsDeps) =>
   <T = unknown>(pluginName: string): ResultAsync<PluginConfig<T> | null, AppError> =>
     ResultAsync.fromPromise(
       db.selectFrom("pluginConfigs")
@@ -32,7 +33,8 @@ const getConfig = ({ db }: PluginsDeps) =>
       }));
     });
 
-const setConfig = ({ db, log }: PluginsDeps) =>
+const setConfig =
+  ({ db, log }: PluginsDeps) =>
   <T>(pluginName: string, config: T, enabled?: boolean): ResultAsync<void, AppError> => {
     const configJson = JSON.stringify(config);
     return ResultAsync.fromPromise(
@@ -57,7 +59,8 @@ const setConfig = ({ db, log }: PluginsDeps) =>
     });
   };
 
-const setEnabled = ({ db, log }: PluginsDeps) =>
+const setEnabled =
+  ({ db, log }: PluginsDeps) =>
   (pluginName: string, enabled: boolean): ResultAsync<void, AppError> =>
     ResultAsync.fromPromise(
       db.updateTable("pluginConfigs")
@@ -69,15 +72,14 @@ const setEnabled = ({ db, log }: PluginsDeps) =>
       log.info`Set plugin ${pluginName} enabled=${enabled}`;
     });
 
-const listConfigs = ({ db }: PluginsDeps) =>
-  (): ResultAsync<PluginConfigRow[], AppError> =>
-    ResultAsync.fromPromise(
-      db.selectFrom("pluginConfigs").selectAll().execute(),
-      dbError("Failed to list plugin configs"),
-    ).andThen((rows) => Result.combine(rows.map(parsePluginConfigRow)));
+const listConfigs = ({ db }: PluginsDeps) => (): ResultAsync<PluginConfigRow[], AppError> =>
+  ResultAsync.fromPromise(
+    db.selectFrom("pluginConfigs").selectAll().execute(),
+    dbError("Failed to list plugin configs"),
+  ).andThen((rows) => Result.combine(rows.map(parsePluginConfigRow)));
 
-const deleteConfig = ({ db, log }: PluginsDeps) =>
-  (pluginName: string): ResultAsync<void, AppError> =>
+const deleteConfig =
+  ({ db, log }: PluginsDeps) => (pluginName: string): ResultAsync<void, AppError> =>
     ResultAsync.fromPromise(
       db.deleteFrom("pluginConfigs")
         .where("pluginName", "=", pluginName)

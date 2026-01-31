@@ -45,7 +45,9 @@ const fetchWeather = async (
 const formatWeather = (data: WeatherResponse, units: string): string => {
   const tempUnit = units === "imperial" ? "F" : "C";
   const description = data.weather[0]?.description ?? "unknown";
-  return `Weather in ${data.name}: ${Math.round(data.main.temp)}°${tempUnit}, ${description}, ${data.main.humidity}% humidity`;
+  return `Weather in ${data.name}: ${
+    Math.round(data.main.temp)
+  }°${tempUnit}, ${description}, ${data.main.humidity}% humidity`;
 };
 
 export const openweatherPlugin: Plugin<OpenWeatherConfig> = {
@@ -55,7 +57,7 @@ export const openweatherPlugin: Plugin<OpenWeatherConfig> = {
   cronJobs: (config) => [
     {
       name: "openweather-sync",
-      schedule: config.syncSchedule,
+      schedule: config?.syncSchedule ?? "0 6 * * *",
       run: (container) =>
         ResultAsync.fromPromise(
           (async () => {
