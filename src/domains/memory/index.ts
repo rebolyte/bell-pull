@@ -129,6 +129,8 @@ const updateMemories = ({ db, log }: MemoryDeps) =>
             source: pluginConfig?.pluginName ?? null,
             sourcePluginId: pluginConfig?.id ?? null,
           })))
+          // NOTE: to avoid duplicates, this will silently ignore conflicts
+          .onConflict((oc) => oc.columns(["source", "date", "text"]).doNothing())
           .execute();
         log.info`Created ${analysis.memories.length} memories: ${{ memories: analysis.memories }}`;
       }

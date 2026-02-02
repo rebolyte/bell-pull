@@ -116,4 +116,20 @@ describe("Google Calendar Cron Job", () => {
       await h.cleanup();
     }
   });
+
+  it("does not create duplicate memories when same events synced twice", async () => {
+    const h = await createTestHarness();
+    try {
+      await setupPlugin(h);
+      await runCronJob(h);
+      const afterFirst = await h.container.db.selectFrom("memories").selectAll().execute();
+      expect(afterFirst).toHaveLength(1);
+
+      await runCronJob(h);
+      const afterSecond = await h.container.db.selectFrom("memories").selectAll().execute();
+      expect(afterSecond).toHaveLength(1);
+    } finally {
+      await h.cleanup();
+    }
+  });
 });
