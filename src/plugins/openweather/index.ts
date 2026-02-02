@@ -1,8 +1,10 @@
 import * as z from "@zod/zod";
-import { ResultAsync } from "neverthrow";
+import * as R from "@remeda/remeda";
+import { DateTime } from "luxon";
+import { errAsync, okAsync, ResultAsync } from "neverthrow";
 import type { Plugin } from "../../types/index.ts";
 import { cron, secret } from "../../services/config-schema.ts";
-import { pluginError } from "../../errors.ts";
+import { type AppError, appError, pluginError } from "../../errors.ts";
 
 const configSchema = z.object({
   apiKey: secret(z.string().min(1)),
@@ -19,27 +21,28 @@ type WeatherResponse = {
   name: string;
 };
 
-const fetchWeather = async (
+const fetchWeather = (
   apiKey: string,
   location: string,
   units: string,
-): Promise<WeatherResponse> => {
+): ResultAsync<WeatherResponse, AppError> => {
   const params = new URLSearchParams({
     q: location,
     appid: apiKey,
     units,
   });
+  const url = `https://api.openweathermap.org/data/2.5/weather?${params}`;
 
-  const response = await fetch(
-    `https://api.openweathermap.org/data/2.5/weather?${params}`,
+  return ResultAsync.fromPromise(
+    fetch(url).then(async (response) => {
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`OpenWeather API error: ${response.status} ${text}`);
+      }
+      return response.json();
+    }),
+    pluginError("OpenWeather API error"),
   );
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`OpenWeather API error: ${response.status} ${text}`);
-  }
-
-  return response.json();
 };
 
 const formatWeather = (data: WeatherResponse, units: string): string => {
@@ -58,29 +61,39 @@ export const openweatherPlugin: Plugin<OpenWeatherConfig> = {
     {
       name: "openweather-sync",
       schedule: config?.syncSchedule ?? "0 6 * * *",
-      run: (container, _job) =>
-        ResultAsync.fromPromise(
-          (async () => {
-            const configResult = await container.plugins.getConfig(openweatherPlugin.name);
-            const pluginConfig = configResult.isOk() ? configResult.value ?? undefined : undefined;
+      run: (container, job) => {
+        const { log, memory, plugins, config } = container;
 
-            const weather = await fetchWeather(config.apiKey, config.location, config.units);
-            const text = formatWeather(weather, config.units);
+        const configRes = plugins
+          .getConfig<OpenWeatherConfig>(openweatherPlugin.name)
+          .andThen((pluginConfig) => {
+            if (pluginConfig === null || R.isEmptyish(pluginConfig.config.apiKey)) {
+              return errAsync(appError("plugin", `[${job.name}] Plugin not configured`));
+            }
+            return okAsync(pluginConfig);
+          });
 
-            container.log.info`Fetched weather: ${text}`;
+        return configRes.andThen((pluginConfig) => {
+          const { apiKey, location, units } = pluginConfig.config;
 
-            const today = new Date().toISOString().split("T")[0];
-            await container.memory.updateMemories({
-              memories: [{ date: today, text }],
-              editMemories: [],
-              deleteMemories: [],
-              response: "",
-            }, pluginConfig);
-
-            return { weather: text };
-          })(),
-          pluginError("[openweather-sync] Sync failed"),
-        ),
+          return fetchWeather(apiKey, location, units)
+            .map((data) => formatWeather(data, units))
+            .andThen((text) => {
+              const today = DateTime.now().setZone(config.TIMEZONE).toFormat("yyyy-MM-dd");
+              return memory
+                .updateMemories(
+                  {
+                    memories: [{ date: today, text }],
+                    editMemories: [],
+                    deleteMemories: [],
+                    response: "",
+                  },
+                  pluginConfig,
+                )
+                .map(() => ({ weather: text }));
+            });
+        });
+      },
     },
   ],
 };
