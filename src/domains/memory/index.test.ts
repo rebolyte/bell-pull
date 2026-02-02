@@ -3,6 +3,7 @@ import { expect } from "@std/expect";
 import { useHarness } from "../../utils/harness.ts";
 import type { AppConfig } from "../../services/config.ts";
 import { extractMemories, makeMemoryDomain, MemoryDomain } from "./index.ts";
+import type { Memory } from "./schema.ts";
 import { DateTime } from "luxon";
 import type { Database } from "../../services/database.ts";
 import { silentLogger } from "../../../tests/fixtures/mocks.ts";
@@ -116,9 +117,29 @@ Last line`;
         log: silentLogger,
       });
 
-      const memories = [
-        { id: 1, text: "Dated memory", date: new Date("2023-10-27T00:00:00.000Z") },
-        { id: 2, text: "Undated memory", date: null },
+      const memories: Memory[] = [
+        {
+          id: 1,
+          text: "Dated memory",
+          date: new Date("2023-10-27T00:00:00.000Z"),
+          source: null,
+          tags: null,
+          createdAt: "2023-10-27T00:00:00.000Z",
+          lastModified: "2023-10-27T00:00:00.000Z",
+          sourcePluginId: null,
+          embedding: null,
+        },
+        {
+          id: 2,
+          text: "Undated memory",
+          date: null,
+          source: null,
+          tags: null,
+          createdAt: "2023-10-27T00:00:00.000Z",
+          lastModified: "2023-10-27T00:00:00.000Z",
+          sourcePluginId: null,
+          embedding: null,
+        },
       ];
 
       const result = formatMemoriesForPrompt(memories);

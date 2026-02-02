@@ -12,6 +12,12 @@ export interface MemoriesTable {
   id: Generated<number>;
   date: string | null;
   text: string;
+  source: string | null;
+  tags: string | null; // JSON array
+  createdAt: Generated<string>;
+  lastModified: Generated<string>;
+  sourcePluginId: number | null;
+  embedding: Uint8Array | null;
 }
 
 export interface MessagesTable {
@@ -25,10 +31,12 @@ export interface MessagesTable {
 }
 
 export interface PluginConfigsTable {
+  id: Generated<number>;
   pluginName: string;
-  config: string; // JSON blob
+  config: string; // JSON object
   enabled: number;
-  updatedAt: Generated<string>;
+  createdAt: Generated<string>;
+  lastModified: Generated<string>;
 }
 
 export interface DatabaseSchema {

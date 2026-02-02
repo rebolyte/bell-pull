@@ -1,5 +1,5 @@
+import * as R from "@remeda/remeda";
 import { ok, Result, ResultAsync } from "neverthrow";
-import { sql } from "kysely";
 import { parsePluginConfigRow, type PluginConfigRow } from "./schema.ts";
 import { type AppError, dbError } from "../../errors.ts";
 import type { Database } from "../../services/database.ts";
@@ -8,10 +8,12 @@ import type { Logger } from "../../services/logger.ts";
 type PluginsDeps = { db: Database; log: Logger };
 
 export type PluginConfig<T = unknown> = {
+  id: number;
   pluginName: string;
   config: T;
   enabled: boolean;
-  updatedAt: string;
+  createdAt: string;
+  lastModified: string;
 };
 
 const getConfig =
@@ -26,10 +28,12 @@ const getConfig =
     ).andThen((row) => {
       if (!row) return ok(null);
       return parsePluginConfigRow(row).map((parsed) => ({
+        id: parsed.id,
         pluginName: parsed.pluginName,
         config: JSON.parse(parsed.config) as T,
         enabled: parsed.enabled,
-        updatedAt: parsed.updatedAt,
+        createdAt: parsed.createdAt,
+        lastModified: parsed.lastModified,
       }));
     });
 
@@ -43,13 +47,11 @@ const setConfig =
           pluginName,
           config: configJson,
           enabled: enabled !== undefined ? (enabled ? 1 : 0) : 1,
-          updatedAt: sql`CURRENT_TIMESTAMP`,
         })
         .onConflict((oc) =>
           oc.column("pluginName").doUpdateSet({
             config: configJson,
             ...(enabled !== undefined ? { enabled: enabled ? 1 : 0 } : {}),
-            updatedAt: sql`CURRENT_TIMESTAMP`,
           })
         )
         .execute(),
@@ -64,7 +66,7 @@ const setEnabled =
   (pluginName: string, enabled: boolean): ResultAsync<void, AppError> =>
     ResultAsync.fromPromise(
       db.updateTable("pluginConfigs")
-        .set({ enabled: enabled ? 1 : 0, updatedAt: sql`CURRENT_TIMESTAMP` })
+        .set({ enabled: enabled ? 1 : 0 })
         .where("pluginName", "=", pluginName)
         .execute(),
       dbError("Failed to update plugin enabled state"),
@@ -89,12 +91,13 @@ const deleteConfig =
       log.info`Deleted config for plugin ${pluginName}`;
     });
 
-export const makePluginsDomain = (deps: PluginsDeps) => ({
-  getConfig: getConfig(deps),
-  setConfig: setConfig(deps),
-  setEnabled: setEnabled(deps),
-  listConfigs: listConfigs(deps),
-  deleteConfig: deleteConfig(deps),
-});
+export const makePluginsDomain = (deps: PluginsDeps) =>
+  R.mapValues({
+    getConfig,
+    setConfig,
+    setEnabled,
+    listConfigs,
+    deleteConfig,
+  }, (f) => f(deps));
 
 export type PluginsDomain = ReturnType<typeof makePluginsDomain>;
