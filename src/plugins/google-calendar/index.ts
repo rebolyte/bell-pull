@@ -1,7 +1,7 @@
 import { Google } from "arctic";
-import { ResultAsync } from "neverthrow";
+import { errAsync, okAsync, ResultAsync } from "neverthrow";
 import type { Container, Plugin } from "../../types/index.ts";
-import { pluginError } from "../../errors.ts";
+import { type AppError, appError, pluginError } from "../../errors.ts";
 import { refreshPluginToken } from "../../services/oauth.ts";
 import type { PluginConfig } from "../../domains/plugins/index.ts";
 import { configSchema, GoogleCalendarConfig } from "./schema.ts";
@@ -12,50 +12,32 @@ const isTokenExpired = (expiresAt: string | undefined): boolean => {
   return new Date(expiresAt).getTime() - buffer < Date.now();
 };
 
-const getPluginConfig = async (
-  container: Container,
-): Promise<PluginConfig<GoogleCalendarConfig>> => {
-  const configResult = await container.plugins.getConfig<GoogleCalendarConfig>(
-    googleCalendarPlugin.name,
-  );
-  if (configResult.isErr() || !configResult.value) {
-    throw new Error("Plugin not configured");
-  }
-  return configResult.value;
-};
-
-const getValidToken = async (
+const getValidToken = (
   container: Container,
   pluginConfig: PluginConfig<GoogleCalendarConfig>,
-): Promise<string> => {
+): ResultAsync<string, AppError> => {
   const { log } = container;
-  let { config } = pluginConfig;
+  const { config } = pluginConfig;
+
+  if (!config.accessToken) {
+    return errAsync(appError("plugin", "Not authenticated"));
+  }
+
   if (isTokenExpired(config.tokenExpiresAt)) {
     log.info`Google Calendar token expired, refreshing...`;
-    const refreshResult = await refreshPluginToken(
-      googleCalendarPlugin,
-      container,
-    );
-    if (refreshResult.isErr()) {
-      throw new Error(`Token refresh failed: ${refreshResult.error.message}`);
-    }
-    config = { ...config, accessToken: refreshResult.value.accessToken };
+    return refreshPluginToken(googleCalendarPlugin, container).map((t) => t.accessToken);
   }
-  if (!config.accessToken) {
-    throw new Error("Not authenticated");
-  }
-  return config.accessToken;
+
+  return okAsync(config.accessToken);
 };
 
-const fetchCalendarEvents = async (
+const fetchCalendarEvents = (
   accessToken: string,
   calendarId: string,
-  // deno-lint-ignore no-explicit-any
-  log: any,
-): Promise<{ summary: string; start: string }[]> => {
+  log: Container["log"],
+): ResultAsync<{ summary: string; start: string }[], AppError> => {
   const now = new Date();
   const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-
   const params = new URLSearchParams({
     timeMin: now.toISOString(),
     timeMax: weekFromNow.toISOString(),
@@ -64,29 +46,29 @@ const fetchCalendarEvents = async (
     maxResults: "50",
   });
 
-  const response = await fetch(
-    `https://www.googleapis.com/calendar/v3/calendars/${
-      encodeURIComponent(calendarId)
-    }/events?${params}`,
-    {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    },
+  const url = `https://www.googleapis.com/calendar/v3/calendars/${
+    encodeURIComponent(calendarId)
+  }/events?${params}`;
+
+  return ResultAsync.fromPromise(
+    fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } })
+      .then(async (response) => {
+        if (!response.ok) {
+          const text = await response.text();
+          log.error`Google Calendar API error: ${response.status} ${text}`;
+          throw new Error(`Calendar API error: ${response.status}`);
+        }
+        return response.json();
+      }),
+    pluginError("Calendar API error"),
+  ).map((
+    data: { items?: Array<{ summary?: string; start?: { dateTime?: string; date?: string } }> },
+  ) =>
+    (data.items ?? []).map((event) => ({
+      summary: event.summary ?? "Untitled",
+      start: event.start?.dateTime ?? event.start?.date ?? "",
+    }))
   );
-
-  if (!response.ok) {
-    const text = await response.text();
-    log.error`Google Calendar API error: ${response.status} ${text}`;
-    throw new Error(`Calendar API error: ${response.status}`);
-  }
-
-  const data = await response.json();
-
-  return (data.items || []).map((
-    event: { summary?: string; start?: { dateTime?: string; date?: string } },
-  ) => ({
-    summary: event.summary || "Untitled",
-    start: event.start?.dateTime || event.start?.date || "",
-  }));
 };
 
 export const googleCalendarPlugin: Plugin<GoogleCalendarConfig> = {
@@ -102,32 +84,50 @@ export const googleCalendarPlugin: Plugin<GoogleCalendarConfig> = {
     {
       name: "google-calendar-sync",
       schedule: config?.syncSchedule ?? "0 */6 * * *",
-      run: (container) =>
-        ResultAsync.fromPromise(
-          (async () => {
-            const pluginConfig = await getPluginConfig(container);
-            const accessToken = await getValidToken(container, pluginConfig);
-            const events = await fetchCalendarEvents(
-              accessToken,
-              config?.calendarId ?? "primary",
-              container.log,
+      run: (container, job) => {
+        const { log, memory, plugins } = container;
+
+        const configRes = plugins.getConfig<GoogleCalendarConfig>(
+          googleCalendarPlugin.name,
+        ).andThen((pluginConfig) => {
+          if (pluginConfig === null) {
+            return errAsync(appError("plugin", `[${job.name}] Plugin not configured`));
+          }
+          return okAsync(pluginConfig);
+        });
+
+        return configRes.andThen((pluginConfig) => {
+          return getValidToken(container, pluginConfig)
+            .andThen((accessToken) =>
+              fetchCalendarEvents(
+                accessToken,
+                config?.calendarId ?? "primary",
+                log,
+              )
+            )
+            .andTee((events) => {
+              log.info`[${job.name}] Fetched ${events.length} calendar events`;
+            })
+            .andThen((events) =>
+              ResultAsync.combine(
+                events.map((event) =>
+                  memory.updateMemories(
+                    {
+                      memories: [{
+                        date: event.start.split("T")[0],
+                        text: `Calendar: ${event.summary}`,
+                      }],
+                      editMemories: [],
+                      deleteMemories: [],
+                      response: "",
+                    },
+                    pluginConfig,
+                  )
+                ),
+              ).map(() => ({ synced: events.length }))
             );
-            container.log.info`Fetched ${events.length} calendar events`;
-
-            for (const event of events) {
-              const memoryText = `Calendar: ${event.summary}`;
-              await container.memory.updateMemories({
-                memories: [{ date: event.start.split("T")[0], text: memoryText }],
-                editMemories: [],
-                deleteMemories: [],
-                response: "",
-              }, pluginConfig);
-            }
-
-            return { synced: events.length };
-          })(),
-          pluginError("[google-calendar-sync] Sync failed"),
-        ),
+        });
+      },
     },
   ],
 };

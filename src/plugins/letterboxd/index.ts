@@ -9,7 +9,7 @@ export const letterboxdPlugin: Plugin = {
   cronJobs: [{
     name: "letterboxd-ingest-movies",
     schedule: "0 8 * * *", // Every morning at 8am
-    run: (container) => {
+    run: (container, _job) => {
       return okAsync(null);
       // TODO: Implement proper config/env for user URL
       // const feed = await parser.parseURL("https://letterboxd.com/USER/rss/");

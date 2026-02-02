@@ -32,10 +32,15 @@ export type HonoEnv = {
   };
 };
 
+export type CronJobRunContext = { name: string; schedule: string };
+
 export type CronJob = {
   name: string;
   schedule: string; // e.g., "0 9 * * *"
-  run: (container: Container) => ResultAsync<unknown, AppError>;
+  run: (
+    container: Container,
+    job: CronJobRunContext,
+  ) => ResultAsync<Record<string, unknown> | null, AppError>;
 };
 
 // Arctic OAuth provider interface (subset we use)

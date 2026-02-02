@@ -58,7 +58,7 @@ export const openweatherPlugin: Plugin<OpenWeatherConfig> = {
     {
       name: "openweather-sync",
       schedule: config?.syncSchedule ?? "0 6 * * *",
-      run: (container) =>
+      run: (container, _job) =>
         ResultAsync.fromPromise(
           (async () => {
             const configResult = await container.plugins.getConfig(openweatherPlugin.name);
