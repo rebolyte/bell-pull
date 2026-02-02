@@ -127,7 +127,6 @@ Last line`;
           createdAt: "2023-10-27T00:00:00.000Z",
           lastModified: "2023-10-27T00:00:00.000Z",
           sourcePluginId: null,
-          embedding: null,
         },
         {
           id: 2,
@@ -138,7 +137,6 @@ Last line`;
           createdAt: "2023-10-27T00:00:00.000Z",
           lastModified: "2023-10-27T00:00:00.000Z",
           sourcePluginId: null,
-          embedding: null,
         },
       ];
 

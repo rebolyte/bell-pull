@@ -38,7 +38,6 @@ export async function up(db: Kysely<any>): Promise<void> {
     .addColumn("last_modified", "text", (col) => col.defaultTo(sql`CURRENT_TIMESTAMP`)).execute();
   await db.schema.alterTable("memories").addColumn("source", "text").execute();
   await db.schema.alterTable("memories").addColumn("source_plugin_id", "integer").execute();
-  await db.schema.alterTable("memories").addColumn("embedding", "blob").execute();
 
   await db.schema.alterTable("messages")
     .addColumn("last_modified", "text", (col) => col.defaultTo(sql`CURRENT_TIMESTAMP`)).execute();
@@ -57,7 +56,6 @@ export async function down(db: Kysely<any>): Promise<void> {
   await sql`DROP TRIGGER IF EXISTS plugin_configs_last_modified`.execute(db);
 
   await db.schema.alterTable("messages").dropColumn("last_modified").execute();
-  await db.schema.alterTable("memories").dropColumn("embedding").execute();
   await db.schema.alterTable("memories").dropColumn("source_plugin_id").execute();
   await db.schema.alterTable("memories").dropColumn("last_modified").execute();
   await db.schema.alterTable("memories").dropColumn("created_at").execute();

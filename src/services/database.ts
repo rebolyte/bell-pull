@@ -17,7 +17,6 @@ export interface MemoriesTable {
   createdAt: Generated<string>;
   lastModified: Generated<string>;
   sourcePluginId: number | null;
-  embedding: Uint8Array | null;
 }
 
 export interface MessagesTable {
