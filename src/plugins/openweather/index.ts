@@ -1,19 +1,9 @@
-import * as z from "@zod/zod";
 import * as R from "@remeda/remeda";
 import { DateTime } from "luxon";
 import { errAsync, okAsync, ResultAsync } from "neverthrow";
 import type { Plugin } from "../../types/index.ts";
-import { cron, secret } from "../../services/config-schema.ts";
 import { type AppError, appError, pluginError } from "../../errors.ts";
-
-const configSchema = z.object({
-  apiKey: secret(z.string().min(1)),
-  location: z.string().default("San Francisco, CA"),
-  units: z.enum(["imperial", "metric"]).default("imperial"),
-  syncSchedule: cron(z.string().default("0 6 * * *")), // 6am daily
-});
-
-type OpenWeatherConfig = z.infer<typeof configSchema>;
+import { configSchema, OpenWeatherConfig } from "./schema.ts";
 
 type WeatherResponse = {
   main: { temp: number; humidity: number };
@@ -62,7 +52,7 @@ export const openweatherPlugin: Plugin<OpenWeatherConfig> = {
       name: "openweather-sync",
       schedule: config?.syncSchedule ?? "0 6 * * *",
       run: (container, job) => {
-        const { log, memory, plugins, config } = container;
+        const { memory, plugins, config } = container;
 
         const configRes = plugins
           .getConfig<OpenWeatherConfig>(openweatherPlugin.name)

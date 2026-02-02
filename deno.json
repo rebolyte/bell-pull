@@ -8,6 +8,7 @@
     "type": "git",
     "url": "https://github.com/rebolyte/bell-pull"
   },
+  "exports": {},
   "imports": {
     "@anthropic-ai/sdk": "npm:@anthropic-ai/sdk@^0.70.1",
     "@logtape/hono": "jsr:@logtape/hono@^1.3.5",
@@ -25,6 +26,7 @@
     "capnweb": "npm:capnweb@^0.2.0",
     "kysely": "npm:kysely@^0.28.8",
     "luxon": "npm:luxon@^3.4.4",
+    "msw": "npm:msw@^2.12.7",
     "neverthrow": "npm:neverthrow@^8.2.0",
     "node-cron": "npm:node-cron@^4.2.1",
     "rss-parser": "npm:rss-parser@^3.13.0",

@@ -13,3 +13,12 @@ export const configSchema = z.object({
 });
 
 export type GoogleCalendarConfig = z.infer<typeof configSchema>;
+
+export type CalendarEvent = {
+  summary: string;
+  start: { dateTime?: string; date?: string };
+};
+
+export type CalendarResponse = {
+  items: CalendarEvent[];
+};
