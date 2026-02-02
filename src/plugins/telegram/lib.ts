@@ -46,6 +46,7 @@ export const handleBotError = (
     .with("llm", () => "I am experiencing some difficulty processing your request.")
     .with("telegram", () => "I am unable to deliver my response properly.")
     .with("validation", () => "I seem to have misunderstood something in your message.")
+    .with("plugin", () => "There seems to be an issue with one of my integrations.")
     .with("unexpected", () => "Something quite unexpected has occurred.")
     .exhaustive();
 

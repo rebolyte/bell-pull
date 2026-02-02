@@ -12,6 +12,7 @@ import type { LLMService } from "../../services/llm.ts";
 import type { MemoryDomain } from "../../domains/memory/index.ts";
 import { makeIntakePrompt, makeSystemPrompt } from "./prompt.ts";
 import type { MessagesDomain } from "../../domains/messages/index.ts";
+import type { PluginsDomain } from "../../domains/plugins/index.ts";
 import { extractContext, handleBotError, makeBot, sendAndStoreMessage } from "./lib.ts";
 import { sendDailyBriefing } from "./briefing.ts";
 
@@ -21,6 +22,7 @@ export type BotDeps = {
   llm: LLMService;
   memory: MemoryDomain;
   messages: MessagesDomain;
+  plugins: PluginsDomain;
 };
 
 export const handleStartCommand = async (
@@ -67,7 +69,7 @@ export const handleHelpCommand = async (
 
 export const handleMessage = async (
   ctx: Filter<Context, "message">,
-  { config, log, llm, memory, messages: messagesDomain }: BotDeps,
+  { config, log, llm, memory, messages: messagesDomain, plugins }: BotDeps,
 ) => {
   const msgCtx = extractContext(ctx);
 
@@ -109,11 +111,14 @@ export const handleMessage = async (
     })
     .andThen((llmResponse) =>
       // extractMemories returns a Result; we convert to Async to keep chain consistent
-      memory.extractMemories(llmResponse).asyncAndThen((analysis) => {
-        // don't strip tags if we are debugging
-        const response = config.LOG_LEVEL === "debug" ? llmResponse : analysis.response;
-        return memory.updateMemories(analysis).map(() => response);
-      })
+      memory.extractMemories(llmResponse).asyncAndThen((analysis) =>
+        plugins.getConfig("telegram").andThen((telegramConfig) => {
+          const pluginConfig = telegramConfig ?? undefined;
+          // don't strip tags if we are debugging
+          const response = config.LOG_LEVEL === "debug" ? llmResponse : analysis.response;
+          return memory.updateMemories(analysis, pluginConfig).map(() => response);
+        })
+      )
     )
     .andThen((response) =>
       sendAndStoreMessage({ msgCtx, content: response, messagesDomain, config })

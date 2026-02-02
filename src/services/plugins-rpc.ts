@@ -7,7 +7,7 @@ import { ExampleRpcService } from "./example-rpc.ts";
 export class PluginsRpcService extends ExampleRpcService implements PluginRpcMethods {
   constructor(
     private container: Container,
-    private plugins: Plugin[],
+    private plugins: Plugin<any>[],
   ) {
     super();
   }
@@ -27,7 +27,7 @@ export class PluginsRpcService extends ExampleRpcService implements PluginRpcMet
         enabled: stored?.enabled ?? false,
         configured: !!stored,
         fields,
-        jsonSchema: plugin.configSchema ? zodToJsonSchema(plugin.configSchema) : null,
+        jsonSchema: plugin.configSchema ? zodToJsonSchema(plugin.configSchema as any) : null,
       };
     });
   }

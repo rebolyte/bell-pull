@@ -10,9 +10,9 @@ const getBaseUrl = (req: Request): string => {
   return `${url.protocol}//${url.host}`;
 };
 
-export const registerOAuthRoutes = (
+export const registerOAuthRoutes = <T>(
   app: Hono<HonoEnv>,
-  plugin: Plugin,
+  plugin: Plugin<T>,
   container: Container,
 ): void => {
   if (!plugin.oauth) return;
@@ -126,12 +126,12 @@ export type OAuthTokens = {
   tokenExpiresAt: string | null;
 };
 
-export const refreshPluginToken = (
-  plugin: Plugin,
+export const refreshPluginToken = <T>(
+  plugin: Plugin<T>,
   container: Container,
 ): ResultAsync<OAuthTokens, AppError> => {
   if (!plugin.oauth) {
-    return errAsync(appError("oauth", "Plugin has no OAuth config"));
+    return errAsync(appError("plugin", "[oauth] Plugin has no OAuth config"));
   }
 
   const { createProvider } = plugin.oauth;
@@ -144,19 +144,19 @@ export const refreshPluginToken = (
     }>(plugin.name)
     .andThen((configRow) => {
       if (!configRow) {
-        return errAsync(appError("oauth", "Plugin not configured"));
+        return errAsync(appError("plugin", "[oauth] Plugin not configured"));
       }
 
       const config = configRow.config;
       if (!config.refreshToken) {
-        return errAsync(appError("oauth", "No refresh token available"));
+        return errAsync(appError("plugin", "[oauth] No refresh token available"));
       }
 
       const provider = createProvider(config.clientId, config.clientSecret, "");
 
       return ResultAsync.fromPromise(
         provider.refreshAccessToken(config.refreshToken),
-        (e) => appError("oauth", `Token refresh failed: ${e}`),
+        (e) => appError("plugin", `[oauth] Token refresh failed: ${e}`),
       ).andThen((tokens) => {
         const newTokens: OAuthTokens = {
           accessToken: tokens.accessToken(),

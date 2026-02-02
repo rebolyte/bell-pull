@@ -1,23 +1,10 @@
 import { Google } from "arctic";
-import * as z from "@zod/zod";
 import { ResultAsync } from "neverthrow";
 import type { Container, Plugin } from "../../types/index.ts";
-import { cron, oauthManaged, secret } from "../../services/config-schema.ts";
-import { appError } from "../../errors.ts";
+import { pluginError } from "../../errors.ts";
 import { refreshPluginToken } from "../../services/oauth.ts";
-
-const configSchema = z.object({
-  clientId: z.string().min(1),
-  clientSecret: secret(z.string().min(1)),
-  calendarId: z.string().default("primary"),
-  syncSchedule: cron(z.string().default("0 */6 * * *")),
-  // OAuth-managed fields
-  accessToken: oauthManaged(z.string().optional()),
-  refreshToken: oauthManaged(z.string().optional()),
-  tokenExpiresAt: oauthManaged(z.string().optional()),
-});
-
-type GoogleCalendarConfig = z.infer<typeof configSchema>;
+import type { PluginConfig } from "../../domains/plugins/index.ts";
+import { configSchema, GoogleCalendarConfig } from "./schema.ts";
 
 const isTokenExpired = (expiresAt: string | undefined): boolean => {
   if (!expiresAt) return true;
@@ -25,34 +12,38 @@ const isTokenExpired = (expiresAt: string | undefined): boolean => {
   return new Date(expiresAt).getTime() - buffer < Date.now();
 };
 
-const getValidToken = async (
+const getPluginConfig = async (
   container: Container,
-): Promise<string> => {
+): Promise<PluginConfig<GoogleCalendarConfig>> => {
   const configResult = await container.plugins.getConfig<GoogleCalendarConfig>(
     googleCalendarPlugin.name,
   );
-
   if (configResult.isErr() || !configResult.value) {
     throw new Error("Plugin not configured");
   }
+  return configResult.value;
+};
 
-  let config = configResult.value.config;
-
+const getValidToken = async (
+  container: Container,
+  pluginConfig: PluginConfig<GoogleCalendarConfig>,
+): Promise<string> => {
+  const { log } = container;
+  let { config } = pluginConfig;
   if (isTokenExpired(config.tokenExpiresAt)) {
-    container.log.info`Google Calendar token expired, refreshing...`;
-    const refreshResult = await refreshPluginToken(googleCalendarPlugin, container);
-
+    log.info`Google Calendar token expired, refreshing...`;
+    const refreshResult = await refreshPluginToken(
+      googleCalendarPlugin,
+      container,
+    );
     if (refreshResult.isErr()) {
       throw new Error(`Token refresh failed: ${refreshResult.error.message}`);
     }
-
     config = { ...config, accessToken: refreshResult.value.accessToken };
   }
-
   if (!config.accessToken) {
     throw new Error("Not authenticated");
   }
-
   return config.accessToken;
 };
 
@@ -114,7 +105,8 @@ export const googleCalendarPlugin: Plugin<GoogleCalendarConfig> = {
       run: (container) =>
         ResultAsync.fromPromise(
           (async () => {
-            const accessToken = await getValidToken(container);
+            const pluginConfig = await getPluginConfig(container);
+            const accessToken = await getValidToken(container, pluginConfig);
             const events = await fetchCalendarEvents(
               accessToken,
               config?.calendarId ?? "primary",
@@ -129,12 +121,12 @@ export const googleCalendarPlugin: Plugin<GoogleCalendarConfig> = {
                 editMemories: [],
                 deleteMemories: [],
                 response: "",
-              });
+              }, pluginConfig);
             }
 
             return { synced: events.length };
           })(),
-          (e) => appError("calendar", `Sync failed: ${e}`),
+          pluginError("[google-calendar-sync] Sync failed"),
         ),
     },
   ],

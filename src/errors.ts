@@ -1,4 +1,4 @@
-export type ErrorType = "db" | "llm" | "telegram" | "validation" | "unexpected";
+export type ErrorType = "db" | "llm" | "telegram" | "plugin" | "validation" | "unexpected";
 
 export class AppError extends Error {
   readonly _tag = "AppError";
@@ -23,3 +23,4 @@ export const dbError = (msg: string) => toAppError("db", msg);
 export const llmError = (msg: string) => toAppError("llm", msg);
 export const validationError = (msg: string) => toAppError("validation", msg);
 export const telegramError = (msg: string) => toAppError("telegram", msg);
+export const pluginError = (msg: string) => toAppError("plugin", msg);

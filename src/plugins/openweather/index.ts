@@ -2,7 +2,7 @@ import * as z from "@zod/zod";
 import { ResultAsync } from "neverthrow";
 import type { Plugin } from "../../types/index.ts";
 import { cron, secret } from "../../services/config-schema.ts";
-import { appError } from "../../errors.ts";
+import { pluginError } from "../../errors.ts";
 
 const configSchema = z.object({
   apiKey: secret(z.string().min(1)),
@@ -61,6 +61,9 @@ export const openweatherPlugin: Plugin<OpenWeatherConfig> = {
       run: (container) =>
         ResultAsync.fromPromise(
           (async () => {
+            const configResult = await container.plugins.getConfig(openweatherPlugin.name);
+            const pluginConfig = configResult.isOk() ? configResult.value ?? undefined : undefined;
+
             const weather = await fetchWeather(config.apiKey, config.location, config.units);
             const text = formatWeather(weather, config.units);
 
@@ -72,11 +75,11 @@ export const openweatherPlugin: Plugin<OpenWeatherConfig> = {
               editMemories: [],
               deleteMemories: [],
               response: "",
-            });
+            }, pluginConfig);
 
             return { weather: text };
           })(),
-          (e) => appError("weather", `Sync failed: ${e}`),
+          pluginError("[openweather-sync] Sync failed"),
         ),
     },
   ],

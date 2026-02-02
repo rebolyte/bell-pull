@@ -91,13 +91,27 @@ const deleteConfig =
       log.info`Deleted config for plugin ${pluginName}`;
     });
 
-export const makePluginsDomain = (deps: PluginsDeps) =>
-  R.mapValues({
-    getConfig,
-    setConfig,
-    setEnabled,
-    listConfigs,
-    deleteConfig,
-  }, (f) => f(deps));
+// TS errors?
+// export const makePluginsDomain = (deps: PluginsDeps) =>
+//   R.pipe(
+//     {
+//       getConfig,
+//       setConfig,
+//       setEnabled,
+//       listConfigs,
+//       deleteConfig,
+//     },
+//     R.mapValues((f) => f(deps)),
+//   );
+
+export const makePluginsDomain = (deps: PluginsDeps) => (
+  {
+    getConfig: getConfig(deps),
+    setConfig: setConfig(deps),
+    setEnabled: setEnabled(deps),
+    listConfigs: listConfigs(deps),
+    deleteConfig: deleteConfig(deps),
+  }
+);
 
 export type PluginsDomain = ReturnType<typeof makePluginsDomain>;

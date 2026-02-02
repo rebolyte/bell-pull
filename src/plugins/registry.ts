@@ -4,7 +4,7 @@ import { letterboxdPlugin } from "./letterboxd/index.ts";
 import { openweatherPlugin } from "./openweather/index.ts";
 import { telegramPlugin } from "./telegram/index.ts";
 
-export const plugins: Plugin[] = [
+export const plugins: Plugin<any>[] = [
   telegramPlugin,
   letterboxdPlugin,
   googleCalendarPlugin,

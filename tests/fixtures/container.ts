@@ -60,6 +60,7 @@ export const createTestHarness = async (
     llm: container.llm,
     memory: container.memory,
     messages: container.messages,
+    plugins: container.plugins,
   };
 
   return {
