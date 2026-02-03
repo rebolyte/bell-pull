@@ -17,7 +17,7 @@ export const registerOAuthRoutes = <T>(
 ): void => {
   if (!plugin.oauth) return;
 
-  const { createProvider, scopes } = plugin.oauth;
+  const { createProvider, scopes, createAuthorizationURL } = plugin.oauth;
   const basePath = `/oauth/${plugin.name}`;
 
   app.get(`${basePath}/authorize`, async (c) => {
@@ -59,11 +59,9 @@ export const registerOAuthRoutes = <T>(
       path: "/",
     });
 
-    const url = provider.createAuthorizationURL(state, codeVerifier, scopes);
-    // Google requires access_type=offline to return refresh token
-    url.searchParams.set("access_type", "offline");
-    // Force consent to get refresh token even if previously authorized
-    url.searchParams.set("prompt", "consent");
+    const url = createAuthorizationURL
+      ? createAuthorizationURL(provider, state, codeVerifier, scopes)
+      : provider.createAuthorizationURL(state, codeVerifier, scopes);
     return c.redirect(url.toString());
   });
 

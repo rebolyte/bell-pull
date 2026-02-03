@@ -79,6 +79,14 @@ export const googleCalendarPlugin: Plugin<GoogleCalendarConfig> = {
     createProvider: (clientId, clientSecret, redirectUri) =>
       new Google(clientId, clientSecret, redirectUri),
     scopes: ["https://www.googleapis.com/auth/calendar.readonly"],
+    createAuthorizationURL: (provider, state, codeVerifier, scopes) => {
+      const url = provider.createAuthorizationURL(state, codeVerifier, scopes);
+      // Google requires access_type=offline to return refresh token
+      url.searchParams.set("access_type", "offline");
+      // Force consent to get refresh token even if previously authorized
+      url.searchParams.set("prompt", "consent");
+      return url;
+    },
   },
   cronJobs: (config) => [
     {

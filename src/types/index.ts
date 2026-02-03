@@ -70,6 +70,12 @@ export type OAuthSetup = {
     redirectUri: string,
   ) => OAuthProvider;
   scopes: string[];
+  createAuthorizationURL?: (
+    provider: OAuthProvider,
+    state: string,
+    codeVerifier: string,
+    scopes: string[],
+  ) => URL;
 };
 
 export interface Plugin<TConfig = unknown> {
