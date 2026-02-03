@@ -10,6 +10,7 @@
     "jsr:@std/assert@^1.0.10": "1.0.16",
     "jsr:@std/assert@^1.0.14": "1.0.16",
     "jsr:@std/assert@^1.0.15": "1.0.16",
+    "jsr:@std/async@^1.0.15": "1.0.16",
     "jsr:@std/cli@^1.0.6": "1.0.24",
     "jsr:@std/data-structures@^1.0.9": "1.0.9",
     "jsr:@std/expect@^1.0.17": "1.0.17",
@@ -26,7 +27,7 @@
     "npm:@types/node@*": "24.2.0",
     "npm:@types/node@24.0.7": "24.0.7",
     "npm:arctic@^3.7.0": "3.7.0",
-    "npm:capnweb@0.2": "0.2.0",
+    "npm:capnweb@0.4": "0.4.0",
     "npm:grammy@^1.38.4": "1.38.4",
     "npm:kysely@~0.28.8": "0.28.8",
     "npm:luxon@^3.4.4": "3.7.2",
@@ -72,6 +73,9 @@
         "jsr:@std/internal@^1.0.12"
       ]
     },
+    "@std/async@1.0.16": {
+      "integrity": "6c9e43035313b67b5de43e2b3ee3eadb39a488a0a0a3143097f112e025d3ee9a"
+    },
     "@std/cli@1.0.24": {
       "integrity": "b655a5beb26aa94f98add6bc8889f5fb9bc3ee2cc3fc954e151201f4c4200a5e",
       "dependencies": [
@@ -107,6 +111,7 @@
       "integrity": "a917ffdeb5924c9be436dc78bc32e511760e14d3a96e49c607fc5ecca86d0092",
       "dependencies": [
         "jsr:@std/assert@^1.0.15",
+        "jsr:@std/async",
         "jsr:@std/data-structures",
         "jsr:@std/fs",
         "jsr:@std/internal@^1.0.12",
@@ -393,8 +398,8 @@
         "function-bind"
       ]
     },
-    "capnweb@0.2.0": {
-      "integrity": "sha512-fQSW5h6HIefRM4rHZMyAsWcu/qE/6Qr2OC8B99whifjDJatI5KLFcODSykKmpyCCKF50N3HvZ5lB26YBdh0fRg=="
+    "capnweb@0.4.0": {
+      "integrity": "sha512-OgqPQcxnrAIqjrkAuwI4N9MP/mzseM5w9oLWb/oU63KveBJl1c8p41etLSVQUlYFiAYZu+h6/LJxKaDJd93xFw=="
     },
     "cli-width@4.1.0": {
       "integrity": "sha512-ouuZd4/dm2Sw5Gmqy6bGyNNNe1qt9RpmxveLSO7KcgsTnU7RXfsw+/bukWGo1abgBiMAic068rclZsO4IWmmxQ=="
@@ -935,7 +940,7 @@
       "jsr:@zod/zod@^4.1.12",
       "npm:@anthropic-ai/sdk@~0.70.1",
       "npm:arctic@^3.7.0",
-      "npm:capnweb@0.2",
+      "npm:capnweb@0.4",
       "npm:grammy@^1.38.4",
       "npm:kysely@~0.28.8",
       "npm:luxon@^3.4.4",

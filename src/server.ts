@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { honoLogger } from "@logtape/hono";
 import { cors } from "hono/cors";
+import { serveStatic } from "hono/deno";
 import type { Container, HonoEnv } from "./types/index.ts";
 import { makeApiRoutes } from "./routes/api.tsx";
 import { plugins } from "./plugins/registry.ts";
@@ -23,6 +24,14 @@ export const makeServer = (container: Container, opts: ServerOptions = { enableC
     c.set("container", container);
     await next();
   });
+  const staticRoot = new URL("./static", import.meta.url).pathname;
+  app.use(
+    "/static/*",
+    serveStatic({
+      root: staticRoot,
+      rewriteRequestPath: (path) => path.replace(/^\/static\/?/, ""),
+    }),
+  );
 
   const enableCrons = opts.enableCrons !== false;
 
@@ -51,19 +60,24 @@ export const makeServer = (container: Container, opts: ServerOptions = { enableC
         rpc: "POST /api/rpc - Single RPC endpoint (send {method, params})",
       },
       availableMethods: {
-        basic: ["hello", "add", "multiply", "processBatch"],
-        users: ["createUser", "getUserInfo", "updateUserPreferences"],
-        todos: ["createTodo", "getTodos", "toggleTodo"],
+        counter: ["getCounter", "incrementCounter", "decrementCounter", "resetCounter"],
+        plugins: [
+          "getPlugins",
+          "getPluginConfig",
+          "setPluginConfig",
+          "setPluginEnabled",
+          "getOAuthStatus",
+        ],
       },
       exampleCall: {
         url: "/api/rpc",
         method: "POST",
         body: {
-          method: "add",
-          params: [5, 3],
+          method: "getCounter",
+          params: [],
         },
         response: {
-          result: 8,
+          result: 0,
         },
       },
     });
