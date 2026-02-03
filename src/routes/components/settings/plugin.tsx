@@ -112,7 +112,11 @@ const OAuthSection = ({ plugin, oauthStatus, baseUrl }: OAuthSectionProps) => {
 
       {!oauthStatus.connected && (
         <div class="field-only">
-          <a href={`/oauth/${plugin.name}/authorize`} class="button">
+          <a
+            href={`/oauth/${plugin.name}/authorize`}
+            class="button"
+            hx-boost="false"
+          >
             Connect
           </a>
         </div>

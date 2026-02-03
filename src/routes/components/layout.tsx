@@ -20,7 +20,9 @@ export const Layout = (props: LayoutProps) => (
       <link rel="stylesheet" href="/static/styles/main.css" />
       <script src="https://unpkg.com/htmx.org@2.0.4" defer />
     </head>
-    <body>{props.children}</body>
+    <body hx-boost="true" hx-swap="innerHTML show:body:top">
+      {props.children}
+    </body>
   </html>
 );
 
@@ -31,7 +33,11 @@ type DashboardShellProps = {
   children?: any;
 };
 
-export const DashboardShell = ({ plugins, currentPath, children }: DashboardShellProps) => (
+export const DashboardShell = ({
+  plugins,
+  currentPath,
+  children,
+}: DashboardShellProps) => (
   <div class="dashboard-layout">
     <Sidebar plugins={plugins} currentPath={currentPath} />
     <main class="content-area">{children}</main>

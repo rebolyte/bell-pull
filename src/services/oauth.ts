@@ -60,6 +60,10 @@ export const registerOAuthRoutes = <T>(
     });
 
     const url = provider.createAuthorizationURL(state, codeVerifier, scopes);
+    // Google requires access_type=offline to return refresh token
+    url.searchParams.set("access_type", "offline");
+    // Force consent to get refresh token even if previously authorized
+    url.searchParams.set("prompt", "consent");
     return c.redirect(url.toString());
   });
 
@@ -98,10 +102,17 @@ export const registerOAuthRoutes = <T>(
     try {
       const tokens = await provider.validateAuthorizationCode(code, codeVerifier);
 
+      let refreshToken: string | null = null;
+      try {
+        refreshToken = tokens.refreshToken();
+      } catch {
+        container.log.warn`No refresh token returned by provider`;
+      }
+
       const updatedConfig = {
         ...existingConfig,
         accessToken: tokens.accessToken(),
-        refreshToken: tokens.refreshToken(),
+        refreshToken,
         tokenExpiresAt: tokens.accessTokenExpiresAt()?.toISOString(),
       };
 
