@@ -8,9 +8,134 @@
 
 body {
   font-family: var(--font-sans);
-  /* background: var(--gradient-1); */
   min-height: 100vh;
   padding: var(--size-5);
+}
+
+.dashboard-layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: var(--size-4);
+  max-width: var(--size-content-3);
+  margin: 0 auto;
+}
+
+.sidebar {
+  background: var(--surface-2);
+  border-radius: var(--radius-2);
+  border: var(--border-size-1) solid var(--surface-3);
+  padding: var(--size-3);
+  height: fit-content;
+  position: sticky;
+  top: var(--size-5);
+}
+
+.sidebar-section {
+  margin-bottom: var(--size-4);
+}
+
+.sidebar-section-title {
+  font-size: var(--font-size-0);
+  font-weight: var(--font-weight-6);
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--size-2);
+  padding-inline: var(--size-2);
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-1);
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--size-2) var(--size-3);
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-2);
+  cursor: pointer;
+  font-size: var(--font-size-1);
+  color: var(--text-1);
+  text-align: left;
+}
+
+.nav-item:hover {
+  background: var(--surface-3);
+}
+
+.nav-item-active {
+  background: var(--brand);
+  color: var(--gray-0);
+}
+
+.nav-item-active:hover {
+  background: var(--green-7);
+}
+
+.nav-item-disabled {
+  opacity: 0.6;
+}
+
+.content-area {
+  background: var(--surface-2);
+  border-radius: var(--radius-2);
+  border: var(--border-size-1) solid var(--surface-3);
+  padding: var(--size-5);
+}
+
+.settings-screen h2 {
+  margin-top: 0;
+}
+
+.placeholder-text {
+  color: var(--text-2);
+  font-style: italic;
+}
+
+.settings-form {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--size-3) var(--size-4);
+  align-items: center;
+  max-width: var(--size-content-2);
+}
+
+.settings-form label {
+  font-weight: var(--font-weight-6);
+  color: var(--text-1);
+  justify-self: end;
+}
+
+.settings-form .field {
+  display: flex;
+  align-items: center;
+  gap: var(--size-2);
+}
+
+.settings-form .field input[type="text"],
+.settings-form .field input[type="password"],
+.settings-form .field input[type="number"],
+.settings-form .field select {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-form .form-row {
+  display: contents;
+}
+
+.settings-form .full-width {
+  grid-column: 1 / -1;
+}
+
+.settings-form .field-only {
+  grid-column: 2;
 }
 
 .container {

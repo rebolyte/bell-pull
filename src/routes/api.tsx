@@ -8,6 +8,7 @@ const api = new Hono<HonoEnv>();
 // Layout component
 type LayoutProps = {
   title: string;
+  // deno-lint-ignore no-explicit-any
   children?: any;
 };
 
@@ -29,164 +30,208 @@ const Layout = (props: LayoutProps) => (
         src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
       />
     </head>
-    <body>
-      <div class="container">{props.children}</div>
-    </body>
+    <body>{props.children}</body>
   </html>
+);
+
+// deno-lint-ignore no-explicit-any
+const Sidebar = (props: { children: any }) => <aside class="sidebar">{props.children}</aside>;
+
+// deno-lint-ignore no-explicit-any
+const SidebarSection = (props: { title: string; children: any }) => (
+  <div class="sidebar-section">
+    <h3 class="sidebar-section-title">{props.title}</h3>
+    <nav class="sidebar-nav">{props.children}</nav>
+  </div>
+);
+
+const NavItem = (props: { view: string; label: string }) => (
+  <button
+    type="button"
+    class="nav-item"
+    x-on:click={`navigate('${props.view}')`}
+    x-bind:class={`{ 'nav-item-active': isActive('${props.view}') }`}
+  >
+    {props.label}
+  </button>
+);
+
+// deno-lint-ignore no-explicit-any
+const ContentArea = (props: { children: any }) => <main class="content-area">{props.children}
+</main>;
+
+const GeneralSettings = () => (
+  <div class="settings-screen">
+    <h2>General Settings</h2>
+    <p class="placeholder-text">General settings coming soon</p>
+  </div>
+);
+
+const MemoriesScreen = () => (
+  <div class="settings-screen">
+    <h2>Memories</h2>
+    <p class="placeholder-text">Memory management coming soon</p>
+  </div>
+);
+
+const MessagesScreen = () => (
+  <div class="settings-screen">
+    <h2>Messages</h2>
+    <p class="placeholder-text">Message history coming soon</p>
+  </div>
 );
 
 // Dashboard route with AlpineJS
 api.get("/dashboard", (c) => {
   return c.html(
     <Layout title="Bell Pull">
-      <h1>Bell Pull</h1>
-
-      {/* Plugin Configuration */}
-      <div class="card plugin-card" x-data="pluginConfig">
-        <h2>
-          Plugin Configuration <span class="badge">Data Sources</span>
-        </h2>
-
-        <div class="mb-3">
-          <select
-            x-on:change="selectPlugin($event.target.value)"
-            class="select-plugin"
-          >
-            <option value="">Select a plugin...</option>
+      <div class="dashboard-layout" x-data="dashboard">
+        <Sidebar>
+          <SidebarSection title="Settings">
+            <NavItem view="general" label="General" />
+            <NavItem view="memories" label="Memories" />
+            <NavItem view="messages" label="Messages" />
+          </SidebarSection>
+          <SidebarSection title="Plugins">
             <template x-for="plugin in plugins" x-bind:key="plugin.name">
-              <option
-                x-bind:value="plugin.name"
-                x-text="plugin.displayName + (plugin.enabled ? '' : ' (disabled)')"
-              ></option>
-            </template>
-          </select>
-        </div>
-
-        <template x-if="selectedPlugin">
-          <div>
-            <div class="flex-row">
-              <strong x-text="selectedPlugin.displayName"></strong>
-              <span
-                x-show="selectedPlugin.hasOAuth"
-                class="badge"
-                x-bind:class="oauthStatus.connected ? 'badge-success' : 'badge-warning'"
-                x-text="oauthStatus.connected ? 'Connected' : 'Not connected'"
-              ></span>
-            </div>
-
-            <template x-if="selectedPlugin.hasOAuth">
-              <div class="form-group mb-3">
-                <label>Callback URL (for OAuth app config)</label>
-                <div class="callback-url-input">
-                  <input
-                    type="text"
-                    readonly
-                    x-bind:value="window.location.origin + '/oauth/' + selectedPlugin.name + '/callback'"
-                  />
-                  <button
-                    type="button"
-                    class="toggle-btn"
-                    x-on:click="navigator.clipboard.writeText(window.location.origin + '/oauth/' + selectedPlugin.name + '/callback')"
-                  >
-                    Copy
-                  </button>
-                </div>
-              </div>
-            </template>
-
-            <template x-if="selectedPlugin.hasOAuth && !oauthStatus.connected">
-              <div class="mb-3">
-                <a
-                  x-bind:href="'/oauth/' + selectedPlugin.name + '/authorize'"
-                  class="button"
+              <button
+                type="button"
+                class="nav-item"
+                x-on:click="navigate('plugin:' + plugin.name)"
+                x-bind:class="{ 'nav-item-active': currentView === 'plugin:' + plugin.name, 'nav-item-disabled': !plugin.enabled }"
+              >
+                <span x-text="plugin.displayName"></span>
+                <span
+                  x-show="!plugin.enabled"
+                  class="badge badge-warning"
                 >
-                  Connect
-                </a>
-              </div>
+                  disabled
+                </span>
+              </button>
             </template>
+          </SidebarSection>
+        </Sidebar>
 
-            <template
-              x-for="field in selectedPlugin.fields.filter(f => f.type !== 'oauth-managed')"
-              x-bind:key="field.key"
-            >
-              <div class="form-group">
-                <label x-text="field.key + (field.required ? ' *' : '')"></label>
-                <template x-if="field.enumValues">
-                  <select x-model="config[field.key]" class="select-full">
-                    <template x-for="opt in field.enumValues" x-bind:key="opt">
-                      <option x-bind:value="opt" x-text="opt"></option>
-                    </template>
-                  </select>
-                </template>
-                <template x-if="!field.enumValues && field.type !== 'boolean'">
-                  <span class="input-group">
-                    <input
-                      x-bind:type="getInputType(field)"
-                      x-model="config[field.key]"
-                      x-bind:placeholder="field.defaultValue || ''"
-                    />
-                    <template x-if="field.type === 'secret'">
+        <ContentArea>
+          <template x-if="currentView === 'general'">
+            <GeneralSettings />
+          </template>
+          <template x-if="currentView === 'memories'">
+            <MemoriesScreen />
+          </template>
+          <template x-if="currentView === 'messages'">
+            <MessagesScreen />
+          </template>
+          <template x-if="currentView.startsWith('plugin:') && selectedPlugin">
+            <div class="settings-screen">
+              <div class="flex-row">
+                <h2 x-text="selectedPlugin.displayName"></h2>
+                <span
+                  x-show="selectedPlugin.hasOAuth"
+                  class="badge"
+                  x-bind:class="oauthStatus.connected ? 'badge-success' : 'badge-warning'"
+                  x-text="oauthStatus.connected ? 'Connected' : 'Not connected'"
+                >
+                </span>
+              </div>
+
+              <div class="settings-form">
+                <label>Enabled</label>
+                <div class="field">
+                  <input
+                    type="checkbox"
+                    x-bind:checked="selectedPlugin.enabled"
+                    x-on:change="toggleEnabled(selectedPlugin.name, $event.target.checked)"
+                  />
+                </div>
+
+                <template x-if="selectedPlugin.hasOAuth">
+                  <div class="form-row">
+                    <label>Callback URL</label>
+                    <div class="field">
+                      <input
+                        type="text"
+                        readonly
+                        x-bind:value="window.location.origin + '/oauth/' + selectedPlugin.name + '/callback'"
+                      />
                       <button
                         type="button"
                         class="toggle-btn"
-                        x-on:click="showSecrets[field.key] = !showSecrets[field.key]"
-                        x-text="showSecrets[field.key] ? 'Hide' : 'Show'"
-                      ></button>
-                    </template>
-                  </span>
+                        x-on:click="navigator.clipboard.writeText(window.location.origin + '/oauth/' + selectedPlugin.name + '/callback')"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
                 </template>
-                <template x-if="field.type === 'boolean'">
-                  <input type="checkbox" x-model="config[field.key]" />
+
+                <template x-if="selectedPlugin.hasOAuth && !oauthStatus.connected">
+                  <div class="field-only">
+                    <a
+                      x-bind:href="'/oauth/' + selectedPlugin.name + '/authorize'"
+                      class="button"
+                    >
+                      Connect
+                    </a>
+                  </div>
+                </template>
+
+                <template
+                  x-for="field in selectedPlugin.fields.filter(f => f.type !== 'oauth-managed')"
+                  x-bind:key="field.key"
+                >
+                  <div class="form-row">
+                    <label x-text="field.key + (field.required ? ' *' : '')"></label>
+                    <div class="field">
+                      <template x-if="field.enumValues">
+                        <select x-model="config[field.key]">
+                          <template x-for="opt in field.enumValues" x-bind:key="opt">
+                            <option x-bind:value="opt" x-text="opt"></option>
+                          </template>
+                        </select>
+                      </template>
+                      <template x-if="!field.enumValues && field.type !== 'boolean'">
+                        <input
+                          x-bind:type="getInputType(field)"
+                          x-model="config[field.key]"
+                          x-bind:placeholder="field.defaultValue || ''"
+                        />
+                      </template>
+                      <template x-if="field.type === 'secret'">
+                        <button
+                          type="button"
+                          class="toggle-btn"
+                          x-on:click="showSecrets[field.key] = !showSecrets[field.key]"
+                          x-text="showSecrets[field.key] ? 'Hide' : 'Show'"
+                        >
+                        </button>
+                      </template>
+                      <template x-if="field.type === 'boolean'">
+                        <input type="checkbox" x-model="config[field.key]" />
+                      </template>
+                    </div>
+                  </div>
+                </template>
+
+                <div class="full-width">
+                  <button
+                    type="button"
+                    x-on:click="saveConfig()"
+                    x-bind:disabled="saving"
+                    x-text="saving ? 'Saving...' : 'Save Configuration'"
+                  >
+                  </button>
+                </div>
+
+                <template x-if="message">
+                  <div class="full-width" x-bind:class="message.type" x-text="message.text"></div>
                 </template>
               </div>
-            </template>
-
-            <button
-              type="button"
-              x-on:click="saveConfig()"
-              x-bind:disabled="saving"
-              x-text="saving ? 'Saving...' : 'Save Configuration'"
-            ></button>
-
-            <template x-if="message">
-              <div x-bind:class="message.type" x-text="message.text"></div>
-            </template>
-          </div>
-        </template>
+            </div>
+          </template>
+        </ContentArea>
       </div>
-
-      {/* Counter Example */}
-      <div class="card" x-data="counter">
-        <h2>
-          Counter Example <span class="badge">Server-side State</span>
-        </h2>
-        <div class="counter" x-text="count"></div>
-        <button
-          type="button"
-          x-on:click="increment()"
-          x-bind:disabled="loading"
-          x-bind:style="loading ? 'opacity: 0.5; cursor: not-allowed;' : ''"
-        >
-          Increment
-        </button>
-        <button
-          type="button"
-          x-on:click="decrement()"
-          x-bind:disabled="loading"
-          x-bind:style="loading ? 'opacity: 0.5; cursor: not-allowed;' : ''"
-        >
-          Decrement
-        </button>
-        <button
-          type="button"
-          x-on:click="reset()"
-          x-bind:disabled="loading"
-          x-bind:style="loading ? 'opacity: 0.5; cursor: not-allowed;' : ''"
-        >
-          Reset
-        </button>
-      </div>
-    </Layout>
+    </Layout>,
   );
 });
 
@@ -204,7 +249,7 @@ api.post("/messages", async (c) => {
     (error) => {
       console.error("Failed to store message:", error);
       return c.json({ success: false, error: JSON.parse(error.message) }, 500);
-    }
+    },
   );
 });
 
@@ -215,7 +260,7 @@ export const makeApiRoutes = (plugins: Plugin[]) => {
     const request = c.req.raw;
     const response = await newHttpBatchRpcResponse(
       request,
-      new PluginsRpcService(container, plugins)
+      new PluginsRpcService(container, plugins),
     );
     response.headers.set("Access-Control-Allow-Origin", "*");
     return response;
