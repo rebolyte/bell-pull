@@ -112,7 +112,7 @@ export const registerOAuthRoutes = <T>(
       }
 
       container.log.info`OAuth connected for plugin ${plugin.name}`;
-      return c.redirect(`/api/dashboard?plugin=${plugin.name}&connected=true`);
+      return c.redirect(`/dashboard/plugins/${plugin.name}?flash=connected`);
     } catch (e) {
       container.log.error`OAuth token exchange failed: ${e}`;
       return c.text("OAuth authorization failed", 400);

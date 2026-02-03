@@ -4,6 +4,8 @@ import { cors } from "hono/cors";
 import { serveStatic } from "hono/deno";
 import type { Container, HonoEnv } from "./types/index.ts";
 import { makeApiRoutes } from "./routes/api.tsx";
+import { makeDashboardRoutes } from "./routes/dashboard/index.tsx";
+import { makePluginRoutes } from "./routes/dashboard/plugins.tsx";
 import { plugins } from "./plugins/registry.ts";
 import { scheduleCron } from "./cron-runner.ts";
 import { registerOAuthRoutes } from "./services/oauth.ts";
@@ -92,6 +94,10 @@ export const makeServer = (container: Container, opts: ServerOptions = { enableC
 
   // Mount API routes
   app.route("/api", makeApiRoutes(plugins));
+
+  // Mount dashboard routes
+  app.route("/dashboard", makeDashboardRoutes(plugins));
+  app.route("/dashboard/plugins", makePluginRoutes(plugins));
 
   // 404 handler
   app.notFound((c) => {
