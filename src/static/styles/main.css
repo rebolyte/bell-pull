@@ -359,3 +359,31 @@ body {
     margin-bottom: var(--size-3);
   }
 }
+
+/* Confirmation dialog */
+dialog {
+  border: var(--border-size-1) solid var(--surface-4);
+  border-radius: var(--radius-3);
+  padding: var(--size-5);
+  max-width: 400px;
+  box-shadow: var(--shadow-4);
+}
+
+dialog::backdrop {
+  backdrop-filter: blur(2px);
+  background: rgba(0, 0, 0, 0.3);
+}
+
+body:has(dialog[open]) {
+  overflow: hidden;
+}
+
+dialog p {
+  margin: 0 0 var(--size-4);
+}
+
+.dialog-actions {
+  display: flex;
+  gap: var(--size-2);
+  justify-content: flex-end;
+}

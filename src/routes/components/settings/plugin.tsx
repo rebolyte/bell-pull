@@ -67,22 +67,59 @@ type EnabledToggleProps = {
   plugin: PluginInfo;
 };
 
-export const EnabledToggle = ({ plugin }: EnabledToggleProps) => (
-  <div class="form-row" id="enabled-toggle">
-    <label>Enabled</label>
-    <div class="field">
-      <input
-        type="checkbox"
-        name="enabled"
-        checked={plugin.enabled}
-        hx-post={`/dashboard/plugins/${plugin.name}/toggle`}
-        hx-target="#enabled-toggle"
-        hx-swap="outerHTML"
-        hx-vals={JSON.stringify({ enabled: String(!plugin.enabled) })}
-      />
+export const EnabledToggle = ({ plugin }: EnabledToggleProps) => {
+  const needsConfirm = plugin.name === "telegram" && plugin.enabled;
+  const dialogId = `disable-${plugin.name}-confirm`;
+
+  return (
+    <div class="form-row" id="enabled-toggle">
+      <label>Enabled</label>
+      <div class="field">
+        <input
+          type="checkbox"
+          name="enabled"
+          checked={plugin.enabled}
+          {...(needsConfirm
+            ? {
+              onclick: `event.preventDefault(); document.getElementById('${dialogId}').showModal()`,
+            }
+            : {
+              "hx-post": `/dashboard/plugins/${plugin.name}/toggle`,
+              "hx-target": "#enabled-toggle",
+              "hx-swap": "outerHTML",
+              "hx-vals": JSON.stringify({ enabled: String(!plugin.enabled) }),
+            })}
+        />
+      </div>
+      {needsConfirm && (
+        <dialog id={dialogId}>
+          <p>Are you sure? Your bot will not respond to messages.</p>
+          <div class="dialog-actions">
+            <button
+              type="button"
+              onclick={`document.getElementById('${dialogId}').close()`}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onclick={`
+                document.getElementById('${dialogId}').close();
+                htmx.ajax('POST', '/dashboard/plugins/${plugin.name}/toggle', {
+                  target: '#enabled-toggle',
+                  swap: 'outerHTML',
+                  values: { enabled: 'false' }
+                })
+              `}
+            >
+              Disable
+            </button>
+          </div>
+        </dialog>
+      )}
     </div>
-  </div>
-);
+  );
+};
 
 type OAuthSectionProps = {
   plugin: PluginInfo;
