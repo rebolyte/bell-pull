@@ -5,8 +5,8 @@ export const secret = <T extends z.ZodTypeAny>(schema: T): T =>
 
 export const cron = <T extends z.ZodTypeAny>(schema: T): T => schema.describe("field:cron") as T;
 
-export const oauthManaged = <T extends z.ZodTypeAny>(schema: T): T =>
-  schema.describe("field:oauth-managed") as T;
+export const managed = <T extends z.ZodTypeAny>(schema: T): T =>
+  schema.describe("field:managed") as T;
 
 export type FieldType =
   | "text"
@@ -15,14 +15,14 @@ export type FieldType =
   | "number"
   | "boolean"
   | "enum"
-  | "oauth-managed";
+  | "managed";
 
 export const getFieldType = (schema: z.ZodTypeAny): FieldType => {
   const desc = schema.description ?? "";
 
   if (desc.includes("field:secret")) return "secret";
   if (desc.includes("field:cron")) return "cron";
-  if (desc.includes("field:oauth-managed")) return "oauth-managed";
+  if (desc.includes("field:managed")) return "managed";
 
   const unwrapped = unwrapSchema(schema);
 
@@ -88,37 +88,3 @@ export const extractFieldsFromSchema = (schema: z.ZodTypeAny): FieldInfo[] => {
   });
 };
 
-export const maskSecrets = (
-  config: Record<string, unknown>,
-  fields: FieldInfo[],
-): Record<string, unknown> => {
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(config)) {
-    const field = fields.find((f) => f.key === key);
-    if (field?.type === "secret" && typeof value === "string" && value.length > 0) {
-      result[key] = "••••••••";
-    } else if (field?.type === "oauth-managed") {
-      result[key] = value ? "[set]" : undefined;
-    } else {
-      result[key] = value;
-    }
-  }
-  return result;
-};
-
-export const mergeWithExistingSecrets = (
-  newConfig: Record<string, unknown>,
-  existingConfig: Record<string, unknown>,
-  fields: FieldInfo[],
-): Record<string, unknown> => {
-  const result = { ...newConfig };
-  for (const field of fields) {
-    if (field.type === "secret" || field.type === "oauth-managed") {
-      const newVal = newConfig[field.key];
-      if (newVal === "••••••••" || newVal === "[set]" || newVal === undefined) {
-        result[field.key] = existingConfig[field.key];
-      }
-    }
-  }
-  return result;
-};

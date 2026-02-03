@@ -11,7 +11,7 @@ export type FieldType =
   | "number"
   | "boolean"
   | "enum"
-  | "oauth-managed";
+  | "managed";
 
 export type FieldInfo = {
   key: string;

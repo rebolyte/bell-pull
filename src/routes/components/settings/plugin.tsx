@@ -53,7 +53,7 @@ export const PluginSettings = ({
       )}
 
       {plugin.fields
-        .filter((f) => f.type !== "oauth-managed")
+        .filter((f) => f.type !== "managed")
         .map((field) => <ConfigField field={field} value={config[field.key]} />)}
 
       <div class="full-width">

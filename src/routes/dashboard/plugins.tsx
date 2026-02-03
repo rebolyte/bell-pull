@@ -3,11 +3,7 @@ import type { HonoEnv, Plugin } from "../../types/index.ts";
 import type { PluginInfo } from "../../types/shared.ts";
 import { DashboardShell, Layout } from "../components/layout.tsx";
 import { EnabledToggle, PluginSettings } from "../components/settings/plugin.tsx";
-import {
-  extractFieldsFromSchema,
-  maskSecrets,
-  mergeWithExistingSecrets,
-} from "../../services/config-schema.ts";
+import { extractFieldsFromSchema } from "../../services/config-schema.ts";
 import { parseFormToConfig } from "../../utils/form.ts";
 
 type PluginRoutesEnv = HonoEnv & { Variables: { plugins: Plugin[] } };
@@ -88,11 +84,9 @@ export const makePluginRoutes = (plugins: Plugin[]) => {
     ]);
 
     const pluginInfo = pluginsList.find((p) => p.name === name)!;
-    const fields = plugin.configSchema ? extractFieldsFromSchema(plugin.configSchema) : [];
-    const rawConfig = configResult.isOk() && configResult.value
+    const config = configResult.isOk() && configResult.value
       ? (configResult.value.config as Record<string, unknown>)
       : {};
-    const config = maskSecrets(rawConfig, fields);
 
     return c.html(
       <Layout title={`Bell Pull - ${pluginInfo.displayName}`}>
@@ -144,18 +138,7 @@ export const makePluginRoutes = (plugins: Plugin[]) => {
       }
     }
 
-    const existingResult = await container.plugins.getConfig(name);
-    const existingConfig = existingResult.isOk() && existingResult.value
-      ? (existingResult.value.config as Record<string, unknown>)
-      : {};
-
-    const mergedConfig = mergeWithExistingSecrets(
-      config,
-      existingConfig,
-      fields,
-    );
-
-    const result = await container.plugins.setConfig(name, mergedConfig);
+    const result = await container.plugins.setConfig(name, config);
     if (result.isErr()) {
       const errorMsg = encodeURIComponent(result.error.message);
       return c.redirect(
