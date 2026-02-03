@@ -111,12 +111,6 @@ body {
       width: 100%;
       max-width: var(--size-content-2);
     }
-
-    select {
-      padding: var(--size-2) var(--size-3);
-      border: var(--border-size-2) solid var(--gray-4);
-      border-radius: var(--radius-2);
-    }
   }
 
   .toggle-btn {
@@ -144,13 +138,6 @@ body {
   .success {
     color: var(--green-6);
     margin-top: var(--size-2);
-  }
-
-  .select-plugin {
-    padding: var(--size-2) var(--size-3);
-    border: var(--border-size-2) solid var(--gray-4);
-    border-radius: var(--radius-2);
-    min-width: var(--size-content-1);
   }
 
   .flex-row {
