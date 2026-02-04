@@ -1,4 +1,5 @@
 import { Google } from "arctic";
+import { DateTime } from "luxon";
 import { errAsync, okAsync, ResultAsync } from "neverthrow";
 import type { Container, Plugin } from "../../types/index.ts";
 import { type AppError, appError, pluginError } from "../../errors.ts";
@@ -27,8 +28,8 @@ const oauth = {
 
 const isTokenExpired = (expiresAt: string | undefined): boolean => {
   if (!expiresAt) return true;
-  const buffer = 5 * 60 * 1000; // 5 min buffer
-  return new Date(expiresAt).getTime() - buffer < Date.now();
+  const expiry = DateTime.fromISO(expiresAt);
+  return expiry.minus({ minutes: 5 }) < DateTime.now();
 };
 
 const getValidToken = (
@@ -55,11 +56,10 @@ const fetchCalendarEvents = (
   calendarId: string,
   log: Container["log"],
 ): ResultAsync<{ summary: string; start: string }[], AppError> => {
-  const now = new Date();
-  const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const now = DateTime.now();
   const params = new URLSearchParams({
-    timeMin: now.toISOString(),
-    timeMax: weekFromNow.toISOString(),
+    timeMin: now.toISO()!,
+    timeMax: now.plus({ weeks: 1 }).toISO()!,
     singleEvents: "true",
     orderBy: "startTime",
     maxResults: "50",

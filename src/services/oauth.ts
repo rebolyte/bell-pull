@@ -1,9 +1,13 @@
 import { Hono } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { generateCodeVerifier, generateState } from "arctic";
+import { DateTime } from "luxon";
 import { errAsync, ResultAsync } from "neverthrow";
 import type { Container, HonoEnv, Plugin } from "../types/index.ts";
 import { type AppError, appError } from "../errors.ts";
+
+const dateToISO = (date: Date | null | undefined): string | null =>
+  date ? DateTime.fromJSDate(date).toISO() : null;
 
 const getBaseUrl = (req: Request): string => {
   const url = new URL(req.url);
@@ -112,7 +116,7 @@ export const registerOAuthRoutes = (
         ...existingConfig,
         accessToken: tokens.accessToken(),
         refreshToken,
-        tokenExpiresAt: tokens.accessTokenExpiresAt()?.toISOString(),
+        tokenExpiresAt: dateToISO(tokens.accessTokenExpiresAt()),
       };
 
       const saveResult = await container.plugins.setConfig(pluginName, updatedConfig);
@@ -168,7 +172,7 @@ export const refreshPluginToken = (
         const newTokens: OAuthTokens = {
           accessToken: tokens.accessToken(),
           refreshToken: tokens.refreshToken() ?? config.refreshToken ?? null,
-          tokenExpiresAt: tokens.accessTokenExpiresAt()?.toISOString() ?? null,
+          tokenExpiresAt: dateToISO(tokens.accessTokenExpiresAt()),
         };
 
         return container.plugins
