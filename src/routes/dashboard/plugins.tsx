@@ -87,6 +87,7 @@ export const makePluginRoutes = (plugins: Plugin[]) => {
     const config = configResult.isOk() && configResult.value
       ? (configResult.value.config as Record<string, unknown>)
       : {};
+    const customUI = plugin.settingsUI?.(config, container);
 
     return c.html(
       <Layout title={`Bell Pull - ${pluginInfo.displayName}`}>
@@ -101,6 +102,7 @@ export const makePluginRoutes = (plugins: Plugin[]) => {
             baseUrl={baseUrl}
             flash={flash}
             flashMessage={flashMessage}
+            customUI={customUI}
           />
         </DashboardShell>
       </Layout>,

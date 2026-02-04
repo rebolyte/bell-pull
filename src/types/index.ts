@@ -86,4 +86,5 @@ export interface Plugin<TConfig = unknown> {
   init?: (app: Hono<HonoEnv>, container: Container) => void;
   cronJobs?: CronJob[] | ((config: TConfig) => CronJob[]);
   onIngest?: (text: string) => Promise<string | null>;
+  settingsUI?: (config: TConfig, container: Container) => unknown;
 }

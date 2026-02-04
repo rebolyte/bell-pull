@@ -13,6 +13,7 @@ type PluginSettingsProps = {
   baseUrl: string;
   flash?: string;
   flashMessage?: string;
+  customUI?: unknown;
 };
 
 export const PluginSettings = ({
@@ -22,6 +23,7 @@ export const PluginSettings = ({
   baseUrl,
   flash,
   flashMessage,
+  customUI,
 }: PluginSettingsProps) => (
   <div class="settings-screen">
     <div class="flex-row">
@@ -60,6 +62,8 @@ export const PluginSettings = ({
         <button type="submit">Save Configuration</button>
       </div>
     </form>
+
+    {customUI}
   </div>
 );
 
