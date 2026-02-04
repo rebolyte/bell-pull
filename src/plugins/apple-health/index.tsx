@@ -28,7 +28,7 @@ const healthDataSchema = z.object({
     quality: z.string().optional(),
   }).optional(),
   weight: z.number().optional(),
-  custom: z.record(z.unknown()).optional(),
+  custom: z.record(z.string(), z.unknown()).optional(),
 });
 
 type HealthData = z.infer<typeof healthDataSchema>;
@@ -71,7 +71,7 @@ export const appleHealthPlugin: Plugin<AppleHealthConfig> = {
             return errAsync(appError("plugin", "Plugin not configured", 500));
           }
           if (!apiKey || apiKey !== pluginConfig.config.apiKey) {
-            return errAsync(appError("auth", "Unauthorized", 401));
+            return errAsync(appError("validation", "Unauthorized"));
           }
           return okAsync(pluginConfig);
         })
@@ -105,8 +105,8 @@ export const appleHealthPlugin: Plugin<AppleHealthConfig> = {
           },
           (error) => {
             log.error`[${NAME}] ${error.message}`;
-            const status = (error.context as number) ?? 500;
-            return c.json({ error: error.message }, status);
+            const status = error.message === "Unauthorized" ? 401 : 500;
+            return c.json({ error: error.message }, status as 401 | 500);
           },
         );
     });

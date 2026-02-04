@@ -27,7 +27,8 @@ export class PluginsRpcService extends ExampleRpcService implements PluginRpcMet
         enabled: stored?.enabled ?? false,
         configured: !!stored,
         fields,
-        jsonSchema: plugin.configSchema ? zodToJsonSchema(plugin.configSchema) : null,
+        // deno-lint-ignore no-explicit-any
+        jsonSchema: plugin.configSchema ? zodToJsonSchema(plugin.configSchema as any) : null,
       };
     });
   }

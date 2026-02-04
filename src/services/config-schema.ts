@@ -53,7 +53,8 @@ const getFieldType = (prop: JsonSchemaProperty): FieldType => {
 };
 
 export const extractFieldsFromSchema = (schema: z.ZodTypeAny): FieldInfo[] => {
-  const jsonSchema = zodToJsonSchema(schema) as JsonSchema;
+  // deno-lint-ignore no-explicit-any
+  const jsonSchema = zodToJsonSchema(schema as any) as JsonSchema;
   if (!jsonSchema.properties) return [];
 
   const requiredFields = new Set(jsonSchema.required ?? []);

@@ -1,4 +1,4 @@
-import type { PluginInfo } from "../types/shared.ts";
+import type { PluginInfo } from "../../types/shared.ts";
 
 type SidebarProps = {
   plugins: PluginInfo[];

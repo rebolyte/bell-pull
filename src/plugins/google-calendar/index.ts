@@ -1,7 +1,7 @@
 import { Google } from "arctic";
 import { DateTime } from "luxon";
 import { errAsync, okAsync, ResultAsync } from "neverthrow";
-import type { Container, Plugin } from "../../types/index.ts";
+import type { Container, OAuthProvider, OAuthSetup, Plugin } from "../../types/index.ts";
 import { type AppError, appError, pluginError } from "../../errors.ts";
 import { refreshPluginToken, registerOAuthRoutes } from "../../services/oauth.ts";
 import type { PluginConfig } from "../../domains/plugins/index.ts";
@@ -9,12 +9,12 @@ import { configSchema, GoogleCalendarConfig } from "./schema.ts";
 
 const NAME = "google-calendar";
 
-const oauth = {
+const oauth: OAuthSetup = {
   createProvider: (clientId: string, clientSecret: string, redirectUri: string) =>
     new Google(clientId, clientSecret, redirectUri),
   scopes: ["https://www.googleapis.com/auth/calendar.readonly"],
   createAuthorizationURL: (
-    provider: Google,
+    provider: OAuthProvider,
     state: string,
     codeVerifier: string,
     scopes: string[],
@@ -24,7 +24,7 @@ const oauth = {
     url.searchParams.set("prompt", "consent");
     return url;
   },
-} as const;
+};
 
 const isTokenExpired = (expiresAt: string | undefined): boolean => {
   if (!expiresAt) return true;

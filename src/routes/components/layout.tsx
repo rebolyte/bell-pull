@@ -1,4 +1,4 @@
-import type { PluginInfo } from "../types/shared.ts";
+import type { PluginInfo } from "../../types/shared.ts";
 import { Sidebar } from "./nav.tsx";
 
 type LayoutProps = {

@@ -3,7 +3,7 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { generateCodeVerifier, generateState } from "arctic";
 import { DateTime } from "luxon";
 import { errAsync, ResultAsync } from "neverthrow";
-import type { Container, HonoEnv, Plugin } from "../types/index.ts";
+import type { Container, HonoEnv, OAuthSetup } from "../types/index.ts";
 import { type AppError, appError } from "../errors.ts";
 
 const dateToISO = (date: Date | null | undefined): string | null =>
@@ -14,8 +14,6 @@ const getBaseUrl = (req: Request): string => {
   return `${url.protocol}//${url.host}`;
 };
 
-type OAuthSetup = NonNullable<Plugin["oauth"]>;
-
 export const registerOAuthRoutes = (
   app: Hono<HonoEnv>,
   pluginName: string,
@@ -25,6 +23,9 @@ export const registerOAuthRoutes = (
   const { createProvider, scopes, createAuthorizationURL } = oauth;
   const basePath = `/oauth/${pluginName}`;
 
+  // User clicks Connect → /oauth/{name}/authorize
+  // -> reads clientId/clientSecret from stored config
+  // -> redirects to provider
   app.get(`${basePath}/authorize`, async (c) => {
     const config = await container.plugins.getConfig<{ clientId: string; clientSecret: string }>(
       pluginName,
@@ -70,6 +71,9 @@ export const registerOAuthRoutes = (
     return c.redirect(url.toString());
   });
 
+  // Provider callback → /oauth/{name}/callback
+  // -> exchanges code for tokens
+  // -> merges tokens into existing config, saves
   app.get(`${basePath}/callback`, async (c) => {
     const code = c.req.query("code");
     const stateParam = c.req.query("state");
