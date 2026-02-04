@@ -2,9 +2,28 @@ import { Google } from "arctic";
 import { errAsync, okAsync, ResultAsync } from "neverthrow";
 import type { Container, Plugin } from "../../types/index.ts";
 import { type AppError, appError, pluginError } from "../../errors.ts";
-import { refreshPluginToken } from "../../services/oauth.ts";
+import { refreshPluginToken, registerOAuthRoutes } from "../../services/oauth.ts";
 import type { PluginConfig } from "../../domains/plugins/index.ts";
 import { configSchema, GoogleCalendarConfig } from "./schema.ts";
+
+const NAME = "google-calendar";
+
+const oauth = {
+  createProvider: (clientId: string, clientSecret: string, redirectUri: string) =>
+    new Google(clientId, clientSecret, redirectUri),
+  scopes: ["https://www.googleapis.com/auth/calendar.readonly"],
+  createAuthorizationURL: (
+    provider: Google,
+    state: string,
+    codeVerifier: string,
+    scopes: string[],
+  ) => {
+    const url = provider.createAuthorizationURL(state, codeVerifier, scopes);
+    url.searchParams.set("access_type", "offline");
+    url.searchParams.set("prompt", "consent");
+    return url;
+  },
+} as const;
 
 const isTokenExpired = (expiresAt: string | undefined): boolean => {
   if (!expiresAt) return true;
@@ -25,7 +44,7 @@ const getValidToken = (
 
   if (isTokenExpired(config.tokenExpiresAt)) {
     log.info`Google Calendar token expired, refreshing...`;
-    return refreshPluginToken(googleCalendarPlugin, container).map((t) => t.accessToken);
+    return refreshPluginToken(NAME, oauth, container).map((t) => t.accessToken);
   }
 
   return okAsync(config.accessToken);
@@ -72,21 +91,12 @@ const fetchCalendarEvents = (
 };
 
 export const googleCalendarPlugin: Plugin<GoogleCalendarConfig> = {
-  name: "google-calendar",
+  name: NAME,
   displayName: "Google Calendar",
   configSchema,
-  oauth: {
-    createProvider: (clientId, clientSecret, redirectUri) =>
-      new Google(clientId, clientSecret, redirectUri),
-    scopes: ["https://www.googleapis.com/auth/calendar.readonly"],
-    createAuthorizationURL: (provider, state, codeVerifier, scopes) => {
-      const url = provider.createAuthorizationURL(state, codeVerifier, scopes);
-      // Google requires access_type=offline to return refresh token
-      url.searchParams.set("access_type", "offline");
-      // Force consent to get refresh token even if previously authorized
-      url.searchParams.set("prompt", "consent");
-      return url;
-    },
+  oauth,
+  init: (app, container) => {
+    registerOAuthRoutes(app, NAME, oauth, container);
   },
   cronJobs: (config) => [
     {

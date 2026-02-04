@@ -8,7 +8,6 @@ import { makeDashboardRoutes } from "./routes/dashboard/index.tsx";
 import { makePluginRoutes } from "./routes/dashboard/plugins.tsx";
 import { plugins } from "./plugins/registry.ts";
 import { scheduleCron } from "./cron-runner.ts";
-import { registerOAuthRoutes } from "./services/oauth.ts";
 
 export interface ServerOptions {
   enableCrons?: boolean;
@@ -40,7 +39,6 @@ export const makeServer = (container: Container, opts: ServerOptions = { enableC
   // Register plugin routes and crons
   plugins.forEach((plugin) => {
     plugin.init?.(app, container);
-    registerOAuthRoutes(app, plugin, container);
 
     if (enableCrons) {
       const jobs = typeof plugin.cronJobs === "function"

@@ -10,19 +10,20 @@ const getBaseUrl = (req: Request): string => {
   return `${url.protocol}//${url.host}`;
 };
 
-export const registerOAuthRoutes = <T>(
+type OAuthSetup = NonNullable<Plugin["oauth"]>;
+
+export const registerOAuthRoutes = (
   app: Hono<HonoEnv>,
-  plugin: Plugin<T>,
+  pluginName: string,
+  oauth: OAuthSetup,
   container: Container,
 ): void => {
-  if (!plugin.oauth) return;
-
-  const { createProvider, scopes, createAuthorizationURL } = plugin.oauth;
-  const basePath = `/oauth/${plugin.name}`;
+  const { createProvider, scopes, createAuthorizationURL } = oauth;
+  const basePath = `/oauth/${pluginName}`;
 
   app.get(`${basePath}/authorize`, async (c) => {
     const config = await container.plugins.getConfig<{ clientId: string; clientSecret: string }>(
-      plugin.name,
+      pluginName,
     );
 
     if (config.isErr()) {
@@ -85,7 +86,7 @@ export const registerOAuthRoutes = <T>(
     const configResult = await container.plugins.getConfig<{
       clientId: string;
       clientSecret: string;
-    }>(plugin.name);
+    }>(pluginName);
 
     if (configResult.isErr() || !configResult.value) {
       return c.text("Plugin config not found", 400);
@@ -114,14 +115,14 @@ export const registerOAuthRoutes = <T>(
         tokenExpiresAt: tokens.accessTokenExpiresAt()?.toISOString(),
       };
 
-      const saveResult = await container.plugins.setConfig(plugin.name, updatedConfig);
+      const saveResult = await container.plugins.setConfig(pluginName, updatedConfig);
       if (saveResult.isErr()) {
         container.log.error`Failed to save OAuth tokens: ${saveResult.error}`;
         return c.text("Failed to save tokens", 500);
       }
 
-      container.log.info`OAuth connected for plugin ${plugin.name}`;
-      return c.redirect(`/dashboard/plugins/${plugin.name}?flash=connected`);
+      container.log.info`OAuth connected for plugin ${pluginName}`;
+      return c.redirect(`/dashboard/plugins/${pluginName}?flash=connected`);
     } catch (e) {
       container.log.error`OAuth token exchange failed: ${e}`;
       return c.text("OAuth authorization failed", 400);
@@ -135,22 +136,19 @@ export type OAuthTokens = {
   tokenExpiresAt: string | null;
 };
 
-export const refreshPluginToken = <T>(
-  plugin: Plugin<T>,
+export const refreshPluginToken = (
+  pluginName: string,
+  oauth: OAuthSetup,
   container: Container,
 ): ResultAsync<OAuthTokens, AppError> => {
-  if (!plugin.oauth) {
-    return errAsync(appError("plugin", "[oauth] Plugin has no OAuth config"));
-  }
-
-  const { createProvider } = plugin.oauth;
+  const { createProvider } = oauth;
 
   return container.plugins
     .getConfig<{
       clientId: string;
       clientSecret: string;
       refreshToken?: string;
-    }>(plugin.name)
+    }>(pluginName)
     .andThen((configRow) => {
       if (!configRow) {
         return errAsync(appError("plugin", "[oauth] Plugin not configured"));
@@ -174,7 +172,7 @@ export const refreshPluginToken = <T>(
         };
 
         return container.plugins
-          .setConfig(plugin.name, { ...config, ...newTokens })
+          .setConfig(pluginName, { ...config, ...newTokens })
           .map(() => newTokens);
       });
     });
