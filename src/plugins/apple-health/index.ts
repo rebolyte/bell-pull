@@ -1,7 +1,8 @@
 import * as z from "@zod/zod";
 import { DateTime } from "luxon";
-import { okAsync } from "neverthrow";
+import { errAsync, okAsync, ResultAsync } from "neverthrow";
 import type { Plugin } from "../../types/index.ts";
+import { appError } from "../../errors.ts";
 import { secret } from "../../services/config-schema.ts";
 
 const NAME = "apple-health";
@@ -61,47 +62,53 @@ export const appleHealthPlugin: Plugin<AppleHealthConfig> = {
 
     app.post(`/api/plugins/${NAME}/ingest`, async (c) => {
       const apiKey = c.req.header("x-api-key");
-
-      const configResult = await plugins.getConfig<AppleHealthConfig>(NAME);
-      if (configResult.isErr() || !configResult.value) {
-        return c.json({ error: "Plugin not configured" }, 500);
-      }
-
-      const pluginConfig = configResult.value;
-      const expectedKey = pluginConfig.config.apiKey;
-
-      if (!apiKey || apiKey !== expectedKey) {
-        return c.json({ error: "Unauthorized" }, 401);
-      }
-
       const body = await c.req.json();
-      const parseResult = healthDataSchema.safeParse(body);
 
-      if (!parseResult.success) {
-        return c.json({ error: "Invalid payload", details: parseResult.error.issues }, 400);
-      }
+      return plugins
+        .getConfig<AppleHealthConfig>(NAME)
+        .andThen((pluginConfig) => {
+          if (!pluginConfig) {
+            return errAsync(appError("plugin", "Plugin not configured", 500));
+          }
+          if (!apiKey || apiKey !== pluginConfig.config.apiKey) {
+            return errAsync(appError("auth", "Unauthorized", 401));
+          }
+          return okAsync(pluginConfig);
+        })
+        .andThen((pluginConfig) => {
+          const parseResult = healthDataSchema.safeParse(body);
+          if (!parseResult.success) {
+            return errAsync(appError("validation", "Invalid payload", 400));
+          }
+          return okAsync({ pluginConfig, data: parseResult.data });
+        })
+        .andThen(({ pluginConfig, data }) => {
+          const date = data.date ?? DateTime.now().toISODate()!;
+          const summary = formatHealthSummary(data);
 
-      const data = parseResult.data;
-      const date = data.date ?? DateTime.now().toISODate()!;
-      const summary = formatHealthSummary(data);
-
-      const result = await memory.updateMemories(
-        {
-          memories: [{ date, text: summary }],
-          editMemories: [],
-          deleteMemories: [],
-          response: "",
-        },
-        pluginConfig,
-      );
-
-      if (result.isErr()) {
-        log.error`[${NAME}] Failed to store health data: ${result.error}`;
-        return c.json({ error: "Failed to store data" }, 500);
-      }
-
-      log.info`[${NAME}] Stored health data for ${date}`;
-      return c.json({ success: true, date, summary });
+          return memory
+            .updateMemories(
+              {
+                memories: [{ date, text: summary }],
+                editMemories: [],
+                deleteMemories: [],
+                response: "",
+              },
+              pluginConfig,
+            )
+            .map(() => ({ date, summary }));
+        })
+        .match(
+          ({ date, summary }) => {
+            log.info`[${NAME}] Stored health data for ${date}`;
+            return c.json({ success: true, date, summary });
+          },
+          (error) => {
+            log.error`[${NAME}] ${error.message}`;
+            const status = (error.context as number) ?? 500;
+            return c.json({ error: error.message }, status);
+          },
+        );
     });
   },
   settingsUI: () => (
