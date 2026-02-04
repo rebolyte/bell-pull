@@ -1,13 +1,13 @@
 import { zodToJsonSchema } from "zod-to-json-schema";
 import type { Container, Plugin } from "../types/index.ts";
 import type { PluginInfo, PluginRpcMethods } from "../types/shared.ts";
-import { extractFieldsFromSchema, maskSecrets, mergeWithExistingSecrets } from "./config-schema.ts";
+import { extractFieldsFromSchema } from "./config-schema.ts";
 import { ExampleRpcService } from "./example-rpc.ts";
 
 export class PluginsRpcService extends ExampleRpcService implements PluginRpcMethods {
   constructor(
     private container: Container,
-    private plugins: Plugin<any>[],
+    private plugins: Plugin<unknown>[],
   ) {
     super();
   }
@@ -27,21 +27,15 @@ export class PluginsRpcService extends ExampleRpcService implements PluginRpcMet
         enabled: stored?.enabled ?? false,
         configured: !!stored,
         fields,
-        jsonSchema: plugin.configSchema ? zodToJsonSchema(plugin.configSchema as any) : null,
+        jsonSchema: plugin.configSchema ? zodToJsonSchema(plugin.configSchema) : null,
       };
     });
   }
 
   async getPluginConfig(pluginName: string): Promise<Record<string, unknown> | null> {
-    const plugin = this.plugins.find((p) => p.name === pluginName);
-    if (!plugin) return null;
-
     const result = await this.container.plugins.getConfig(pluginName);
     if (result.isErr() || !result.value) return null;
-
-    const fields = plugin.configSchema ? extractFieldsFromSchema(plugin.configSchema) : [];
-
-    return maskSecrets(result.value.config as Record<string, unknown>, fields);
+    return result.value.config as Record<string, unknown>;
   }
 
   async setPluginConfig(
@@ -63,16 +57,7 @@ export class PluginsRpcService extends ExampleRpcService implements PluginRpcMet
       }
     }
 
-    const existingResult = await this.container.plugins.getConfig(pluginName);
-    const existingConfig = existingResult.isOk() && existingResult.value
-      ? (existingResult.value.config as Record<string, unknown>)
-      : {};
-
-    const fields = plugin.configSchema ? extractFieldsFromSchema(plugin.configSchema) : [];
-
-    const mergedConfig = mergeWithExistingSecrets(config, existingConfig, fields);
-
-    const result = await this.container.plugins.setConfig(pluginName, mergedConfig);
+    const result = await this.container.plugins.setConfig(pluginName, config);
     if (result.isErr()) {
       return { success: false, error: result.error.message };
     }
