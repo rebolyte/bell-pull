@@ -59,6 +59,15 @@ git -C "$PROJECT_ROOT" commit -m "chore: bump version to $VERSION"
 TAG="v$VERSION"
 git -C "$PROJECT_ROOT" tag "$TAG" -m ""
 
+cleanup_on_failure() {
+    echo "Build failed, rolling back local commit and tag..."
+    git -C "$PROJECT_ROOT" tag -d "$TAG" 2>/dev/null || true
+    git -C "$PROJECT_ROOT" reset --soft HEAD~1
+    git -C "$PROJECT_ROOT" restore --staged deno.json
+    git -C "$PROJECT_ROOT" restore deno.json
+}
+trap cleanup_on_failure ERR
+
 # Build and push Docker images
 docker build --platform linux/amd64 -t "$IMAGE_BASE:$VERSION" -t "$IMAGE_BASE:latest" "$PROJECT_ROOT"
 docker push "$IMAGE_BASE:$VERSION"
@@ -67,6 +76,9 @@ docker push "$IMAGE_BASE:latest"
 # Push commit and tag after successful docker build
 git -C "$PROJECT_ROOT" push origin HEAD
 git -C "$PROJECT_ROOT" push origin "$TAG"
+
+# clear trap
+trap - ERR
 
 # Create GitHub release
 gh release create "$TAG" --title "Release $TAG" --generate-notes
