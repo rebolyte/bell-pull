@@ -11,13 +11,28 @@ type WeatherResponse = {
   name: string;
 };
 
+const US_STATE_CODES = new Set(
+  "AL AK AZ AR CA CO CT DE FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY DC"
+    .split(" "),
+);
+
+// OpenWeather q param requires country for US city+state; "City, ST" without country returns 404.
+const normalizeLocation = (location: string): string => {
+  const trimmed = location.trim();
+  const parts = trimmed.split(",").map((p) => p.trim());
+  if (parts.length === 2 && US_STATE_CODES.has(parts[1].toUpperCase())) {
+    return `${trimmed}, US`;
+  }
+  return trimmed;
+};
+
 const fetchWeather = (
   apiKey: string,
   location: string,
   units: string,
 ): ResultAsync<WeatherResponse, AppError> => {
   const params = new URLSearchParams({
-    q: location,
+    q: normalizeLocation(location),
     appid: apiKey,
     units,
   });

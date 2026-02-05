@@ -1,8 +1,4 @@
-import type {
-  CronJobInfo,
-  FieldInfo,
-  PluginInfo,
-} from "../../../types/shared.ts";
+import type { CronJobInfo, FieldInfo, PluginInfo } from "../../../types/shared.ts";
 import { FlashMessage } from "../flash.tsx";
 
 type OAuthStatus = {
@@ -34,9 +30,7 @@ export const PluginSettings = ({
       <h2>{plugin.displayName}</h2>
       {plugin.hasOAuth && (
         <span
-          class={`badge ${
-            oauthStatus.connected ? "badge-success" : "badge-warning"
-          }`}
+          class={`badge ${oauthStatus.connected ? "badge-success" : "badge-warning"}`}
         >
           {oauthStatus.connected ? "Connected" : "Not connected"}
         </span>
@@ -62,9 +56,7 @@ export const PluginSettings = ({
 
       {plugin.fields
         .filter((f) => f.type !== "cron")
-        .map((field) => (
-          <ConfigField field={field} value={config[field.key]} />
-        ))}
+        .map((field) => <ConfigField field={field} value={config[field.key]} />)}
 
       <CronJobsSection plugin={plugin} />
 
@@ -95,14 +87,14 @@ export const EnabledToggle = ({ plugin }: EnabledToggleProps) => {
           checked={plugin.enabled}
           {...(needsConfirm
             ? {
-                onclick: `event.preventDefault(); document.getElementById('${dialogId}').showModal()`,
-              }
+              onclick: `event.preventDefault(); document.getElementById('${dialogId}').showModal()`,
+            }
             : {
-                "hx-post": `/dashboard/plugins/${plugin.name}/toggle`,
-                "hx-target": "#enabled-toggle",
-                "hx-swap": "outerHTML",
-                "hx-vals": JSON.stringify({ enabled: String(!plugin.enabled) }),
-              })}
+              "hx-post": `/dashboard/plugins/${plugin.name}/toggle`,
+              "hx-target": "#enabled-toggle",
+              "hx-swap": "outerHTML",
+              "hx-vals": JSON.stringify({ enabled: String(!plugin.enabled) }),
+            })}
         />
       </div>
       {needsConfirm && (
@@ -188,28 +180,30 @@ const ConfigField = ({ field, value }: ConfigFieldProps) => (
       {field.required && " *"}
     </label>
     <div class="field">
-      {field.enumValues ? (
-        <select name={field.key}>
-          {field.enumValues.map((opt) => (
-            <option value={opt} selected={value === opt}>
-              {opt}
-            </option>
-          ))}
-        </select>
-      ) : field.type === "boolean" ? (
-        <input type="checkbox" name={field.key} checked={!!value} />
-      ) : field.type === "secret" ? (
-        <SecretField fieldKey={field.key} value={value as string} />
-      ) : field.type === "managed" ? (
-        <input type="text" value={(value as string) ?? ""} disabled />
-      ) : (
-        <input
-          type={field.type === "number" ? "number" : "text"}
-          name={field.key}
-          value={(value as string) ?? ""}
-          placeholder={String(field.defaultValue ?? "")}
-        />
-      )}
+      {field.enumValues
+        ? (
+          <select name={field.key}>
+            {field.enumValues.map((opt) => (
+              <option value={opt} selected={value === opt}>
+                {opt}
+              </option>
+            ))}
+          </select>
+        )
+        : field.type === "boolean"
+        ? <input type="checkbox" name={field.key} checked={!!value} />
+        : field.type === "secret"
+        ? <SecretField fieldKey={field.key} value={value as string} />
+        : field.type === "managed"
+        ? <input type="text" value={(value as string) ?? ""} disabled />
+        : (
+          <input
+            type={field.type === "number" ? "number" : "text"}
+            name={field.key}
+            value={(value as string) ?? ""}
+            placeholder={String(field.defaultValue ?? "")}
+          />
+        )}
     </div>
   </div>
 );

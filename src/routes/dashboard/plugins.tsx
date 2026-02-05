@@ -97,7 +97,11 @@ export const makePluginRoutes = (plugins: Plugin[]) => {
       ? (configResult.value.config as Record<string, unknown>)
       : {};
     const storedConfigs = new Map([[name, config]]);
-    const pluginsList = await getPluginsList(container, pluginDefs, storedConfigs);
+    const pluginsList = await getPluginsList(
+      container,
+      pluginDefs,
+      storedConfigs,
+    );
 
     const pluginInfo = pluginsList.find((p) => p.name === name)!;
     const customUI = plugin.settingsUI?.(config, container);
@@ -209,7 +213,12 @@ export const makePluginRoutes = (plugins: Plugin[]) => {
 
     if (!job) {
       return c.html(
-        <CronJobRow pluginName={name} jobName={jobName} status="error" message="Job not found" />,
+        <CronJobRow
+          pluginName={name}
+          jobName={jobName}
+          status="error"
+          message="Job not found"
+        />,
       );
     }
 
@@ -217,6 +226,10 @@ export const makePluginRoutes = (plugins: Plugin[]) => {
     const result = await job.run(container, ctx);
 
     if (result.isErr()) {
+      container.log.error(`Error running ${job.name} job`, {
+        error: result.error,
+      });
+
       return c.html(
         <CronJobRow
           pluginName={name}
