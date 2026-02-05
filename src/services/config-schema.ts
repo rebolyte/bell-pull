@@ -1,5 +1,4 @@
 import * as z from "@zod/zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
 
 export const secret = <T extends z.ZodTypeAny>(schema: T): T =>
   schema.describe("field:secret") as T;
@@ -53,8 +52,7 @@ const getFieldType = (prop: JsonSchemaProperty): FieldType => {
 };
 
 export const extractFieldsFromSchema = (schema: z.ZodTypeAny): FieldInfo[] => {
-  // deno-lint-ignore no-explicit-any
-  const jsonSchema = zodToJsonSchema(schema as any) as JsonSchema;
+  const jsonSchema = z.toJSONSchema(schema) as JsonSchema;
   if (!jsonSchema.properties) return [];
 
   const requiredFields = new Set(jsonSchema.required ?? []);

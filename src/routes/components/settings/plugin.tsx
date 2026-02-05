@@ -54,9 +54,9 @@ export const PluginSettings = ({
         />
       )}
 
-      {plugin.fields
-        .filter((f) => f.type !== "managed")
-        .map((field) => <ConfigField field={field} value={config[field.key]} />)}
+      {plugin.fields.map((field) => (
+        <ConfigField field={field} value={config[field.key]} />
+      ))}
 
       <div class="full-width">
         <button type="submit">Save Configuration</button>
@@ -192,6 +192,14 @@ const ConfigField = ({ field, value }: ConfigFieldProps) => (
         ? <input type="checkbox" name={field.key} checked={!!value} />
         : field.type === "secret"
         ? <SecretField fieldKey={field.key} value={value as string} />
+        : field.type === "managed"
+        ? (
+          <input
+            type="text"
+            value={(value as string) ?? ""}
+            disabled
+          />
+        )
         : (
           <input
             type={field.type === "number" ? "number" : "text"}

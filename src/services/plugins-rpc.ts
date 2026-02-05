@@ -1,4 +1,4 @@
-import { zodToJsonSchema } from "zod-to-json-schema";
+import * as z from "@zod/zod";
 import type { Container, Plugin } from "../types/index.ts";
 import type { PluginInfo, PluginRpcMethods } from "../types/shared.ts";
 import { extractFieldsFromSchema } from "./config-schema.ts";
@@ -27,8 +27,7 @@ export class PluginsRpcService extends ExampleRpcService implements PluginRpcMet
         enabled: stored?.enabled ?? false,
         configured: !!stored,
         fields,
-        // deno-lint-ignore no-explicit-any
-        jsonSchema: plugin.configSchema ? zodToJsonSchema(plugin.configSchema as any) : null,
+        jsonSchema: plugin.configSchema ? z.toJSONSchema(plugin.configSchema) : null,
       };
     });
   }

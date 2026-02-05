@@ -30,8 +30,7 @@
     "neverthrow": "npm:neverthrow@^8.2.0",
     "node-cron": "npm:node-cron@^4.2.1",
     "rss-parser": "npm:rss-parser@^3.13.0",
-    "ts-pattern": "npm:ts-pattern@^5.9.0",
-    "zod-to-json-schema": "npm:zod-to-json-schema@^3.25.1"
+    "ts-pattern": "npm:ts-pattern@^5.9.0"
   },
   "compilerOptions": {
     "strict": true,
