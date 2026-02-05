@@ -28,6 +28,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 
   await db.insertInto("plugin_configs")
     .values({ plugin_name: "telegram", enabled: 1 })
+    .onConflict((oc) => oc.column("plugin_name").doNothing())
     .execute();
 
   await db.schema.alterTable("memories")
