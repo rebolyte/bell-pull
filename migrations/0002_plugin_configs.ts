@@ -19,7 +19,7 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 
   await sql`
-    CREATE TRIGGER plugin_configs_last_modified
+    CREATE TRIGGER IF NOT EXISTS plugin_configs_last_modified
     AFTER UPDATE ON plugin_configs
     BEGIN
       UPDATE plugin_configs SET last_modified = CURRENT_TIMESTAMP WHERE id = NEW.id;
@@ -41,6 +41,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 
   await db.schema
     .createIndex("idx_memories_source_date_text")
+    .ifNotExists()
     .on("memories")
     .columns(["source", "date", "text"])
     .unique()
@@ -49,7 +50,7 @@ export async function up(db: Kysely<any>): Promise<void> {
   await db.schema.alterTable("messages")
     .addColumn("last_modified", "text", (col) => col.defaultTo(sql`CURRENT_TIMESTAMP`)).execute();
   await sql`
-    CREATE TRIGGER messages_last_modified
+    CREATE TRIGGER IF NOT EXISTS messages_last_modified
     AFTER UPDATE ON messages
     BEGIN
       UPDATE messages SET last_modified = CURRENT_TIMESTAMP WHERE id = NEW.id;
