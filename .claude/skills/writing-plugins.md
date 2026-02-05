@@ -2,6 +2,10 @@
 
 Plugins extend Bell Pull by pulling data from external sources and storing as memories. All plugins live in `src/plugins/<name>/index.ts` and are registered in `src/plugins/registry.ts`.
 
+- Each plugin has a `configSchema` Zod object which defines what goes in its `config` column in the DB.
+  - This is used to to parse/validate what gets peristed and also auto-generate the admin UI. This is done by annotating certain properties in Zod so the string representation can be differentiated. The annotated config is converted to JSON schema for serialization.
+- Each plugin has optional `oauth` property. As each plugin is initialized it should use our helper to register routes for actual flow endpoints.
+
 ## Plugin Interface
 
 ```typescript
@@ -19,16 +23,16 @@ interface Plugin<TConfig = unknown> {
 ## Config Schema Annotations
 
 ```typescript
-import { secret, cron, managed } from "../../services/config-schema.ts";
+import { cron, managed, secret } from "../../services/config-schema.ts";
 
 // secret: renders as password field in UI
-apiKey: secret(z.string().min(1))
+apiKey: secret(z.string().min(1));
 
 // cron: marks as cron schedule field
-syncSchedule: cron(z.string().default("0 8 * * *"))
+syncSchedule: cron(z.string().default("0 8 * * *"));
 
 // managed: hidden from UI, set programmatically (e.g., OAuth tokens)
-accessToken: managed(z.string().optional())
+accessToken: managed(z.string().optional());
 ```
 
 ---
@@ -87,7 +91,7 @@ export const myPlugin: Plugin<MyConfig> = {
                       deleteMemories: [],
                       response: "",
                     }, pluginConfig)
-                  )
+                  ),
                 ).map(() => ({ synced: items.length }))
               );
           });
@@ -119,7 +123,7 @@ const configSchema = z.object({
   clientId: z.string().min(1),
   clientSecret: secret(z.string().min(1)),
   syncSchedule: cron(z.string().default("0 */6 * * *")),
-  // OAuth-managed fields (hidden from UI, set by OAuth flow)
+  // Managed fields (readonly in UI, set by OAuth flow)
   accessToken: managed(z.string().optional()),
   refreshToken: managed(z.string().optional()),
   tokenExpiresAt: managed(z.string().optional()),
@@ -128,7 +132,7 @@ const configSchema = z.object({
 type MyOAuthConfig = z.infer<typeof configSchema>;
 
 // Extract OAuth setup as const for reuse in init and token refresh
-const oauth = {
+const oauth: OauthSetup = {
   createProvider: (clientId: string, clientSecret: string, redirectUri: string) =>
     new Google(clientId, clientSecret, redirectUri),
   scopes: ["https://www.googleapis.com/auth/calendar.readonly"],
@@ -280,7 +284,9 @@ export const ingestPlugin: Plugin<IngestConfig> = {
   settingsUI: () => (
     <div class="custom-section">
       <h3>Setup</h3>
-      <p>POST to <code>/api/plugins/{NAME}/ingest</code> with <code>x-api-key</code> header.</p>
+      <p>
+        POST to <code>/api/plugins/{NAME}/ingest</code> with <code>x-api-key</code> header.
+      </p>
     </div>
   ),
 };
@@ -305,7 +311,7 @@ export const plugins: Plugin<any>[] = [
 
 ## Key Patterns
 
-1. **Always use neverthrow chains** - No throwing errors, use `errAsync`/`okAsync` and `.andThen()`
+1. **Always use neverthrow chains** - No throwing errors, use `errAsync`/`okAsync` and `.andThen()`. The returned ok/err Result will be logged.
 2. **Use Luxon for dates** - `DateTime.now()`, `DateTime.fromISO()`, `.plus()`, `.minus()`
 3. **Config via plugins domain** - `container.plugins.getConfig<T>(NAME)`
 4. **Store via memory domain** - `container.memory.updateMemories()`
