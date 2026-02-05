@@ -50,7 +50,7 @@ export const openweatherPlugin: Plugin<OpenWeatherConfig> = {
   cronJobs: (config) => [
     {
       name: "openweather-sync",
-      schedule: config?.syncSchedule ?? "0 6 * * *",
+      schedule: config?.["openweather-sync-schedule"] ?? "0 6 * * *",
       run: (container, job) => {
         const { memory, plugins, config } = container;
 

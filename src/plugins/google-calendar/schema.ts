@@ -5,7 +5,7 @@ export const configSchema = z.object({
   clientId: z.string().min(1),
   clientSecret: secret(z.string().min(1)),
   calendarId: z.string().default("primary"),
-  syncSchedule: cron(z.string().default("0 */6 * * *")),
+  "google-calendar-sync-schedule": cron(z.string().default("0 */6 * * *")),
   // managed by OAuth flow
   accessToken: managed(z.string().optional()),
   refreshToken: managed(z.string().optional()),

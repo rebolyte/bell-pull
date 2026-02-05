@@ -2,7 +2,7 @@ import * as z from "@zod/zod";
 import { DateTime } from "luxon";
 import Parser from "rss-parser";
 import { errAsync, okAsync, ResultAsync } from "neverthrow";
-import type { Container, Plugin } from "../../types/index.ts";
+import type { Plugin } from "../../types/index.ts";
 import { appError, pluginError } from "../../errors.ts";
 import { cron } from "../../services/config-schema.ts";
 
@@ -10,7 +10,7 @@ const NAME = "letterboxd";
 
 const configSchema = z.object({
   username: z.string().min(1),
-  syncSchedule: cron(z.string().default("0 8 * * *")),
+  "letterboxd-sync-schedule": cron(z.string().default("0 8 * * *")),
 });
 
 type LetterboxdConfig = z.infer<typeof configSchema>;
@@ -51,7 +51,7 @@ export const letterboxdPlugin: Plugin<LetterboxdConfig> = {
   cronJobs: (config) => [
     {
       name: "letterboxd-sync",
-      schedule: config?.syncSchedule ?? "0 8 * * *",
+      schedule: config?.["letterboxd-sync-schedule"] ?? "0 8 * * *",
       run: (container, job) => {
         const { log, memory, plugins } = container;
 

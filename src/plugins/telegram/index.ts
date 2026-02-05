@@ -4,10 +4,18 @@ import {
   Filter,
   webhookCallback as telegramWebhookCallback,
 } from "grammy";
+import * as z from "@zod/zod";
 import { ResultAsync } from "neverthrow";
 import type { Plugin } from "../../types/index.ts";
 import type { AppConfig } from "../../services/config.ts";
+import { cron } from "../../services/config-schema.ts";
 import type { Logger } from "../../services/logger.ts";
+
+const configSchema = z.object({
+  "telegram-send-daily-briefing-schedule": cron(z.string().default("0 9 * * *")),
+});
+
+type TelegramConfig = z.infer<typeof configSchema>;
 import type { LLMService } from "../../services/llm.ts";
 import type { MemoryDomain } from "../../domains/memory/index.ts";
 import { makeIntakePrompt, makeSystemPrompt } from "./prompt.ts";
@@ -130,8 +138,9 @@ export const handleMessage = async (
   );
 };
 
-export const telegramPlugin: Plugin = {
+export const telegramPlugin: Plugin<TelegramConfig> = {
   name: "telegram",
+  configSchema,
   init: (app, container) => {
     const bot = makeBot({ config: container.config });
 
@@ -142,9 +151,9 @@ export const telegramPlugin: Plugin = {
     // https://grammy.dev/guide/deployment-types
     app.use("/webhook/telegram", telegramWebhookCallback(bot, "hono"));
   },
-  cronJobs: [{
+  cronJobs: (config) => [{
     name: "telegram-send-daily-briefing",
-    schedule: "0 9 * * *",
+    schedule: config?.["telegram-send-daily-briefing-schedule"] ?? "0 9 * * *",
     run: (container, _job) => {
       const bot = makeBot({ config: container.config });
       return sendDailyBriefing(bot, container).map((chunks) => ({

@@ -5,7 +5,7 @@ export const configSchema = z.object({
   apiKey: secret(z.string().min(1)),
   location: z.string().default("San Francisco, CA"),
   units: z.enum(["imperial", "metric"]).default("imperial"),
-  syncSchedule: cron(z.string().default("0 6 * * *")), // 6am daily
+  "openweather-sync-schedule": cron(z.string().default("0 6 * * *")),
 });
 
 export type OpenWeatherConfig = z.infer<typeof configSchema>;

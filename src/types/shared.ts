@@ -21,6 +21,12 @@ export type FieldInfo = {
   enumValues?: string[];
 };
 
+export type CronJobInfo = {
+  name: string;
+  scheduleField: string;
+  schedule: string;
+};
+
 export type PluginInfo = {
   name: string;
   displayName: string;
@@ -29,6 +35,7 @@ export type PluginInfo = {
   configured: boolean;
   fields: FieldInfo[];
   jsonSchema: unknown;
+  cronJobs?: CronJobInfo[];
 };
 
 export interface PluginRpcMethods {

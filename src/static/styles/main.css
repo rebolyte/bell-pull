@@ -195,6 +195,27 @@ body {
   grid-column: 1 / -1;
 }
 
+.settings-form .cron-jobs-section {
+  display: contents;
+}
+
+.settings-form .cron-job-fieldset {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--size-3) var(--size-4);
+  align-items: start;
+}
+
+.settings-form .cron-job-fieldset legend {
+  grid-column: 1 / -1;
+}
+
+.settings-form .cron-job-field {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--size-2);
+}
+
 .settings-form .field-only {
   grid-column: 2;
 }

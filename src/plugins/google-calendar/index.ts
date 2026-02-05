@@ -101,7 +101,7 @@ export const googleCalendarPlugin: Plugin<GoogleCalendarConfig> = {
   cronJobs: (config) => [
     {
       name: "google-calendar-sync",
-      schedule: config?.syncSchedule ?? "0 */6 * * *",
+      schedule: config?.["google-calendar-sync-schedule"] ?? "0 */6 * * *",
       run: (container, job) => {
         const { log, memory, plugins } = container;
 
