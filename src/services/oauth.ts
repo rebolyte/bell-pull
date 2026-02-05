@@ -173,9 +173,17 @@ export const refreshPluginToken = (
         provider.refreshAccessToken(config.refreshToken),
         (e) => appError("plugin", `[oauth] Token refresh failed: ${e}`),
       ).andThen((tokens) => {
+        let refreshToken = config.refreshToken;
+        try {
+          refreshToken = tokens.refreshToken();
+        } catch {
+          // TODO
+          // No new refresh token, keep existing one
+        }
+
         const newTokens: OAuthTokens = {
           accessToken: tokens.accessToken(),
-          refreshToken: tokens.refreshToken() ?? config.refreshToken ?? null,
+          refreshToken: refreshToken ?? null,
           tokenExpiresAt: dateToISO(tokens.accessTokenExpiresAt()),
         };
 
