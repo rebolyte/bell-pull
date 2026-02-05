@@ -1,5 +1,5 @@
 import cron from "node-cron";
-import type { Container, CronJob } from "./types/index.ts";
+import type { Container, CronJob, CronJobRunContext } from "./types/index.ts";
 
 export const scheduleCron = (job: CronJob, container: Container) => {
   const { log } = container;
@@ -13,18 +13,29 @@ export const scheduleCron = (job: CronJob, container: Container) => {
     }
   });
 
-  const task = cron.schedule(job.schedule, () =>
-    job.run(container).match(
-      () => {
-        log.info(`${job.name} job completed successfully`);
-      },
-      (error) => {
-        log.error(`Error running ${job.name} job`, { error });
-      },
-    ), {
-    name: job.name,
-    timezone: container.config.TIMEZONE,
-  });
+  const schedule = job.schedule ?? "0 0 * * *";
+  const task = cron.schedule(
+    schedule,
+    async () => {
+      const ctx: CronJobRunContext = {
+        name: job.name,
+        schedule,
+      };
+
+      await job.run(container, ctx).match(
+        (result) => {
+          log.info(`${job.name} job completed successfully`, result ?? {});
+        },
+        (error) => {
+          log.error(`Error running ${job.name} job`, { error });
+        },
+      );
+    },
+    {
+      name: job.name,
+      timezone: container.config.TIMEZONE,
+    },
+  );
 
   // console.log(`Task: ${JSON.stringify(task, null, 2)}`);
   return task;

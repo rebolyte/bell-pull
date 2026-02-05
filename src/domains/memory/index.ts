@@ -16,6 +16,7 @@ import { type AppError, dbError } from "../../errors.ts";
 import type { AppConfig } from "../../services/config.ts";
 import type { Database } from "../../services/database.ts";
 import type { Logger } from "../../services/logger.ts";
+import type { PluginConfig } from "../plugins/index.ts";
 
 type MemoryDeps = { config: AppConfig; db: Database; log: Logger };
 
@@ -115,13 +116,21 @@ const extractMemories = (
 const updateMemories = ({ db, log }: MemoryDeps) =>
 (
   analysis: MemoryMessageAnalysis,
+  pluginConfig?: PluginConfig,
 ): ResultAsync<void, AppError> =>
   ResultAsync.fromPromise(
     (async () => {
       if (!R.isEmpty(analysis.memories)) {
         await db
           .insertInto("memories")
-          .values(analysis.memories.map((m) => ({ date: m.date ?? null, text: m.text })))
+          .values(analysis.memories.map((m) => ({
+            date: m.date ?? null,
+            text: m.text,
+            source: pluginConfig?.pluginName ?? null,
+            sourcePluginId: pluginConfig?.id ?? null,
+          })))
+          // NOTE: to avoid duplicates, this will silently ignore conflicts
+          .onConflict((oc) => oc.columns(["source", "date", "text"]).doNothing())
           .execute();
         log.info`Created ${analysis.memories.length} memories: ${{ memories: analysis.memories }}`;
       }

@@ -4,16 +4,25 @@ import {
   Filter,
   webhookCallback as telegramWebhookCallback,
 } from "grammy";
+import * as z from "@zod/zod";
 import { ResultAsync } from "neverthrow";
 import type { Plugin } from "../../types/index.ts";
 import type { AppConfig } from "../../services/config.ts";
+import { cron } from "../../services/config-schema.ts";
 import type { Logger } from "../../services/logger.ts";
+
+const configSchema = z.object({
+  "telegram-send-daily-briefing-schedule": cron(z.string().default("0 9 * * *")),
+});
+
+type TelegramConfig = z.infer<typeof configSchema>;
 import type { LLMService } from "../../services/llm.ts";
 import type { MemoryDomain } from "../../domains/memory/index.ts";
 import { makeIntakePrompt, makeSystemPrompt } from "./prompt.ts";
 import type { MessagesDomain } from "../../domains/messages/index.ts";
+import type { PluginsDomain } from "../../domains/plugins/index.ts";
 import { extractContext, handleBotError, makeBot, sendAndStoreMessage } from "./lib.ts";
-import { withRetry, type RetryFn } from "../../utils/retry.ts";
+import { type RetryFn, withRetry } from "../../utils/retry.ts";
 import { sendDailyBriefing } from "./briefing.ts";
 
 export type BotDeps = {
@@ -22,6 +31,7 @@ export type BotDeps = {
   llm: LLMService;
   memory: MemoryDomain;
   messages: MessagesDomain;
+  plugins: PluginsDomain;
   retry?: RetryFn;
 };
 
@@ -71,7 +81,7 @@ export const handleHelpCommand = async (
 
 export const handleMessage = async (
   ctx: Filter<Context, "message">,
-  { config, log, llm, memory, messages: messagesDomain, retry = withRetry() }: BotDeps,
+  { config, log, llm, memory, messages: messagesDomain, plugins, retry = withRetry() }: BotDeps,
 ) => {
   const msgCtx = extractContext(ctx);
 
@@ -113,11 +123,14 @@ export const handleMessage = async (
     })
     .andThen((llmResponse) =>
       // extractMemories returns a Result; we convert to Async to keep chain consistent
-      memory.extractMemories(llmResponse).asyncAndThen((analysis) => {
-        // don't strip tags if we are debugging
-        const response = config.LOG_LEVEL === "debug" ? llmResponse : analysis.response;
-        return memory.updateMemories(analysis).map(() => response);
-      })
+      memory.extractMemories(llmResponse).asyncAndThen((analysis) =>
+        plugins.getConfig("telegram").andThen((telegramConfig) => {
+          const pluginConfig = telegramConfig ?? undefined;
+          // don't strip tags if we are debugging
+          const response = config.LOG_LEVEL === "debug" ? llmResponse : analysis.response;
+          return memory.updateMemories(analysis, pluginConfig).map(() => response);
+        })
+      )
     )
     .andThen((response) =>
       sendAndStoreMessage({ msgCtx, content: response, messagesDomain, config, retry })
@@ -129,8 +142,9 @@ export const handleMessage = async (
   );
 };
 
-export const telegramPlugin: Plugin = {
+export const telegramPlugin: Plugin<TelegramConfig> = {
   name: "telegram",
+  configSchema,
   init: (app, container) => {
     const bot = makeBot({ config: container.config });
 
@@ -141,12 +155,14 @@ export const telegramPlugin: Plugin = {
     // https://grammy.dev/guide/deployment-types
     app.use("/webhook/telegram", telegramWebhookCallback(bot, "hono"));
   },
-  cronJobs: [{
+  cronJobs: (config) => [{
     name: "telegram-send-daily-briefing",
-    schedule: "0 7 * * *",
-    run: (container) => {
+    schedule: config?.["telegram-send-daily-briefing-schedule"] ?? "0 9 * * *",
+    run: (container, _job) => {
       const bot = makeBot({ config: container.config });
-      return sendDailyBriefing(bot, container);
+      return sendDailyBriefing(bot, container).map((chunks) => ({
+        sent: chunks.length,
+      }));
     },
   }],
 };

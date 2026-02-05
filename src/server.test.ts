@@ -42,8 +42,8 @@ Deno.test("Integration Test: Server Lifecycle", async (t) => {
   await t.step("RPC call", async () => {
     const { newHttpBatchRpcSession } = await import("capnweb");
     const session = (newHttpBatchRpcSession as any)(`${baseUrl}/api/rpc`);
-    const result = await session.add(2, 3);
-    assertEquals(result, 5);
+    const n = await session.getCounter();
+    assertEquals(typeof n, "number");
   });
 
   // Teardown

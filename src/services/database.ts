@@ -12,6 +12,11 @@ export interface MemoriesTable {
   id: Generated<number>;
   date: string | null;
   text: string;
+  source: string | null;
+  tags: string | null; // JSON array
+  createdAt: Generated<string>;
+  lastModified: Generated<string>;
+  sourcePluginId: number | null;
 }
 
 export interface MessagesTable {
@@ -24,9 +29,19 @@ export interface MessagesTable {
   createdAt: Generated<string>;
 }
 
+export interface PluginConfigsTable {
+  id: Generated<number>;
+  pluginName: string;
+  config: string; // JSON object
+  enabled: number;
+  createdAt: Generated<string>;
+  lastModified: Generated<string>;
+}
+
 export interface DatabaseSchema {
   memories: MemoriesTable;
   messages: MessagesTable;
+  pluginConfigs: PluginConfigsTable;
 }
 
 export type Database = Kysely<DatabaseSchema>;

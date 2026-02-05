@@ -1,10 +1,12 @@
 import { Hono } from "hono";
 import { honoLogger } from "@logtape/hono";
 import { cors } from "hono/cors";
-import type { Container, HonoEnv, Plugin } from "./types/index.ts";
-import apiRoutes from "./routes/api.tsx";
-import { letterboxdPlugin } from "./plugins/letterboxd/index.ts";
-import { telegramPlugin } from "./plugins/telegram/index.ts";
+import { serveStatic } from "hono/deno";
+import type { Container, HonoEnv } from "./types/index.ts";
+import { makeApiRoutes } from "./routes/api.tsx";
+import { makeDashboardRoutes } from "./routes/dashboard/index.tsx";
+import { makePluginRoutes } from "./routes/dashboard/plugins.tsx";
+import { plugins } from "./plugins/registry.ts";
 import { scheduleCron } from "./cron-runner.ts";
 
 export interface ServerOptions {
@@ -23,17 +25,26 @@ export const makeServer = (container: Container, opts: ServerOptions = { enableC
     c.set("container", container);
     await next();
   });
-
-  const plugins: Plugin[] = [telegramPlugin, letterboxdPlugin];
+  const staticRoot = new URL("./static", import.meta.url).pathname;
+  app.use(
+    "/static/*",
+    serveStatic({
+      root: staticRoot,
+      rewriteRequestPath: (path) => path.replace(/^\/static\/?/, ""),
+    }),
+  );
 
   const enableCrons = opts.enableCrons !== false;
 
-  // 2. Register Crons
-  plugins.forEach(({ init, cronJobs }) => {
-    init?.(app, container);
+  // Register plugin routes and crons
+  plugins.forEach((plugin) => {
+    plugin.init?.(app, container);
 
-    if (enableCrons && Array.isArray(cronJobs)) {
-      cronJobs.forEach((job) => scheduleCron(job, container));
+    if (enableCrons) {
+      const jobs = typeof plugin.cronJobs === "function"
+        ? plugin.cronJobs({}) // TODO: pass actual config when available
+        : plugin.cronJobs ?? [];
+      jobs.forEach((job) => scheduleCron(job, container));
     }
   });
 
@@ -49,19 +60,24 @@ export const makeServer = (container: Container, opts: ServerOptions = { enableC
         rpc: "POST /api/rpc - Single RPC endpoint (send {method, params})",
       },
       availableMethods: {
-        basic: ["hello", "add", "multiply", "processBatch"],
-        users: ["createUser", "getUserInfo", "updateUserPreferences"],
-        todos: ["createTodo", "getTodos", "toggleTodo"],
+        counter: ["getCounter", "incrementCounter", "decrementCounter", "resetCounter"],
+        plugins: [
+          "getPlugins",
+          "getPluginConfig",
+          "setPluginConfig",
+          "setPluginEnabled",
+          "getOAuthStatus",
+        ],
       },
       exampleCall: {
         url: "/api/rpc",
         method: "POST",
         body: {
-          method: "add",
-          params: [5, 3],
+          method: "getCounter",
+          params: [],
         },
         response: {
-          result: 8,
+          result: 0,
         },
       },
     });
@@ -75,7 +91,11 @@ export const makeServer = (container: Container, opts: ServerOptions = { enableC
   });
 
   // Mount API routes
-  app.route("/api", apiRoutes);
+  app.route("/api", makeApiRoutes(plugins));
+
+  // Mount dashboard routes
+  app.route("/dashboard", makeDashboardRoutes(plugins));
+  app.route("/dashboard/plugins", makePluginRoutes(plugins));
 
   // 404 handler
   app.notFound((c) => {
