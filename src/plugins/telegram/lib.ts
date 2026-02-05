@@ -3,6 +3,7 @@ import { type Api, Bot, type CommandContext, type Context, type Filter } from "g
 import type { MessagesDomain } from "../../domains/messages/index.ts";
 import { AppError, appError, telegramError, toAppError } from "../../errors.ts";
 import { chunkByLines } from "../../utils/string.ts";
+import { withRetry, type RetryFn } from "../../utils/retry.ts";
 import { AppConfig } from "../../services/config.ts";
 import type { Logger } from "../../services/logger.ts";
 import { match } from "ts-pattern";
@@ -38,8 +39,9 @@ export const handleBotError = (
   msgCtx: Pick<MessageContext, "api" | "chatId">,
   messagesDomain: MessagesDomain,
   log: Logger,
+  retry: RetryFn = withRetry(),
 ) => {
-  log.error`[${error.type}] ${error.message} ${{ cause: error.cause }}`;
+  log.error("Bot error", { error });
 
   const errorMessage = match(error.type)
     .with("db", () => "I am having trouble accessing my records at the moment.")
@@ -50,7 +52,7 @@ export const handleBotError = (
     .with("unexpected", () => "Something quite unexpected has occurred.")
     .exhaustive();
 
-  sendAndStoreMessage({ msgCtx, content: `${APOLOGY} ${errorMessage}`, messagesDomain }).match(
+  sendAndStoreMessage({ msgCtx, content: `${APOLOGY} ${errorMessage}`, messagesDomain, retry }).match(
     () => {},
     toAppError("unexpected", "Critical: Failed to send error message to user"),
   );
@@ -64,6 +66,7 @@ export const sendAndStoreMessage = (
     senderName = BOT_SENDER_NAME,
     messagesDomain,
     config,
+    retry = withRetry(),
   }: {
     msgCtx: Pick<MessageContext, "api" | "chatId">;
     content: string;
@@ -71,6 +74,7 @@ export const sendAndStoreMessage = (
     senderName?: string;
     messagesDomain: MessagesDomain;
     config?: AppConfig;
+    retry?: RetryFn;
   },
 ): ResultAsync<string[], AppError> => {
   // Telegram has a 4096 character limit per message, so we might need to split it
@@ -83,7 +87,7 @@ export const sendAndStoreMessage = (
       await prevP;
 
       const msgResult = await ResultAsync.fromPromise(
-        msgCtx.api.sendMessage(msgCtx.chatId, chunk, { parse_mode: "Markdown" }),
+        retry(() => msgCtx.api.sendMessage(msgCtx.chatId, chunk, { parse_mode: "Markdown" })),
         telegramError("Failed to send message chunk"),
       );
 

@@ -22,6 +22,7 @@ import { makeIntakePrompt, makeSystemPrompt } from "./prompt.ts";
 import type { MessagesDomain } from "../../domains/messages/index.ts";
 import type { PluginsDomain } from "../../domains/plugins/index.ts";
 import { extractContext, handleBotError, makeBot, sendAndStoreMessage } from "./lib.ts";
+import { type RetryFn, withRetry } from "../../utils/retry.ts";
 import { sendDailyBriefing } from "./briefing.ts";
 
 export type BotDeps = {
@@ -31,11 +32,12 @@ export type BotDeps = {
   memory: MemoryDomain;
   messages: MessagesDomain;
   plugins: PluginsDomain;
+  retry?: RetryFn;
 };
 
 export const handleStartCommand = async (
   ctx: CommandContext<Context>,
-  { config, log, messages: messagesDomain }: BotDeps,
+  { config, log, messages: messagesDomain, retry = withRetry() }: BotDeps,
 ) => {
   const msgCtx = extractContext(ctx);
   const welcomeMessage =
@@ -46,17 +48,18 @@ export const handleStartCommand = async (
     content: welcomeMessage,
     messagesDomain,
     config,
+    retry,
   });
 
   result.match(
     () => {},
-    (error) => handleBotError(error, msgCtx, messagesDomain, log),
+    (error) => handleBotError(error, msgCtx, messagesDomain, log, retry),
   );
 };
 
 export const handleHelpCommand = async (
   ctx: CommandContext<Context>,
-  { config, log, messages: messagesDomain }: BotDeps,
+  { config, log, messages: messagesDomain, retry = withRetry() }: BotDeps,
 ) => {
   const msgCtx = extractContext(ctx);
   const helpMessage =
@@ -67,17 +70,18 @@ export const handleHelpCommand = async (
     content: helpMessage,
     messagesDomain,
     config,
+    retry,
   });
 
   result.match(
     () => {},
-    (error) => handleBotError(error, msgCtx, messagesDomain, log),
+    (error) => handleBotError(error, msgCtx, messagesDomain, log, retry),
   );
 };
 
 export const handleMessage = async (
   ctx: Filter<Context, "message">,
-  { config, log, llm, memory, messages: messagesDomain, plugins }: BotDeps,
+  { config, log, llm, memory, messages: messagesDomain, plugins, retry = withRetry() }: BotDeps,
 ) => {
   const msgCtx = extractContext(ctx);
 
@@ -129,12 +133,12 @@ export const handleMessage = async (
       )
     )
     .andThen((response) =>
-      sendAndStoreMessage({ msgCtx, content: response, messagesDomain, config })
+      sendAndStoreMessage({ msgCtx, content: response, messagesDomain, config, retry })
     );
 
   result.match(
     () => {},
-    (error) => handleBotError(error, msgCtx, messagesDomain, log),
+    (error) => handleBotError(error, msgCtx, messagesDomain, log, retry),
   );
 };
 
