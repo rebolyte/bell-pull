@@ -51,12 +51,11 @@ pkg.version = '$VERSION';
 Deno.writeTextFileSync(path, JSON.stringify(pkg, null, 2) + '\n');
 "
 
-# Commit version bump
+# Commit version bump locally
 git -C "$PROJECT_ROOT" add deno.json
 git -C "$PROJECT_ROOT" commit -m "chore: bump version to $VERSION"
-git -C "$PROJECT_ROOT" push origin HEAD
 
-# Create git tag locally (push after docker build succeeds)
+# Create git tag locally
 TAG="v$VERSION"
 git -C "$PROJECT_ROOT" tag "$TAG" -m ""
 
@@ -65,7 +64,8 @@ docker build --platform linux/amd64 -t "$IMAGE_BASE:$VERSION" -t "$IMAGE_BASE:la
 docker push "$IMAGE_BASE:$VERSION"
 docker push "$IMAGE_BASE:latest"
 
-# Push git tag after successful docker build
+# Push commit and tag after successful docker build
+git -C "$PROJECT_ROOT" push origin HEAD
 git -C "$PROJECT_ROOT" push origin "$TAG"
 
 # Create GitHub release
