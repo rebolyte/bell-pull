@@ -56,15 +56,17 @@ git -C "$PROJECT_ROOT" add deno.json
 git -C "$PROJECT_ROOT" commit -m "chore: bump version to $VERSION"
 git -C "$PROJECT_ROOT" push origin HEAD
 
-# Create and push git tag
+# Create git tag locally (push after docker build succeeds)
 TAG="v$VERSION"
 git -C "$PROJECT_ROOT" tag "$TAG" -m ""
-git -C "$PROJECT_ROOT" push origin "$TAG"
 
 # Build and push Docker images
 docker build --platform linux/amd64 -t "$IMAGE_BASE:$VERSION" -t "$IMAGE_BASE:latest" "$PROJECT_ROOT"
 docker push "$IMAGE_BASE:$VERSION"
 docker push "$IMAGE_BASE:latest"
+
+# Push git tag after successful docker build
+git -C "$PROJECT_ROOT" push origin "$TAG"
 
 # Create GitHub release
 gh release create "$TAG" --title "Release $TAG" --generate-notes
