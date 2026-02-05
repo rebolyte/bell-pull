@@ -1,6 +1,7 @@
 import type { Hono } from "hono";
 import type * as z from "@zod/zod";
 import { ResultAsync } from "neverthrow";
+import { OAuth2Tokens } from "arctic";
 import type { MessagesDomain } from "../domains/messages/index.ts";
 import type { MemoryDomain } from "../domains/memory/index.ts";
 import type { PluginsDomain } from "../domains/plugins/index.ts";
@@ -43,8 +44,8 @@ export type CronJob = {
   ) => ResultAsync<Record<string, unknown> | null, AppError>;
 };
 
-// Arctic OAuth provider interface (subset we use)
-export type OAuthProvider = {
+// Arctic OAuth client interface (subset we use, they don't have generic interface)
+export type OAuthClient = {
   createAuthorizationURL: (
     state: string,
     codeVerifier: string,
@@ -53,25 +54,19 @@ export type OAuthProvider = {
   validateAuthorizationCode: (
     code: string,
     codeVerifier: string,
-  ) => Promise<OAuthTokens>;
-  refreshAccessToken: (refreshToken: string) => Promise<OAuthTokens>;
-};
-
-export type OAuthTokens = {
-  accessToken: () => string;
-  refreshToken: () => string | null;
-  accessTokenExpiresAt: () => Date | null;
+  ) => Promise<OAuth2Tokens>;
+  refreshAccessToken: (refreshToken: string) => Promise<OAuth2Tokens>;
 };
 
 export type OAuthSetup = {
-  createProvider: (
+  createClient: (
     clientId: string,
     clientSecret: string,
     redirectUri: string,
-  ) => OAuthProvider;
+  ) => OAuthClient;
   scopes: string[];
   createAuthorizationURL?: (
-    provider: OAuthProvider,
+    provider: OAuthClient,
     state: string,
     codeVerifier: string,
     scopes: string[],

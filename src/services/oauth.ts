@@ -20,7 +20,7 @@ export const registerOAuthRoutes = (
   oauth: OAuthSetup,
   container: Container,
 ): void => {
-  const { createProvider, scopes, createAuthorizationURL } = oauth;
+  const { createClient, scopes, createAuthorizationURL } = oauth;
   const basePath = `/oauth/${pluginName}`;
 
   // User clicks Connect → /oauth/{name}/authorize
@@ -45,7 +45,7 @@ export const registerOAuthRoutes = (
     }
 
     const redirectUri = `${getBaseUrl(c.req.raw)}${basePath}/callback`;
-    const provider = createProvider(clientId, clientSecret, redirectUri);
+    const oauthClient = createClient(clientId, clientSecret, redirectUri);
 
     const state = generateState();
     const codeVerifier = generateCodeVerifier();
@@ -66,12 +66,12 @@ export const registerOAuthRoutes = (
     });
 
     const url = createAuthorizationURL
-      ? createAuthorizationURL(provider, state, codeVerifier, scopes)
-      : provider.createAuthorizationURL(state, codeVerifier, scopes);
+      ? createAuthorizationURL(oauthClient, state, codeVerifier, scopes)
+      : oauthClient.createAuthorizationURL(state, codeVerifier, scopes);
     return c.redirect(url.toString());
   });
 
-  // Provider callback → /oauth/{name}/callback
+  // OAuth client callback → /oauth/{name}/callback
   // -> exchanges code for tokens
   // -> merges tokens into existing config, saves
   app.get(`${basePath}/callback`, async (c) => {
@@ -104,10 +104,10 @@ export const registerOAuthRoutes = (
     const { clientId, clientSecret } = existingConfig;
 
     const redirectUri = `${getBaseUrl(c.req.raw)}${basePath}/callback`;
-    const provider = createProvider(clientId, clientSecret, redirectUri);
+    const oauthClient = createClient(clientId, clientSecret, redirectUri);
 
     try {
-      const tokens = await provider.validateAuthorizationCode(code, codeVerifier);
+      const tokens = await oauthClient.validateAuthorizationCode(code, codeVerifier);
 
       let refreshToken: string | null = null;
       try {
@@ -149,7 +149,7 @@ export const refreshPluginToken = (
   oauth: OAuthSetup,
   container: Container,
 ): ResultAsync<OAuthTokens, AppError> => {
-  const { createProvider } = oauth;
+  const { createClient } = oauth;
 
   return container.plugins
     .getConfig<{
@@ -167,10 +167,10 @@ export const refreshPluginToken = (
         return errAsync(appError("plugin", "[oauth] No refresh token available"));
       }
 
-      const provider = createProvider(config.clientId, config.clientSecret, "");
+      const oauthClient = createClient(config.clientId, config.clientSecret, "");
 
       return ResultAsync.fromPromise(
-        provider.refreshAccessToken(config.refreshToken),
+        oauthClient.refreshAccessToken(config.refreshToken),
         (e) => appError("plugin", `[oauth] Token refresh failed: ${e}`),
       ).andThen((tokens) => {
         let refreshToken = config.refreshToken;
