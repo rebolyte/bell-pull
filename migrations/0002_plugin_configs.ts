@@ -1,75 +1,78 @@
 // deno-lint-ignore-file no-explicit-any
 
-import { Kysely, sql } from "kysely";
+import { Kysely, sql, Transaction } from "kysely";
 
 export async function up(db: Kysely<any>): Promise<void> {
-  await db.schema
-    .createTable("plugin_configs")
-    .ifNotExists()
-    .addColumn("id", "integer", (col) => col.primaryKey().autoIncrement())
-    .addColumn("plugin_name", "text", (col) => col.unique().notNull())
-    .addColumn(
-      "config",
-      "text",
-      (col) => col.notNull().defaultTo("{}").check(sql`json_valid(config)`),
-    )
-    .addColumn("enabled", "integer", (col) => col.notNull().defaultTo(0))
-    .addColumn("created_at", "text", (col) => col.defaultTo(sql`CURRENT_TIMESTAMP`))
-    .addColumn("last_modified", "text", (col) => col.defaultTo(sql`CURRENT_TIMESTAMP`))
-    .execute();
+  await db.transaction().execute(async (trx) => {
+    await trx.schema
+      .createTable("plugin_configs")
+      .ifNotExists()
+      .addColumn("id", "integer", (col) => col.primaryKey().autoIncrement())
+      .addColumn("plugin_name", "text", (col) => col.unique().notNull())
+      .addColumn(
+        "config",
+        "text",
+        (col) => col.notNull().defaultTo("{}").check(sql`json_valid(config)`),
+      )
+      .addColumn("enabled", "integer", (col) => col.notNull().defaultTo(0))
+      .addColumn("created_at", "text", (col) => col.defaultTo(sql`CURRENT_TIMESTAMP`))
+      .addColumn("last_modified", "text", (col) => col.defaultTo(sql`CURRENT_TIMESTAMP`))
+      .execute();
 
-  await sql`
-    CREATE TRIGGER IF NOT EXISTS plugin_configs_last_modified
-    AFTER UPDATE ON plugin_configs
-    BEGIN
-      UPDATE plugin_configs SET last_modified = CURRENT_TIMESTAMP WHERE id = NEW.id;
-    END
-  `.execute(db);
+    await sql`
+      CREATE TRIGGER IF NOT EXISTS plugin_configs_last_modified
+      AFTER UPDATE ON plugin_configs
+      BEGIN
+        UPDATE plugin_configs SET last_modified = CURRENT_TIMESTAMP WHERE id = NEW.id;
+      END
+    `.execute(trx);
 
-  await db.insertInto("plugin_configs")
-    .values({ plugin_name: "telegram", enabled: 1 })
-    .onConflict((oc) => oc.column("plugin_name").doNothing())
-    .execute();
+    await trx
+      .insertInto("plugin_configs")
+      .values({ plugin_name: "telegram", enabled: 1 })
+      .onConflict((oc) => oc.column("plugin_name").doNothing())
+      .execute();
 
-  // SQLite doesn't support ALTER TABLE ADD COLUMN with non-constant defaults
-  // (like CURRENT_TIMESTAMP). The only way to add columns with such defaults
-  // is to rebuild the table: create new table, copy data, drop old, rename.
-  await rebuildMemoriesTable(db);
-  await rebuildMessagesTable(db);
+    // SQLite doesn't support ALTER TABLE ADD COLUMN with non-constant defaults
+    // (like CURRENT_TIMESTAMP). The only way to add columns with such defaults
+    // is to rebuild the table: create new table, copy data, drop old, rename.
+    await rebuildMemoriesTable(trx);
+    await rebuildMessagesTable(trx);
 
-  await db.schema
-    .createIndex("idx_memories_source_date_text")
-    .ifNotExists()
-    .on("memories")
-    .columns(["source", "date", "text"])
-    .unique()
-    .execute();
+    await trx.schema
+      .createIndex("idx_memories_source_date_text")
+      .ifNotExists()
+      .on("memories")
+      .columns(["source", "date", "text"])
+      .unique()
+      .execute();
 
-  await sql`
-    CREATE TRIGGER IF NOT EXISTS messages_last_modified
-    AFTER UPDATE ON messages
-    BEGIN
-      UPDATE messages SET last_modified = CURRENT_TIMESTAMP WHERE id = NEW.id;
-    END
-  `.execute(db);
+    await sql`
+      CREATE TRIGGER IF NOT EXISTS messages_last_modified
+      AFTER UPDATE ON messages
+      BEGIN
+        UPDATE messages SET last_modified = CURRENT_TIMESTAMP WHERE id = NEW.id;
+      END
+    `.execute(trx);
+  });
 }
 
-async function rebuildMemoriesTable(db: Kysely<any>): Promise<void> {
+async function rebuildMemoriesTable(trx: Transaction<any>): Promise<void> {
   const info = await sql<{ name: string; dflt_value: string | null }>`
     SELECT name, dflt_value FROM pragma_table_info('memories') WHERE name = 'created_at'
-  `.execute(db);
+  `.execute(trx);
   if (info.rows.length > 0 && info.rows[0].dflt_value === "CURRENT_TIMESTAMP") {
     return;
   }
 
   const cols = await sql<{ name: string }>`
     SELECT name FROM pragma_table_info('memories')
-  `.execute(db);
+  `.execute(trx);
   const existingCols = cols.rows.map((r) => r.name);
 
-  await sql`DROP TABLE IF EXISTS memories_new`.execute(db);
+  await sql`DROP TABLE IF EXISTS memories_new`.execute(trx);
 
-  await db.schema
+  await trx.schema
     .createTable("memories_new")
     .addColumn("id", "integer", (col) => col.primaryKey().autoIncrement())
     .addColumn("date", "text")
@@ -102,28 +105,28 @@ async function rebuildMemoriesTable(db: Kysely<any>): Promise<void> {
     .raw(
       `INSERT INTO memories_new (${newCols.join(", ")}) SELECT ${selectExprs.join(", ")} FROM memories`,
     )
-    .execute(db);
+    .execute(trx);
 
-  await sql`DROP TABLE memories`.execute(db);
-  await sql`ALTER TABLE memories_new RENAME TO memories`.execute(db);
+  await sql`DROP TABLE memories`.execute(trx);
+  await sql`ALTER TABLE memories_new RENAME TO memories`.execute(trx);
 }
 
-async function rebuildMessagesTable(db: Kysely<any>): Promise<void> {
+async function rebuildMessagesTable(trx: Transaction<any>): Promise<void> {
   const info = await sql<{ name: string; dflt_value: string | null }>`
     SELECT name, dflt_value FROM pragma_table_info('messages') WHERE name = 'last_modified'
-  `.execute(db);
+  `.execute(trx);
   if (info.rows.length > 0 && info.rows[0].dflt_value === "CURRENT_TIMESTAMP") {
     return;
   }
 
   const cols = await sql<{ name: string }>`
     SELECT name FROM pragma_table_info('messages')
-  `.execute(db);
+  `.execute(trx);
   const existingCols = cols.rows.map((r) => r.name);
 
-  await sql`DROP TABLE IF EXISTS messages_new`.execute(db);
+  await sql`DROP TABLE IF EXISTS messages_new`.execute(trx);
 
-  await db.schema
+  await trx.schema
     .createTable("messages_new")
     .addColumn("id", "integer", (col) => col.primaryKey().autoIncrement())
     .addColumn("chat_id", "text", (col) => col.notNull())
@@ -156,12 +159,12 @@ async function rebuildMessagesTable(db: Kysely<any>): Promise<void> {
     .raw(
       `INSERT INTO messages_new (${newCols.join(", ")}) SELECT ${selectExprs.join(", ")} FROM messages`,
     )
-    .execute(db);
+    .execute(trx);
 
-  await sql`DROP TABLE messages`.execute(db);
-  await sql`ALTER TABLE messages_new RENAME TO messages`.execute(db);
+  await sql`DROP TABLE messages`.execute(trx);
+  await sql`ALTER TABLE messages_new RENAME TO messages`.execute(trx);
 
-  await db.schema
+  await trx.schema
     .createIndex("idx_messages_chat_id")
     .ifNotExists()
     .on("messages")
@@ -170,17 +173,19 @@ async function rebuildMessagesTable(db: Kysely<any>): Promise<void> {
 }
 
 export async function down(db: Kysely<any>): Promise<void> {
-  await sql`DROP TRIGGER IF EXISTS messages_last_modified`.execute(db);
-  await sql`DROP TRIGGER IF EXISTS memories_last_modified`.execute(db);
-  await sql`DROP TRIGGER IF EXISTS plugin_configs_last_modified`.execute(db);
+  await db.transaction().execute(async (trx) => {
+    await sql`DROP TRIGGER IF EXISTS messages_last_modified`.execute(trx);
+    await sql`DROP TRIGGER IF EXISTS memories_last_modified`.execute(trx);
+    await sql`DROP TRIGGER IF EXISTS plugin_configs_last_modified`.execute(trx);
 
-  await db.schema.alterTable("messages").dropColumn("last_modified").execute();
-  await db.schema.dropIndex("idx_memories_source_date_text").execute();
-  await db.schema.alterTable("memories").dropColumn("source_plugin_id").execute();
-  await db.schema.alterTable("memories").dropColumn("last_modified").execute();
-  await db.schema.alterTable("memories").dropColumn("created_at").execute();
-  await db.schema.alterTable("memories").dropColumn("tags").execute();
-  await db.schema.alterTable("memories").dropColumn("source").execute();
+    await trx.schema.alterTable("messages").dropColumn("last_modified").execute();
+    await trx.schema.dropIndex("idx_memories_source_date_text").execute();
+    await trx.schema.alterTable("memories").dropColumn("source_plugin_id").execute();
+    await trx.schema.alterTable("memories").dropColumn("last_modified").execute();
+    await trx.schema.alterTable("memories").dropColumn("created_at").execute();
+    await trx.schema.alterTable("memories").dropColumn("tags").execute();
+    await trx.schema.alterTable("memories").dropColumn("source").execute();
 
-  await db.schema.dropTable("plugin_configs").execute();
+    await trx.schema.dropTable("plugin_configs").execute();
+  });
 }
