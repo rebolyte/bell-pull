@@ -4,7 +4,9 @@ import type { Container, CronJob, CronJobRunContext } from "./types/index.ts";
 export const scheduleCron = (job: CronJob, container: Container) => {
   const { log } = container;
 
-  log.info(`Scheduling cron job`, { name: job.name });
+  const schedule = job.schedule ?? "0 0 * * *";
+
+  log.info(`Scheduling cron job`, { name: job.name, schedule });
 
   cron.getTasks().forEach((task) => {
     if (task.name === job.name) {
@@ -13,7 +15,6 @@ export const scheduleCron = (job: CronJob, container: Container) => {
     }
   });
 
-  const schedule = job.schedule ?? "0 0 * * *";
   const task = cron.schedule(
     schedule,
     async () => {

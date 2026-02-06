@@ -10,7 +10,7 @@ export interface RunOptions extends ServerOptions {
 
 export const run = async (opts: RunOptions = {}) => {
   const container = opts.container ?? await makeContainer();
-  const server = makeServer(container, opts);
+  const server = await makeServer(container, opts);
 
   const { log } = container;
 

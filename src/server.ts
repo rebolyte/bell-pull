@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { honoLogger } from "@logtape/hono";
 import { cors } from "hono/cors";
 import { serveStatic } from "hono/deno";
-import type { Container, HonoEnv } from "./types/index.ts";
+import type { Container, CronJob, HonoEnv } from "./types/index.ts";
 import { makeApiRoutes } from "./routes/api.tsx";
 import { makeDashboardRoutes } from "./routes/dashboard/index.tsx";
 import { makePluginRoutes } from "./routes/dashboard/plugins.tsx";
@@ -13,7 +13,10 @@ export interface ServerOptions {
   enableCrons?: boolean;
 }
 
-export const makeServer = (container: Container, opts: ServerOptions = { enableCrons: true }) => {
+export const makeServer = async (
+  container: Container,
+  opts: ServerOptions = { enableCrons: true },
+) => {
   const app = new Hono<HonoEnv>();
 
   // Middleware
@@ -37,16 +40,33 @@ export const makeServer = (container: Container, opts: ServerOptions = { enableC
   const enableCrons = opts.enableCrons !== false;
 
   // Register plugin routes and crons
-  plugins.forEach((plugin) => {
+  for (const plugin of plugins) {
     plugin.init?.(app, container);
 
     if (enableCrons) {
-      const jobs = typeof plugin.cronJobs === "function"
-        ? plugin.cronJobs({}) // TODO: pass actual config when available
-        : plugin.cronJobs ?? [];
-      jobs.forEach((job) => scheduleCron(job, container));
+      const config = await container.plugins
+        .getConfig(plugin.name)
+        .match(
+          (pc) => (pc?.config ?? {}) as Record<string, unknown>,
+          () => ({}) as Record<string, unknown>,
+        );
+      let jobs: CronJob[];
+      if (typeof plugin.cronJobs === "function") {
+        jobs = plugin.cronJobs(config);
+      } else {
+        jobs = plugin.cronJobs ?? [];
+      }
+      jobs.forEach((job) => {
+        const scheduleKey = `${job.name}-schedule`;
+        if (!(scheduleKey in config)) {
+          container.log.warn(
+            `cron job ${job.name}: no "${scheduleKey}" in config, using coded fallback "${job.schedule}"`,
+          );
+        }
+        scheduleCron(job, container);
+      });
     }
-  });
+  }
 
   // Routes
   app.get("/", (c) => {
