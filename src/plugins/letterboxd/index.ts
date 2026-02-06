@@ -19,28 +19,44 @@ type DiaryEntry = {
   title: string;
   link: string;
   pubDate: string;
+  watchedDate: string | null;
   contentSnippet?: string;
 };
 
-const parser = new Parser();
+const parser = new Parser({
+  customFields: {
+    item: [["letterboxd:watchedDate", "watchedDate"]],
+  },
+});
 
 const fetchRecentDiary = (
   username: string,
 ): ResultAsync<DiaryEntry[], ReturnType<typeof appError>> => {
   const feedUrl = `https://letterboxd.com/${username}/rss/`;
 
+  // fetch ourselves instead of parser.parseURL() so MSW can stub fetch
+
   return ResultAsync.fromPromise(
-    parser.parseURL(feedUrl),
+    fetch(feedUrl)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.text();
+      })
+      .then((xml) => parser.parseString(xml)),
     pluginError("Failed to fetch Letterboxd RSS"),
   ).map((feed) =>
     (feed.items ?? [])
       .filter((item) => item.link?.includes("/film/"))
-      .map((item) => ({
-        title: item.title ?? "Unknown",
-        link: item.link ?? "",
-        pubDate: item.pubDate ?? "",
-        contentSnippet: item.contentSnippet,
-      }))
+      .map((item) => {
+        const itemAny = item as unknown as Record<string, string>;
+        return {
+          title: item.title ?? "Unknown",
+          link: item.link ?? "",
+          pubDate: item.pubDate ?? "",
+          watchedDate: itemAny.watchedDate ?? itemAny["letterboxd:watchedDate"] ?? null,
+          contentSnippet: item.contentSnippet,
+        };
+      })
   );
 };
 
@@ -84,7 +100,8 @@ export const letterboxdPlugin: Plugin<LetterboxdConfig> = {
 
                 return ResultAsync.combine(
                   recentEntries.map((entry) => {
-                    const entryDate = DateTime.fromRFC2822(entry.pubDate);
+                    const memoryDate = entry.watchedDate ??
+                      DateTime.fromRFC2822(entry.pubDate).toISODate()!;
                     const text = entry.contentSnippet
                       ? `Watched: ${entry.title}. ${entry.contentSnippet}`
                       : `Watched: ${entry.title}`;
@@ -92,7 +109,7 @@ export const letterboxdPlugin: Plugin<LetterboxdConfig> = {
                     return memory.updateMemories(
                       {
                         memories: [{
-                          date: entryDate.toISODate()!,
+                          date: memoryDate,
                           text,
                         }],
                         editMemories: [],

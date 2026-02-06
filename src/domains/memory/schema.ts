@@ -3,6 +3,7 @@ import { jsonParsed, parseToResult } from "../../utils/validate.ts";
 
 export const MemorySchema = z.object({
   id: z.number(),
+  // new Date(dateOnly) produces UTC midnight; read back with { zone: "utc" } to preserve the original date string
   date: z.string().nullable().transform((v) => (v ? new Date(v) : null)),
   text: z.string(),
   source: z.string().nullable(),
@@ -38,6 +39,13 @@ export const EditMemoriesSchema = jsonParsed(z.array(LLMEditMemorySchema));
 export const DeleteMemoriesSchema = jsonParsed(LLMDeleteMemoryIdsSchema);
 
 export type Memory = z.output<typeof MemorySchema>;
+
+export type CategorizedMemories = {
+  today: Memory[];
+  lastWeek: Memory[];
+  nextWeek: Memory[];
+  general: Memory[];
+};
 export type CreateMemoryInput = z.input<typeof CreateMemoryInputSchema>;
 export type LLMCreateMemory = z.infer<typeof LLMCreateMemorySchema>;
 export type LLMEditMemory = z.infer<typeof LLMEditMemorySchema>;

@@ -8,7 +8,7 @@ import type { LLMService } from "../../services/llm.ts";
 import type { MemoryDomain } from "../../domains/memory/index.ts";
 import { backstory, makeBriefingPrompt } from "./prompt.ts";
 import { AppError, appError } from "../../errors.ts";
-import { Memory } from "../../domains/memory/schema.ts";
+import type { CategorizedMemories } from "../../domains/memory/schema.ts";
 
 type BriefingDeps = {
   config: AppConfig;
@@ -26,12 +26,13 @@ const weekDayCheatsheet = (today: DateTime): string =>
 
 const generateBriefingContent = (
   { llm, memory }: BriefingDeps,
-  memories: Memory[],
+  memories: CategorizedMemories,
   today: DateTime,
 ) => {
   const weekdaysHelp = weekDayCheatsheet(today);
-  const memoriesString = memory.formatMemoriesForPrompt(memories);
-  const briefingPrompt = makeBriefingPrompt(memoriesString, weekdaysHelp);
+  const memoriesString = memory.formatCategorizedMemoriesForPrompt(memories);
+  const todayStr = today.toFormat("EEEE, MMMM d");
+  const briefingPrompt = makeBriefingPrompt(memoriesString, weekdaysHelp, todayStr);
 
   return llm.generateText({
     messages: [{ role: "user", content: briefingPrompt }],
@@ -52,9 +53,8 @@ export const sendDailyBriefing = (
     return errAsync(appError("validation", "No chat ID provided or configured"));
   }
 
-  // TODO get relevant memories
   return deps.memory
-    .getAllMemories()
+    .getRelevantMemories(finalToday)
     .andThen((memories) => generateBriefingContent(deps, memories, finalToday))
     .andThen((content) =>
       sendAndStoreMessage({

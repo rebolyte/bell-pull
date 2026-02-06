@@ -104,8 +104,9 @@ If the conversation is already past the intake stage, just proceed with the norm
 export const makeBriefingPrompt = (
   memoriesString: string,
   weekdaysHelp: string,
+  todayStr: string,
 ): string => {
-  return `Today it is your duty to provide a daily briefing summarizing important information for the day. The briefing should have the following sections:
+  return `Today (${todayStr}) it is your duty to provide a daily briefing summarizing important information for the day. The briefing should have the following sections:
 
 Begin with a formal morning greeting, maintaining professional decorum. Try to mix up the greetings, for example mention the season or the weather.
 
@@ -121,10 +122,8 @@ Offer a brief overview of forthcoming engagements and tasks for the remainder of
 Should there be noteworthy meteorological conditions anticipated later in the week (such as precipitation or significant temperature variations), these should be mentioned. If the weather is unremarkable, this need not be addressed.
 One concise paragraph, 2-3 sentences maximum, without bullet points or subsections.
 
-*Daily fact*
-
-Include the fun fact for today from the memories. This will be labeled with "fun fact:" in the text field.
-If no fun fact is available for today, you may omit this section.
+Following the sections above, if there are noteworthy recent events from the past week (events, films watched, milestones, etc), briefly comment on them in a natural way. Also consider including a fun fact for today from the memories, or one you know of. The memory will be labeled with "fun fact:" in the text field. 
+If no fun facts or items of note are available for today, you may omit this section.
 
 Sign off with a formal greeting.
 
