@@ -55,44 +55,49 @@ const getAllMemories = ({ db }: MemoryDeps) =>
     .andThen((rows) => Result.combine(rows.map(parseMemory)));
 };
 
-const getRelevantMemories = ({ db, config }: MemoryDeps) =>
-(today?: DateTime): ResultAsync<CategorizedMemories, AppError> => {
-  const t = today ?? DateTime.now().setZone(config.TIMEZONE).startOf("day");
-  const todayStr = t.toFormat("yyyy-MM-dd");
-  const weekAgoStr = t.minus({ days: 7 }).toFormat("yyyy-MM-dd");
-  const weekAheadStr = t.plus({ days: 7 }).toFormat("yyyy-MM-dd");
+const getRelevantMemories =
+  ({ db, config }: MemoryDeps) => (
+    today?: DateTime,
+  ): ResultAsync<CategorizedMemories, AppError> => {
+    const t = today ?? DateTime.now().setZone(config.TIMEZONE).startOf("day");
+    const todayStr = t.toFormat("yyyy-MM-dd");
+    const weekAgoStr = t.minus({ days: 7 }).toFormat("yyyy-MM-dd");
+    const weekAheadStr = t.plus({ days: 7 }).toFormat("yyyy-MM-dd");
 
-  const datedQuery = () =>
-    db.selectFrom("memories")
-      .selectAll()
-      .where("date", "is not", null)
-      .where("date", ">=", weekAgoStr)
-      .where("date", "<=", weekAheadStr)
-      .orderBy("date", "asc")
-      .execute();
+    const datedQuery = () =>
+      db.selectFrom("memories")
+        .selectAll()
+        .where("date", "is not", null)
+        .where("date", ">=", weekAgoStr)
+        .where("date", "<=", weekAheadStr)
+        .orderBy("date", "asc")
+        .execute();
 
-  const datelessQuery = () =>
-    db.selectFrom("memories").selectAll().where("date", "is", null).execute();
+    const datelessQuery = () =>
+      db.selectFrom("memories").selectAll().where("date", "is", null).execute();
 
-  return ResultAsync.fromPromise(datedQuery(), dbError("Failed to fetch dated memories"))
-    .andThen((dated) =>
-      ResultAsync.fromPromise(datelessQuery(), dbError("Failed to fetch dateless memories"))
-        .map((dateless) => ({ dated, dateless }))
-    )
-    .andThen(({ dated, dateless }) =>
-      Result.combine([
-        Result.combine(dated.map(parseMemory)),
-        Result.combine(dateless.map(parseMemory)),
-      ])
-    )
-    .map(([dated, general]) => {
-      const [todayMemories, rest] = R.partition(dated, (m) =>
-        DateTime.fromJSDate(m.date!, { zone: "utc" }).toFormat("yyyy-MM-dd") === todayStr);
-      const [lastWeek, nextWeek] = R.partition(rest, (m) =>
-        DateTime.fromJSDate(m.date!, { zone: "utc" }) < t);
-      return { today: todayMemories, lastWeek, nextWeek, general };
-    });
-};
+    return ResultAsync.combine([
+      ResultAsync.fromPromise(datedQuery(), dbError("Failed to fetch dated memories")),
+      ResultAsync.fromPromise(datelessQuery(), dbError("Failed to fetch dateless memories")),
+    ])
+      .andThen(([dated, dateless]) =>
+        Result.combine([...dated.map(parseMemory), ...dateless.map(parseMemory)])
+          .map((memories) => {
+            const [datedParsed, general] = R.partition(memories, (m) => m.date !== null);
+            const categorized = R.groupBy(datedParsed, (m) => {
+              const dateStr = DateTime.fromJSDate(m.date!, { zone: "utc" }).toFormat("yyyy-MM-dd");
+              if (dateStr === todayStr) return "today";
+              return DateTime.fromJSDate(m.date!, { zone: "utc" }) < t ? "lastWeek" : "nextWeek";
+            });
+            return {
+              today: categorized.today ?? [],
+              lastWeek: categorized.lastWeek ?? [],
+              nextWeek: categorized.nextWeek ?? [],
+              general,
+            };
+          })
+      );
+  };
 
 const formatMemoriesForPrompt = (memories: Memory[]) => {
   if (R.isEmpty(memories)) {
@@ -102,11 +107,9 @@ const formatMemoriesForPrompt = (memories: Memory[]) => {
   const [dated, undated] = R.partition(memories, (m) => m.date !== null);
 
   const formatDated = (m: Memory) =>
-    `- ${
-      DateTime.fromJSDate(m.date!, { zone: "utc" }).toFormat("yyyy-MM-dd")
-    } [ID: ${m.id}]: ${m.text}`;
+    `- ${DateTime.fromJSDate(m.date!, { zone: "utc" }).toFormat("yyyy-MM-dd")} - ${m.text}`;
 
-  const formatUndated = (m: Memory) => `- [ID: ${m.id}]: ${m.text}`;
+  const formatUndated = (m: Memory) => `- ${m.text}`;
 
   return R.pipe(
     [
@@ -126,11 +129,9 @@ const formatCategorizedMemoriesForPrompt = (categorized: CategorizedMemories) =>
   }
 
   const formatDated = (m: Memory) =>
-    `- ${
-      DateTime.fromJSDate(m.date!, { zone: "utc" }).toFormat("yyyy-MM-dd")
-    } [ID: ${m.id}]: ${m.text}`;
+    `- ${DateTime.fromJSDate(m.date!, { zone: "utc" }).toFormat("yyyy-MM-dd")} - ${m.text}`;
 
-  const formatUndated = (m: Memory) => `- [ID: ${m.id}]: ${m.text}`;
+  const formatUndated = (m: Memory) => `- ${m.text}`;
 
   return R.pipe(
     [

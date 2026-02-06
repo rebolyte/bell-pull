@@ -34,19 +34,29 @@ const fetchRecentDiary = (
 ): ResultAsync<DiaryEntry[], ReturnType<typeof appError>> => {
   const feedUrl = `https://letterboxd.com/${username}/rss/`;
 
+  // fetch ourselves instead of parser.parseURL() so MSW can stub fetch
+
   return ResultAsync.fromPromise(
-    parser.parseURL(feedUrl),
+    fetch(feedUrl)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.text();
+      })
+      .then((xml) => parser.parseString(xml)),
     pluginError("Failed to fetch Letterboxd RSS"),
   ).map((feed) =>
     (feed.items ?? [])
       .filter((item) => item.link?.includes("/film/"))
-      .map((item) => ({
-        title: item.title ?? "Unknown",
-        link: item.link ?? "",
-        pubDate: item.pubDate ?? "",
-        watchedDate: (item as Record<string, string>).watchedDate ?? null,
-        contentSnippet: item.contentSnippet,
-      }))
+      .map((item) => {
+        const itemAny = item as unknown as Record<string, string>;
+        return {
+          title: item.title ?? "Unknown",
+          link: item.link ?? "",
+          pubDate: item.pubDate ?? "",
+          watchedDate: itemAny.watchedDate ?? itemAny["letterboxd:watchedDate"] ?? null,
+          contentSnippet: item.contentSnippet,
+        };
+      })
   );
 };
 

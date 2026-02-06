@@ -104,8 +104,9 @@ If the conversation is already past the intake stage, just proceed with the norm
 export const makeBriefingPrompt = (
   memoriesString: string,
   weekdaysHelp: string,
+  todayStr: string,
 ): string => {
-  return `Today it is your duty to provide a daily briefing summarizing important information for the day. The briefing should have the following sections:
+  return `Today (${todayStr}) it is your duty to provide a daily briefing summarizing important information for the day. The briefing should have the following sections:
 
 Begin with a formal morning greeting, maintaining professional decorum. Try to mix up the greetings, for example mention the season or the weather.
 

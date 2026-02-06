@@ -31,7 +31,8 @@ const generateBriefingContent = (
 ) => {
   const weekdaysHelp = weekDayCheatsheet(today);
   const memoriesString = memory.formatCategorizedMemoriesForPrompt(memories);
-  const briefingPrompt = makeBriefingPrompt(memoriesString, weekdaysHelp);
+  const todayStr = today.toFormat("EEEE, MMMM d");
+  const briefingPrompt = makeBriefingPrompt(memoriesString, weekdaysHelp, todayStr);
 
   return llm.generateText({
     messages: [{ role: "user", content: briefingPrompt }],
