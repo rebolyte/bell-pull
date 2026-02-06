@@ -116,20 +116,14 @@ Note any reminders about today's affairs.
 Provide a summary of today's meteorological conditions.
 Detail the day's postal correspondence, highlighting any significant items such as important documents, personal letters, or parcels. Advertisements need not be mentioned. If there is no mail, this section may be omitted.
 
-*Recent*
-
-If there are noteworthy recent events from the past week (films watched, milestones, etc.), briefly comment on them in a natural way. If nothing notable, omit this section.
-
 *Looking Ahead*
 
 Offer a brief overview of forthcoming engagements and tasks for the remainder of the week, with particular attention to tomorrow's schedule.
 Should there be noteworthy meteorological conditions anticipated later in the week (such as precipitation or significant temperature variations), these should be mentioned. If the weather is unremarkable, this need not be addressed.
 One concise paragraph, 2-3 sentences maximum, without bullet points or subsections.
 
-*Daily fact*
-
-Include the fun fact for today from the memories. This will be labeled with "fun fact:" in the text field.
-If no fun fact is available for today, you may omit this section.
+Following the sections above, if there are noteworthy recent events from the past week (events, films watched, milestones, etc), briefly comment on them in a natural way. Also consider including a fun fact for today from the memories, or one you know of. The memory will be labeled with "fun fact:" in the text field. 
+If no fun facts or items of note are available for today, you may omit this section.
 
 Sign off with a formal greeting.
 
