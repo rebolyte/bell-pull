@@ -49,24 +49,18 @@ const fetchForecast = (
   );
 };
 
-type TimePeriod = "morning" | "afternoon" | "evening";
-
-const getTimePeriod = (hour: number): TimePeriod | null => {
-  if (hour >= 6 && hour < 12) return "morning";
-  if (hour >= 12 && hour < 18) return "afternoon";
-  if (hour >= 18) return "evening";
-  return null;
-};
-
 const filterTodayEntries = (
   entries: ForecastEntry[],
   timezone: string,
 ): ForecastEntry[] => {
   const today = DateTime.now().setZone(timezone).toFormat("yyyy-MM-dd");
-  return entries.filter((entry) => {
-    const entryDate = DateTime.fromSeconds(entry.dt).setZone(timezone).toFormat("yyyy-MM-dd");
-    return entryDate === today;
-  });
+  return R.filter(entries, (entry) =>
+    DateTime.fromSeconds(entry.dt).setZone(timezone).toFormat("yyyy-MM-dd") === today);
+};
+
+const midDescription = (entries: ForecastEntry[]): string => {
+  const mid = entries[Math.floor(entries.length / 2)];
+  return mid.weather[0]?.description ?? "unknown";
 };
 
 const formatForecast = (
@@ -77,45 +71,43 @@ const formatForecast = (
   const tempUnit = units === "imperial" ? "F" : "C";
   const todayEntries = filterTodayEntries(data.list, timezone);
 
-  if (todayEntries.length === 0) {
+  if (R.isEmpty(todayEntries)) {
     return `No forecast data available for ${data.city.name} today`;
   }
 
-  const temps = todayEntries.map((e) => e.main.temp);
+  const temps = R.map(todayEntries, (e) => e.main.temp);
   const high = Math.round(Math.max(...temps));
   const low = Math.round(Math.min(...temps));
 
-  const periods = new Map<TimePeriod, ForecastEntry[]>();
-  for (const entry of todayEntries) {
-    const hour = DateTime.fromSeconds(entry.dt).setZone(timezone).hour;
-    const period = getTimePeriod(hour);
-    if (period) {
-      const existing = periods.get(period) ?? [];
-      existing.push(entry);
-      periods.set(period, existing);
-    }
-  }
+  const hourOf = (e: ForecastEntry) =>
+    DateTime.fromSeconds(e.dt).setZone(timezone).hour;
 
-  const periodOrder: TimePeriod[] = ["morning", "afternoon", "evening"];
-  const periodSummaries = periodOrder
-    .filter((p) => periods.has(p))
-    .map((p) => {
-      const entries = periods.get(p)!;
-      const mid = entries[Math.floor(entries.length / 2)];
-      const desc = mid.weather[0]?.description ?? "unknown";
-      return `${p}: ${desc}`;
-    });
+  const [, daytime] = R.partition(todayEntries, (e) => hourOf(e) < 6);
+  const [morning, afterMorning] = R.partition(daytime, (e) => hourOf(e) < 12);
+  const [afternoon, evening] = R.partition(afterMorning, (e) => hourOf(e) < 18);
 
-  const maxPop = Math.round(Math.max(...todayEntries.map((e) => e.pop)) * 100);
+  const periodSummaries = R.pipe(
+    [
+      { name: "morning", entries: morning },
+      { name: "afternoon", entries: afternoon },
+      { name: "evening", entries: evening },
+    ],
+    R.filter(({ entries }) => !R.isEmpty(entries)),
+    R.map(({ name, entries }) => `${name}: ${midDescription(entries)}`),
+    R.join(", "),
+  );
 
-  let result = `${data.city.name} forecast: High ${high}°${tempUnit}, Low ${low}°${tempUnit}`;
-  if (periodSummaries.length > 0) {
-    result += `. ${periodSummaries.join(", ")}`;
-  }
-  if (maxPop > 0) {
-    result += `. ${maxPop}% chance of precipitation`;
-  }
-  return result;
+  const maxPop = Math.round(Math.max(...R.map(todayEntries, (e) => e.pop)) * 100);
+
+  return R.pipe(
+    [
+      `${data.city.name} forecast: High ${high}°${tempUnit}, Low ${low}°${tempUnit}`,
+      periodSummaries || null,
+      maxPop > 0 ? `${maxPop}% chance of precipitation` : null,
+    ],
+    R.filter(R.isNonNullish),
+    R.join(". "),
+  );
 };
 
 export const openweatherPlugin: Plugin<OpenWeatherConfig> = {
