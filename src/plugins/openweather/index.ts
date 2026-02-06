@@ -90,7 +90,7 @@ const formatForecast = (
   const periodSummaries = R.pipe(
     ["morning", "afternoon", "evening"] as const,
     R.filter((p) => p in periods),
-    R.map((p) => `${p}: ${midDescription(periods[p])}`),
+    R.map((p) => `${p}: ${midDescription(periods[p]!)}`),
     R.join(", "),
   );
 
