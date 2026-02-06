@@ -1,3 +1,8 @@
+---
+name: write-bellpull-plugin
+description: Use when authoring new plugins for Bell Pull, which pull/accept data from external sources and store them as memories.
+---
+
 # Bell Pull Plugin Authoring
 
 Plugins extend Bell Pull by pulling data from external sources and storing as memories. All plugins live in `src/plugins/<name>/index.ts` and are registered in `src/plugins/registry.ts`.
