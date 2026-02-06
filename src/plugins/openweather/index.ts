@@ -3,13 +3,12 @@ import { DateTime } from "luxon";
 import { errAsync, okAsync, ResultAsync } from "neverthrow";
 import type { Plugin } from "../../types/index.ts";
 import { type AppError, appError, pluginError } from "../../errors.ts";
-import { configSchema, OpenWeatherConfig } from "./schema.ts";
-
-type WeatherResponse = {
-  main: { temp: number; humidity: number };
-  weather: { description: string }[];
-  name: string;
-};
+import {
+  configSchema,
+  type ForecastEntry,
+  type ForecastResponse,
+  type OpenWeatherConfig,
+} from "./schema.ts";
 
 const US_STATE_CODES = new Set(
   "AL AK AZ AR CA CO CT DE FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY DC"
@@ -26,17 +25,17 @@ const normalizeLocation = (location: string): string => {
   return trimmed;
 };
 
-const fetchWeather = (
+const fetchForecast = (
   apiKey: string,
   location: string,
   units: string,
-): ResultAsync<WeatherResponse, AppError> => {
+): ResultAsync<ForecastResponse, AppError> => {
   const params = new URLSearchParams({
     q: normalizeLocation(location),
     appid: apiKey,
     units,
   });
-  const url = `https://api.openweathermap.org/data/2.5/weather?${params}`;
+  const url = `https://api.openweathermap.org/data/2.5/forecast?${params}`;
 
   return ResultAsync.fromPromise(
     fetch(url).then(async (response) => {
@@ -50,12 +49,62 @@ const fetchWeather = (
   );
 };
 
-const formatWeather = (data: WeatherResponse, units: string): string => {
+const filterTodayEntries = (
+  entries: ForecastEntry[],
+  timezone: string,
+): ForecastEntry[] => {
+  const today = DateTime.now().setZone(timezone).toFormat("yyyy-MM-dd");
+  return R.filter(entries, (entry) =>
+    DateTime.fromSeconds(entry.dt).setZone(timezone).toFormat("yyyy-MM-dd") === today);
+};
+
+const midDescription = (entries: ForecastEntry[]): string => {
+  const mid = entries[Math.floor(entries.length / 2)];
+  return mid.weather[0]?.description ?? "unknown";
+};
+
+const formatForecast = (
+  data: ForecastResponse,
+  units: string,
+  timezone: string,
+): string => {
   const tempUnit = units === "imperial" ? "F" : "C";
-  const description = data.weather[0]?.description ?? "unknown";
-  return `Weather in ${data.name}: ${
-    Math.round(data.main.temp)
-  }°${tempUnit}, ${description}, ${data.main.humidity}% humidity`;
+  const todayEntries = filterTodayEntries(data.list, timezone);
+
+  if (R.isEmpty(todayEntries)) {
+    return `No forecast data available for ${data.city.name} today`;
+  }
+
+  const temps = R.map(todayEntries, (e) => e.main.temp);
+  const high = Math.round(Math.max(...temps));
+  const low = Math.round(Math.min(...temps));
+
+  const periods = R.groupBy(todayEntries, (entry) => {
+    const hour = DateTime.fromSeconds(entry.dt).setZone(timezone).hour;
+    if (hour >= 6 && hour < 12) return "morning";
+    if (hour >= 12 && hour < 18) return "afternoon";
+    if (hour >= 18) return "evening";
+    return "night";
+  });
+
+  const periodSummaries = R.pipe(
+    ["morning", "afternoon", "evening"] as const,
+    R.filter((p) => p in periods),
+    R.map((p) => `${p}: ${midDescription(periods[p]!)}`),
+    R.join(", "),
+  );
+
+  const maxPop = Math.round(Math.max(...R.map(todayEntries, (e) => e.pop)) * 100);
+
+  return R.pipe(
+    [
+      `${data.city.name} forecast: High ${high}°${tempUnit}, Low ${low}°${tempUnit}`,
+      periodSummaries || null,
+      maxPop > 0 ? `${maxPop}% chance of precipitation` : null,
+    ],
+    R.filter(R.isNonNullish),
+    R.join(". "),
+  );
 };
 
 export const openweatherPlugin: Plugin<OpenWeatherConfig> = {
@@ -81,8 +130,8 @@ export const openweatherPlugin: Plugin<OpenWeatherConfig> = {
         return configRes.andThen((pluginConfig) => {
           const { apiKey, location, units } = pluginConfig.config;
 
-          return fetchWeather(apiKey, location, units)
-            .map((data) => formatWeather(data, units))
+          return fetchForecast(apiKey, location, units)
+            .map((data) => formatForecast(data, units, config.TIMEZONE))
             .andThen((text) => {
               const today = DateTime.now().setZone(config.TIMEZONE).toFormat("yyyy-MM-dd");
               return memory
