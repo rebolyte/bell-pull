@@ -2,12 +2,12 @@ import { Hono } from "hono";
 import { honoLogger } from "@logtape/hono";
 import { cors } from "hono/cors";
 import { serveStatic } from "hono/deno";
-import type { Container, CronJob, HonoEnv } from "./types/index.ts";
+import type { Container, HonoEnv } from "./types/index.ts";
 import { makeApiRoutes } from "./routes/api.tsx";
 import { makeDashboardRoutes } from "./routes/dashboard/index.tsx";
 import { makePluginRoutes } from "./routes/dashboard/plugins.tsx";
 import { plugins } from "./plugins/registry.ts";
-import { scheduleCron } from "./cron-runner.ts";
+import { registerPluginCrons } from "./cron-runner.ts";
 
 export interface ServerOptions {
   enableCrons?: boolean;
@@ -44,27 +44,7 @@ export const makeServer = async (
     plugin.init?.(app, container);
 
     if (enableCrons) {
-      const config = await container.plugins
-        .getConfig(plugin.name)
-        .match(
-          (pc) => (pc?.config ?? {}) as Record<string, unknown>,
-          () => ({}) as Record<string, unknown>,
-        );
-      let jobs: CronJob[];
-      if (typeof plugin.cronJobs === "function") {
-        jobs = plugin.cronJobs(config);
-      } else {
-        jobs = plugin.cronJobs ?? [];
-      }
-      jobs.forEach((job) => {
-        const scheduleKey = `${job.name}-schedule`;
-        if (!(scheduleKey in config)) {
-          container.log.warn(
-            `cron job ${job.name}: no "${scheduleKey}" in config, using coded fallback "${job.schedule}"`,
-          );
-        }
-        scheduleCron(job, container);
-      });
+      await registerPluginCrons(plugin, container);
     }
   }
 

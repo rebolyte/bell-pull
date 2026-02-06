@@ -5,6 +5,7 @@ import { DashboardShell, Layout } from "../components/layout.tsx";
 import { CronJobRow, EnabledToggle, PluginSettings } from "../components/settings/plugin.tsx";
 import { extractFieldsFromSchema } from "../../services/config-schema.ts";
 import { parseFormToConfig } from "../../utils/form.ts";
+import { registerPluginCrons } from "../../cron-runner.ts";
 
 type PluginRoutesEnv = HonoEnv & { Variables: { plugins: Plugin[] } };
 
@@ -164,6 +165,8 @@ export const makePluginRoutes = (plugins: Plugin[]) => {
         `/dashboard/plugins/${name}?flash=error&message=${errorMsg}`,
       );
     }
+
+    await registerPluginCrons(plugin, container);
 
     return c.redirect(`/dashboard/plugins/${name}?flash=saved`);
   });

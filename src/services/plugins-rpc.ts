@@ -3,6 +3,7 @@ import type { Container, Plugin } from "../types/index.ts";
 import type { PluginInfo, PluginRpcMethods } from "../types/shared.ts";
 import { extractFieldsFromSchema } from "./config-schema.ts";
 import { ExampleRpcService } from "./example-rpc.ts";
+import { registerPluginCrons } from "../cron-runner.ts";
 
 export class PluginsRpcService extends ExampleRpcService implements PluginRpcMethods {
   constructor(
@@ -61,6 +62,8 @@ export class PluginsRpcService extends ExampleRpcService implements PluginRpcMet
     if (result.isErr()) {
       return { success: false, error: result.error.message };
     }
+
+    await registerPluginCrons(plugin, this.container);
 
     return { success: true };
   }
