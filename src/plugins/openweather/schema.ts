@@ -10,8 +10,14 @@ export const configSchema = z.object({
 
 export type OpenWeatherConfig = z.infer<typeof configSchema>;
 
-export type WeatherResponse = {
+export type ForecastEntry = {
+  dt: number;
   main: { temp: number; humidity: number };
   weather: { description: string }[];
-  name: string;
+  pop: number;
+};
+
+export type ForecastResponse = {
+  list: ForecastEntry[];
+  city: { name: string };
 };

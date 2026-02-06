@@ -1,14 +1,14 @@
 import { afterAll, afterEach, beforeAll, describe, it } from "@std/testing/bdd";
 import { expect } from "@std/expect";
 import { mswMock, withHandlers } from "../../../tests/fixtures/mocks/server.ts";
-import { weatherCold, weatherError, weatherSuccess } from "./mock.ts";
+import { forecastCold, forecastError, forecastSuccess } from "./mock.ts";
 import { createTestHarness } from "../../../tests/fixtures/container.ts";
 import { openweatherPlugin } from "./index.ts";
 
 describe("OpenWeather Cron Job", () => {
   beforeAll(() => {
     const defaultHandlers = [
-      weatherSuccess(),
+      forecastSuccess(),
     ];
     mswMock.listen(defaultHandlers);
   });
@@ -32,7 +32,7 @@ describe("OpenWeather Cron Job", () => {
     return cronJob.run(h.container, { name: "test", schedule: "" });
   };
 
-  it("fetches weather and stores memory", async () => {
+  it("fetches forecast and stores memory with high/low and periods", async () => {
     const h = await createTestHarness();
     try {
       await setupPlugin(h);
@@ -46,15 +46,19 @@ describe("OpenWeather Cron Job", () => {
         .execute();
 
       expect(memories).toHaveLength(1);
-      expect(memories[0].text).toContain("72°F");
-      expect(memories[0].text).toContain("sunny");
+      expect(memories[0].text).toContain("San Francisco forecast:");
+      expect(memories[0].text).toContain("High 75°F");
+      expect(memories[0].text).toContain("Low 65°F");
+      expect(memories[0].text).toContain("morning:");
+      expect(memories[0].text).toContain("afternoon:");
+      expect(memories[0].text).toContain("evening:");
     } finally {
       await h.cleanup();
     }
   });
 
-  it("handles cold weather", async () => {
-    withHandlers(weatherCold());
+  it("handles cold weather with precipitation", async () => {
+    withHandlers(forecastCold());
     const h = await createTestHarness();
     try {
       await setupPlugin(h);
@@ -62,15 +66,17 @@ describe("OpenWeather Cron Job", () => {
 
       expect(result.isOk()).toBe(true);
       const memories = await h.container.db.selectFrom("memories").selectAll().execute();
-      expect(memories[0].text).toContain("32°F");
+      expect(memories[0].text).toContain("High 32°F");
+      expect(memories[0].text).toContain("Low 27°F");
       expect(memories[0].text).toContain("snow");
+      expect(memories[0].text).toContain("chance of precipitation");
     } finally {
       await h.cleanup();
     }
   });
 
   it("handles API errors gracefully", async () => {
-    withHandlers(weatherError(500));
+    withHandlers(forecastError(500));
     const h = await createTestHarness();
     try {
       await setupPlugin(h);
