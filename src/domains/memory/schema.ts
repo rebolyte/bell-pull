@@ -3,6 +3,7 @@ import { jsonParsed, parseToResult } from "../../utils/validate.ts";
 
 export const MemorySchema = z.object({
   id: z.number(),
+  // new Date(dateOnly) produces UTC midnight; read back with { zone: "utc" } to preserve the original date string
   date: z.string().nullable().transform((v) => (v ? new Date(v) : null)),
   text: z.string(),
   source: z.string().nullable(),
