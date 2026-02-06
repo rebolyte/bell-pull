@@ -79,21 +79,18 @@ const formatForecast = (
   const high = Math.round(Math.max(...temps));
   const low = Math.round(Math.min(...temps));
 
-  const hourOf = (e: ForecastEntry) =>
-    DateTime.fromSeconds(e.dt).setZone(timezone).hour;
-
-  const [, daytime] = R.partition(todayEntries, (e) => hourOf(e) < 6);
-  const [morning, afterMorning] = R.partition(daytime, (e) => hourOf(e) < 12);
-  const [afternoon, evening] = R.partition(afterMorning, (e) => hourOf(e) < 18);
+  const periods = R.groupBy(todayEntries, (entry) => {
+    const hour = DateTime.fromSeconds(entry.dt).setZone(timezone).hour;
+    if (hour >= 6 && hour < 12) return "morning";
+    if (hour >= 12 && hour < 18) return "afternoon";
+    if (hour >= 18) return "evening";
+    return "night";
+  });
 
   const periodSummaries = R.pipe(
-    [
-      { name: "morning", entries: morning },
-      { name: "afternoon", entries: afternoon },
-      { name: "evening", entries: evening },
-    ],
-    R.filter(({ entries }) => !R.isEmpty(entries)),
-    R.map(({ name, entries }) => `${name}: ${midDescription(entries)}`),
+    ["morning", "afternoon", "evening"] as const,
+    R.filter((p) => p in periods),
+    R.map((p) => `${p}: ${midDescription(periods[p])}`),
     R.join(", "),
   );
 
