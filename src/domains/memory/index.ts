@@ -3,6 +3,7 @@ import * as R from "@remeda/remeda";
 import { ok, Result, ResultAsync } from "neverthrow";
 import { sql } from "kysely";
 import {
+  type CategorizedMemories,
   CreateMemoriesSchema,
   DeleteMemoriesSchema,
   EditMemoriesSchema,
@@ -54,10 +55,43 @@ const getAllMemories = ({ db }: MemoryDeps) =>
     .andThen((rows) => Result.combine(rows.map(parseMemory)));
 };
 
-const getRelevantMemories = (deps: MemoryDeps) => () => {
-  const today = DateTime.now().setZone(deps.config.TIMEZONE).startOf("day");
-  const todayFormatted = today.toFormat("yyyy-MM-dd");
-  return getAllMemories(deps)({ includeDate: true, startDate: todayFormatted });
+const getRelevantMemories = ({ db, config }: MemoryDeps) =>
+(today?: DateTime): ResultAsync<CategorizedMemories, AppError> => {
+  const t = today ?? DateTime.now().setZone(config.TIMEZONE).startOf("day");
+  const todayStr = t.toFormat("yyyy-MM-dd");
+  const weekAgoStr = t.minus({ days: 7 }).toFormat("yyyy-MM-dd");
+  const weekAheadStr = t.plus({ days: 7 }).toFormat("yyyy-MM-dd");
+
+  const datedQuery = () =>
+    db.selectFrom("memories")
+      .selectAll()
+      .where("date", "is not", null)
+      .where("date", ">=", weekAgoStr)
+      .where("date", "<=", weekAheadStr)
+      .orderBy("date", "asc")
+      .execute();
+
+  const datelessQuery = () =>
+    db.selectFrom("memories").selectAll().where("date", "is", null).execute();
+
+  return ResultAsync.fromPromise(datedQuery(), dbError("Failed to fetch dated memories"))
+    .andThen((dated) =>
+      ResultAsync.fromPromise(datelessQuery(), dbError("Failed to fetch dateless memories"))
+        .map((dateless) => ({ dated, dateless }))
+    )
+    .andThen(({ dated, dateless }) =>
+      Result.combine([
+        Result.combine(dated.map(parseMemory)),
+        Result.combine(dateless.map(parseMemory)),
+      ])
+    )
+    .map(([dated, general]) => {
+      const [todayMemories, rest] = R.partition(dated, (m) =>
+        DateTime.fromJSDate(m.date!, { zone: "utc" }).toFormat("yyyy-MM-dd") === todayStr);
+      const [lastWeek, nextWeek] = R.partition(rest, (m) =>
+        DateTime.fromJSDate(m.date!, { zone: "utc" }) < t);
+      return { today: todayMemories, lastWeek, nextWeek, general };
+    });
 };
 
 const formatMemoriesForPrompt = (memories: Memory[]) => {
@@ -78,6 +112,32 @@ const formatMemoriesForPrompt = (memories: Memory[]) => {
     [
       R.isEmpty(dated) ? null : `Dated memories:\n${dated.map(formatDated).join("\n")}`,
       R.isEmpty(undated) ? null : `General memories:\n${undated.map(formatUndated).join("\n")}`,
+    ],
+    R.filter(R.isNonNullish),
+    R.join("\n\n"),
+  );
+};
+
+const formatCategorizedMemoriesForPrompt = (categorized: CategorizedMemories) => {
+  const { today, lastWeek, nextWeek, general } = categorized;
+
+  if ([today, lastWeek, nextWeek, general].every(R.isEmpty)) {
+    return "No stored memories are available.";
+  }
+
+  const formatDated = (m: Memory) =>
+    `- ${
+      DateTime.fromJSDate(m.date!, { zone: "utc" }).toFormat("yyyy-MM-dd")
+    } [ID: ${m.id}]: ${m.text}`;
+
+  const formatUndated = (m: Memory) => `- [ID: ${m.id}]: ${m.text}`;
+
+  return R.pipe(
+    [
+      R.isEmpty(today) ? null : `Today:\n${today.map(formatDated).join("\n")}`,
+      R.isEmpty(lastWeek) ? null : `Recent (past week):\n${lastWeek.map(formatDated).join("\n")}`,
+      R.isEmpty(nextWeek) ? null : `Upcoming (next week):\n${nextWeek.map(formatDated).join("\n")}`,
+      R.isEmpty(general) ? null : `General background:\n${general.map(formatUndated).join("\n")}`,
     ],
     R.filter(R.isNonNullish),
     R.join("\n\n"),
@@ -175,6 +235,7 @@ export const makeMemoryDomain = (deps: MemoryDeps) => ({
   updateMemories: updateMemories(deps),
   extractMemories,
   formatMemoriesForPrompt,
+  formatCategorizedMemoriesForPrompt,
 });
 
 export { extractMemories };

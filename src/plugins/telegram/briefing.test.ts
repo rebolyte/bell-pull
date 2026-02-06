@@ -48,6 +48,29 @@ describe("Daily Briefing", () => {
       }
     });
 
+    it("includes past week memories in prompt", async () => {
+      const h = await createTestHarness({
+        anthropic: { responses: ["Briefing."] },
+      });
+
+      try {
+        const today = DateTime.fromISO("2024-06-15", { zone: "America/Los_Angeles" });
+        await h.container.db.insertInto("memories").values([
+          { text: "Watched: The Brutalist", date: "2024-06-12" },
+        ]).execute();
+
+        await sendDailyBriefing(makeMockBot(h.mockApi), h.container, "123", today);
+
+        const prompt =
+          (h.mockAnthropic.streamSpy.calls[0].args[0] as { messages: { content?: string }[] })
+            .messages[0].content as string;
+        expect(prompt).toContain("Recent (past week)");
+        expect(prompt).toContain("Watched: The Brutalist");
+      } finally {
+        await h.cleanup();
+      }
+    });
+
     it("includes weekday cheatsheet in prompt", async () => {
       const h = await createTestHarness({
         anthropic: { responses: ["Your briefing."] },
@@ -126,18 +149,20 @@ describe("Daily Briefing", () => {
       });
 
       try {
+        const today = DateTime.now().setZone("America/Los_Angeles");
+        const todayStr = today.toFormat("yyyy-MM-dd");
         await h.container.db.insertInto("memories").values([
-          { text: "Dated event", date: "2024-01-15" },
+          { text: "Dated event", date: todayStr },
           { text: "Background info", date: null },
         ]).execute();
 
-        await sendDailyBriefing(makeMockBot(h.mockApi), h.container, "123");
+        await sendDailyBriefing(makeMockBot(h.mockApi), h.container, "123", today);
 
         const prompt =
           (h.mockAnthropic.streamSpy.calls[0].args[0] as { messages: { content?: string }[] })
             .messages[0].content as string;
-        expect(prompt).toContain("Dated memories");
-        expect(prompt).toContain("General memories");
+        expect(prompt).toContain("Today:");
+        expect(prompt).toContain("General background:");
       } finally {
         await h.cleanup();
       }

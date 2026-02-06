@@ -38,6 +38,13 @@ export const EditMemoriesSchema = jsonParsed(z.array(LLMEditMemorySchema));
 export const DeleteMemoriesSchema = jsonParsed(LLMDeleteMemoryIdsSchema);
 
 export type Memory = z.output<typeof MemorySchema>;
+
+export type CategorizedMemories = {
+  today: Memory[];
+  lastWeek: Memory[];
+  nextWeek: Memory[];
+  general: Memory[];
+};
 export type CreateMemoryInput = z.input<typeof CreateMemoryInputSchema>;
 export type LLMCreateMemory = z.infer<typeof LLMCreateMemorySchema>;
 export type LLMEditMemory = z.infer<typeof LLMEditMemorySchema>;

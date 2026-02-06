@@ -19,10 +19,15 @@ type DiaryEntry = {
   title: string;
   link: string;
   pubDate: string;
+  watchedDate: string | null;
   contentSnippet?: string;
 };
 
-const parser = new Parser();
+const parser = new Parser({
+  customFields: {
+    item: [["letterboxd:watchedDate", "watchedDate"]],
+  },
+});
 
 const fetchRecentDiary = (
   username: string,
@@ -39,6 +44,7 @@ const fetchRecentDiary = (
         title: item.title ?? "Unknown",
         link: item.link ?? "",
         pubDate: item.pubDate ?? "",
+        watchedDate: (item as Record<string, string>).watchedDate ?? null,
         contentSnippet: item.contentSnippet,
       }))
   );
@@ -84,7 +90,8 @@ export const letterboxdPlugin: Plugin<LetterboxdConfig> = {
 
                 return ResultAsync.combine(
                   recentEntries.map((entry) => {
-                    const entryDate = DateTime.fromRFC2822(entry.pubDate);
+                    const memoryDate = entry.watchedDate ??
+                      DateTime.fromRFC2822(entry.pubDate).toISODate()!;
                     const text = entry.contentSnippet
                       ? `Watched: ${entry.title}. ${entry.contentSnippet}`
                       : `Watched: ${entry.title}`;
@@ -92,7 +99,7 @@ export const letterboxdPlugin: Plugin<LetterboxdConfig> = {
                     return memory.updateMemories(
                       {
                         memories: [{
-                          date: entryDate.toISODate()!,
+                          date: memoryDate,
                           text,
                         }],
                         editMemories: [],

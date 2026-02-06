@@ -3,7 +3,7 @@ import { expect } from "@std/expect";
 import { useHarness } from "../../utils/harness.ts";
 import type { AppConfig } from "../../services/config.ts";
 import { extractMemories, makeMemoryDomain, MemoryDomain } from "./index.ts";
-import type { Memory } from "./schema.ts";
+import type { CategorizedMemories, Memory } from "./schema.ts";
 import { DateTime } from "luxon";
 import type { Database } from "../../services/database.ts";
 import { silentLogger } from "../../../tests/fixtures/mocks.ts";
@@ -158,6 +158,75 @@ Last line`;
     });
   });
 
+  describe("formatCategorizedMemoriesForPrompt", () => {
+    const makeMemory = (overrides: Partial<Memory>): Memory => ({
+      id: 1,
+      text: "test",
+      date: null,
+      source: null,
+      tags: null,
+      createdAt: "2024-01-01T00:00:00.000Z",
+      lastModified: "2024-01-01T00:00:00.000Z",
+      sourcePluginId: null,
+      ...overrides,
+    });
+
+    const { formatCategorizedMemoriesForPrompt } = makeMemoryDomain({
+      config: {} as AppConfig,
+      db: {} as Database,
+      log: silentLogger,
+    });
+
+    it("should format all categories", () => {
+      const categorized: CategorizedMemories = {
+        today: [makeMemory({ id: 1, text: "Today thing", date: new Date("2024-06-15") })],
+        lastWeek: [makeMemory({ id: 2, text: "Watched: Film", date: new Date("2024-06-12") })],
+        nextWeek: [makeMemory({ id: 3, text: "Dentist", date: new Date("2024-06-18") })],
+        general: [makeMemory({ id: 4, text: "Likes tea" })],
+      };
+
+      const result = formatCategorizedMemoriesForPrompt(categorized);
+
+      expect(result).toContain("Today:");
+      expect(result).toContain("Today thing");
+      expect(result).toContain("Recent (past week):");
+      expect(result).toContain("Watched: Film");
+      expect(result).toContain("Upcoming (next week):");
+      expect(result).toContain("Dentist");
+      expect(result).toContain("General background:");
+      expect(result).toContain("Likes tea");
+    });
+
+    it("should omit empty categories", () => {
+      const categorized: CategorizedMemories = {
+        today: [],
+        lastWeek: [],
+        nextWeek: [makeMemory({ id: 1, text: "Dentist", date: new Date("2024-06-18") })],
+        general: [makeMemory({ id: 2, text: "Likes tea" })],
+      };
+
+      const result = formatCategorizedMemoriesForPrompt(categorized);
+
+      expect(result).not.toContain("Today:");
+      expect(result).not.toContain("Recent (past week):");
+      expect(result).toContain("Upcoming (next week):");
+      expect(result).toContain("General background:");
+    });
+
+    it("should return fallback when all categories empty", () => {
+      const categorized: CategorizedMemories = {
+        today: [],
+        lastWeek: [],
+        nextWeek: [],
+        general: [],
+      };
+
+      expect(formatCategorizedMemoriesForPrompt(categorized)).toBe(
+        "No stored memories are available.",
+      );
+    });
+  });
+
   describe("database operations", () => {
     const harness = useHarness();
     let memoryDomain: MemoryDomain;
@@ -201,24 +270,56 @@ Last line`;
     });
 
     describe("getRelevantMemories", () => {
-      it("should return memories for current week plus undated", async () => {
-        const today = DateTime.now().setZone("America/Los_Angeles").startOf("day");
+      it("should categorize memories into today, lastWeek, nextWeek, general", async () => {
+        const today = DateTime.fromISO("2024-06-15", { zone: "utc" }).startOf("day");
         const todayStr = today.toFormat("yyyy-MM-dd");
         const tomorrowStr = today.plus({ days: 1 }).toFormat("yyyy-MM-dd");
+        const threeDaysAgoStr = today.minus({ days: 3 }).toFormat("yyyy-MM-dd");
 
         await harness.db.insertInto("memories").values([
           { text: "Today memory", date: todayStr },
           { text: "Tomorrow memory", date: tomorrowStr },
+          { text: "Past memory", date: threeDaysAgoStr },
           { text: "Undated", date: null },
         ]).execute();
 
-        const result = await memoryDomain.getRelevantMemories();
-        const memories = result._unsafeUnwrap();
-        const texts = memories.map((m) => m.text);
+        const result = await memoryDomain.getRelevantMemories(today);
+        const categorized = result._unsafeUnwrap();
 
-        expect(texts.join(",")).toContain("Today memory");
-        expect(texts.join(",")).toContain("Tomorrow memory");
-        expect(texts.join(",")).toContain("Undated");
+        expect(categorized.today.map((m) => m.text)).toEqual(["Today memory"]);
+        expect(categorized.nextWeek.map((m) => m.text)).toEqual(["Tomorrow memory"]);
+        expect(categorized.lastWeek.map((m) => m.text)).toEqual(["Past memory"]);
+        expect(categorized.general.map((m) => m.text)).toEqual(["Undated"]);
+      });
+
+      it("should exclude memories older than 7 days", async () => {
+        const today = DateTime.fromISO("2024-06-15", { zone: "utc" }).startOf("day");
+        const oldStr = today.minus({ days: 10 }).toFormat("yyyy-MM-dd");
+
+        await harness.db.insertInto("memories").values([
+          { text: "Old memory", date: oldStr },
+        ]).execute();
+
+        const result = await memoryDomain.getRelevantMemories(today);
+        const categorized = result._unsafeUnwrap();
+
+        expect(categorized.lastWeek).toHaveLength(0);
+        expect(categorized.today).toHaveLength(0);
+        expect(categorized.nextWeek).toHaveLength(0);
+      });
+
+      it("should always include all undated memories", async () => {
+        const today = DateTime.fromISO("2024-06-15", { zone: "utc" }).startOf("day");
+
+        await harness.db.insertInto("memories").values([
+          { text: "Background 1", date: null },
+          { text: "Background 2", date: null },
+        ]).execute();
+
+        const result = await memoryDomain.getRelevantMemories(today);
+        const categorized = result._unsafeUnwrap();
+
+        expect(categorized.general.map((m) => m.text)).toEqual(["Background 1", "Background 2"]);
       });
     });
   });

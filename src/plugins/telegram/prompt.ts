@@ -115,6 +115,10 @@ Note any reminders about today's affairs.
 Provide a summary of today's meteorological conditions.
 Detail the day's postal correspondence, highlighting any significant items such as important documents, personal letters, or parcels. Advertisements need not be mentioned. If there is no mail, this section may be omitted.
 
+*Recent*
+
+If there are noteworthy recent events from the past week (films watched, milestones, etc.), briefly comment on them in a natural way. If nothing notable, omit this section.
+
 *Looking Ahead*
 
 Offer a brief overview of forthcoming engagements and tasks for the remainder of the week, with particular attention to tomorrow's schedule.
