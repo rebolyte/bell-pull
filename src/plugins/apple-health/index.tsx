@@ -57,10 +57,10 @@ export const appleHealthPlugin: Plugin<AppleHealthConfig> = {
   name: NAME,
   displayName: "Apple Health",
   configSchema,
-  init: (app, container) => {
+  init: (apps, container) => {
     const { log, memory, plugins } = container;
 
-    app.post(`/api/plugins/${NAME}/ingest`, async (c) => {
+    apps.public.post(`/api/plugins/${NAME}/ingest`, async (c) => {
       const apiKey = c.req.header("x-api-key");
       const body = await c.req.json();
 

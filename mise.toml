@@ -31,7 +31,7 @@ fmt = "deno fmt"
 lint = "deno lint"
 migrate = "deno run --allow-net --allow-read --allow-write --allow-env --env-file migrate.ts"
 docker_build = "docker build -t bell-pull:local ."
-docker_run = "docker run --rm -p 8000:8000 -v $(pwd)/data:/app/data --env-file .env -e DATABASE_PATH=/app/data/bell-pull.db -e APP_ENV=prod bell-pull:local"
+docker_run = "docker run --rm -p 8000:8000 -p 8001:8001 -v $(pwd)/data:/app/data --env-file .env -e DATABASE_PATH=/app/data/bell-pull.db -e APP_ENV=prod bell-pull:local"
 deploy = "bash ./scripts/deploy.sh"
 
 [tools]

@@ -11,7 +11,8 @@ const logLevels: readonly LogLevel[] = [
 ];
 
 const ConfigSchema = z.object({
-  PORT: z.coerce.number().default(8000),
+  PUBLIC_PORT: z.coerce.number().default(8000),
+  ADMIN_PORT: z.coerce.number().default(8001),
   HOST: z.string().default("0.0.0.0"),
   APP_ENV: z.enum(["dev", "prod"]).default("dev"),
   LOG_LEVEL: z.enum(logLevels).default("info"),
@@ -29,7 +30,8 @@ export type AppConfig = z.infer<typeof ConfigSchema>;
 
 export const createConfig = (overrides: Partial<AppConfig> = {}): AppConfig => {
   const raw = {
-    PORT: Deno.env.get("PORT"),
+    PUBLIC_PORT: Deno.env.get("PUBLIC_PORT"),
+    ADMIN_PORT: Deno.env.get("ADMIN_PORT"),
     HOST: Deno.env.get("HOST"),
     APP_ENV: Deno.env.get("APP_ENV"),
     LOG_LEVEL: Deno.env.get("LOG_LEVEL"),

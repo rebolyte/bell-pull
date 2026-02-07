@@ -145,7 +145,7 @@ export const handleMessage = async (
 export const telegramPlugin: Plugin<TelegramConfig> = {
   name: "telegram",
   configSchema,
-  init: (app, container) => {
+  init: (apps, container) => {
     const bot = makeBot({ config: container.config });
 
     bot.command("start", (ctx) => handleStartCommand(ctx, container));
@@ -153,7 +153,7 @@ export const telegramPlugin: Plugin<TelegramConfig> = {
     bot.on("message", (ctx) => handleMessage(ctx, container));
 
     // https://grammy.dev/guide/deployment-types
-    app.use("/webhook/telegram", telegramWebhookCallback(bot, "hono"));
+    apps.public.use("/webhook/telegram", telegramWebhookCallback(bot, "hono"));
   },
   cronJobs: (config) => [{
     name: "telegram-send-daily-briefing",
