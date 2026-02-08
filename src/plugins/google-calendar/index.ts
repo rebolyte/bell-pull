@@ -165,7 +165,13 @@ export const googleCalendarPlugin: Plugin<GoogleCalendarConfig> = {
               )
                 .andThen(() => {
                   const currentIds = events.map((e) => e.id).filter(Boolean);
-                  return memory.removeStaleMemories(NAME, currentIds);
+                  const now = DateTime.now();
+                  return memory.removeStaleMemories(NAME, currentIds, {
+                    dateRange: {
+                      start: now.toFormat("yyyy-MM-dd"),
+                      end: now.plus({ weeks: 1 }).toFormat("yyyy-MM-dd"),
+                    },
+                  });
                 })
                 .map(() => ({ synced: events.length }))
             );

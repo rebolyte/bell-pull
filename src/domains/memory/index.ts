@@ -255,14 +255,28 @@ const updateMemories = ({ db, log }: MemoryDeps) =>
     dbError("Failed to update memories"),
   );
 
+type RemoveStaleOpts = {
+  dateRange?: { start: string; end: string };
+};
+
 const removeStaleMemories = ({ db, log }: MemoryDeps) =>
-(source: string, currentExternalIds: string[]): ResultAsync<void, AppError> => {
+(
+  source: string,
+  currentExternalIds: string[],
+  opts?: RemoveStaleOpts,
+): ResultAsync<void, AppError> => {
   let query = db.deleteFrom("memories")
     .where("source", "=", source)
     .where("externalId", "is not", null);
 
   if (currentExternalIds.length > 0) {
     query = query.where("externalId", "not in", currentExternalIds);
+  }
+
+  if (opts?.dateRange) {
+    query = query
+      .where("date", ">=", opts.dateRange.start)
+      .where("date", "<=", opts.dateRange.end);
   }
 
   return ResultAsync.fromPromise(
