@@ -162,7 +162,12 @@ export const googleCalendarPlugin: Plugin<GoogleCalendarConfig> = {
                     pluginConfig,
                   );
                 }),
-              ).map(() => ({ synced: events.length }))
+              )
+                .andThen(() => {
+                  const currentIds = events.map((e) => e.id).filter(Boolean);
+                  return memory.removeStaleMemories(NAME, currentIds);
+                })
+                .map(() => ({ synced: events.length }))
             );
         });
       },
