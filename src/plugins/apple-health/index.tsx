@@ -4,6 +4,7 @@ import { errAsync, okAsync, ResultAsync } from "neverthrow";
 import type { Plugin } from "../../types/index.ts";
 import { appError } from "../../errors.ts";
 import { secret } from "../../services/config-schema.ts";
+import type { MetricEntry } from "../../domains/metrics/schema.ts";
 
 const NAME = "apple-health";
 
@@ -53,12 +54,28 @@ const formatHealthSummary = (data: HealthData): string => {
   return parts.length > 0 ? `Health: ${parts.join(", ")}` : "Health: no data";
 };
 
+const toMetricEntries = (data: HealthData, date: string): MetricEntry[] => {
+  const e = (metric: string, value: number | undefined, unit: string): MetricEntry | null =>
+    value != null ? { date, metric, value, unit, source: NAME } : null;
+
+  return [
+    e("steps", data.steps, "count"),
+    e("active_energy", data.activeEnergy, "cal"),
+    e("exercise_min", data.exerciseMinutes, "min"),
+    e("stand_hours", data.standHours, "hours"),
+    e("resting_hr", data.heartRate?.resting, "bpm"),
+    e("avg_hr", data.heartRate?.average, "bpm"),
+    e("sleep_hours", data.sleep?.hours, "hours"),
+    e("weight", data.weight, "lbs"),
+  ].filter((x): x is MetricEntry => x !== null);
+};
+
 export const appleHealthPlugin: Plugin<AppleHealthConfig> = {
   name: NAME,
   displayName: "Apple Health",
   configSchema,
   init: (apps, container) => {
-    const { log, memory, plugins } = container;
+    const { log, memory, metrics, plugins } = container;
 
     apps.public.post(`/api/plugins/${NAME}/ingest`, async (c) => {
       const apiKey = c.req.header("x-api-key");
@@ -86,6 +103,8 @@ export const appleHealthPlugin: Plugin<AppleHealthConfig> = {
           const date = data.date ?? DateTime.now().toISODate()!;
           const summary = formatHealthSummary(data);
 
+          const metricEntries = toMetricEntries(data, date);
+
           return memory
             .updateMemories(
               {
@@ -100,6 +119,7 @@ export const appleHealthPlugin: Plugin<AppleHealthConfig> = {
               },
               pluginConfig,
             )
+            .andThen(() => metrics.record(metricEntries))
             .map(() => ({ date, summary }));
         })
         .match(

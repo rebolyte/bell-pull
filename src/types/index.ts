@@ -4,6 +4,7 @@ import { ResultAsync } from "neverthrow";
 import { OAuth2Tokens } from "arctic";
 import type { MessagesDomain } from "../domains/messages/index.ts";
 import type { MemoryDomain } from "../domains/memory/index.ts";
+import type { MetricsDomain } from "../domains/metrics/index.ts";
 import type { PluginsDomain } from "../domains/plugins/index.ts";
 import type { Database } from "../services/database.ts";
 import type { AppConfig } from "../services/config.ts";
@@ -22,6 +23,7 @@ export type Services = {
 export type Domains = {
   messages: MessagesDomain;
   memory: MemoryDomain;
+  metrics: MetricsDomain;
   plugins: PluginsDomain;
 };
 

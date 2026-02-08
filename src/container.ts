@@ -1,6 +1,7 @@
 import type { Container, Services } from "./types/index.ts";
 import { makeMessagesDomain } from "./domains/messages/index.ts";
 import { makeMemoryDomain } from "./domains/memory/index.ts";
+import { makeMetricsDomain } from "./domains/metrics/index.ts";
 import { makePluginsDomain } from "./domains/plugins/index.ts";
 import { createDatabase } from "./services/database.ts";
 import { makeLogger } from "./services/logger.ts";
@@ -19,6 +20,7 @@ export const bootstrap = (svcs: Services): Container => {
   // order matters here if domains reference each other
   context.messages = makeMessagesDomain({ config, db, log });
   context.memory = makeMemoryDomain({ config, db, log });
+  context.metrics = makeMetricsDomain({ db, log });
   context.plugins = makePluginsDomain({ db, log });
 
   return context;
