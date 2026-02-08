@@ -181,7 +181,12 @@ export const ticktickPlugin: Plugin<TickTickConfig> = {
                       pluginConfig,
                     );
                   }),
-                ).map(() => ({ synced: tasks.length }))
+                )
+                  .andThen(() => {
+                    const currentIds = tasks.map(({ task }) => task.id);
+                    return memory.removeStaleMemories(NAME, currentIds);
+                  })
+                  .map(() => ({ synced: tasks.length }))
               );
           });
       },

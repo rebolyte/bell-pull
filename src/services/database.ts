@@ -40,10 +40,21 @@ export interface PluginConfigsTable {
   lastModified: Generated<string>;
 }
 
+export interface ArchiveTable {
+  id: Generated<number>;
+  tableName: string;
+  recordId: string;
+  data: string; // JSON
+  archivedAt: Generated<string>;
+  causedByTable: string | null;
+  causedById: string | null;
+}
+
 export interface DatabaseSchema {
   memories: MemoriesTable;
   messages: MessagesTable;
   pluginConfigs: PluginConfigsTable;
+  archive: ArchiveTable;
 }
 
 export type Database = Kysely<DatabaseSchema>;

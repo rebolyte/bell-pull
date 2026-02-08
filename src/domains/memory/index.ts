@@ -181,21 +181,44 @@ const updateMemories = ({ db, log }: MemoryDeps) =>
 ): ResultAsync<void, AppError> =>
   ResultAsync.fromPromise(
     (async () => {
-      if (!R.isEmpty(analysis.memories)) {
+      const toRow = (m: LLMCreateMemory) => ({
+        date: m.date ?? null,
+        text: m.text,
+        source: pluginConfig?.pluginName ?? null,
+        sourcePluginId: pluginConfig?.id ?? null,
+        externalId: m.externalId ?? null,
+        original: m.original ?? null,
+      });
+
+      const [withExtId, withoutExtId] = R.partition(
+        analysis.memories,
+        (m) => !!m.externalId,
+      );
+
+      if (!R.isEmpty(withExtId)) {
         await db
           .insertInto("memories")
-          .values(analysis.memories.map((m) => ({
-            date: m.date ?? null,
-            text: m.text,
-            source: pluginConfig?.pluginName ?? null,
-            sourcePluginId: pluginConfig?.id ?? null,
-            externalId: m.externalId ?? null,
-            original: m.original ?? null,
-          })))
-          // NOTE: to avoid duplicates, this will silently ignore conflicts
+          .values(withExtId.map(toRow))
+          .onConflict((oc) =>
+            oc.columns(["source", "externalId"]).doUpdateSet({
+              date: sql`excluded.date`,
+              text: sql`excluded.text`,
+              original: sql`excluded.original`,
+            })
+          )
+          .execute();
+      }
+
+      if (!R.isEmpty(withoutExtId)) {
+        await db
+          .insertInto("memories")
+          .values(withoutExtId.map(toRow))
           .onConflict((oc) => oc.columns(["source", "date", "text"]).doNothing())
           .execute();
-        log.info`Created ${analysis.memories.length} memories: ${{ memories: analysis.memories }}`;
+      }
+
+      if (!R.isEmpty(analysis.memories)) {
+        log.info`Upserted ${analysis.memories.length} memories: ${{ memories: analysis.memories }}`;
       }
 
       for (const memory of analysis.editMemories) {
@@ -232,10 +255,32 @@ const updateMemories = ({ db, log }: MemoryDeps) =>
     dbError("Failed to update memories"),
   );
 
+const removeStaleMemories = ({ db, log }: MemoryDeps) =>
+(source: string, currentExternalIds: string[]): ResultAsync<void, AppError> => {
+  let query = db.deleteFrom("memories")
+    .where("source", "=", source)
+    .where("externalId", "is not", null);
+
+  if (currentExternalIds.length > 0) {
+    query = query.where("externalId", "not in", currentExternalIds);
+  }
+
+  return ResultAsync.fromPromise(
+    query.executeTakeFirst().then((result) => {
+      const count = Number(result.numDeletedRows);
+      if (count > 0) {
+        log.info`Removed ${count} stale memories for ${source}`;
+      }
+    }),
+    dbError("Failed to remove stale memories"),
+  );
+};
+
 export const makeMemoryDomain = (deps: MemoryDeps) => ({
   getAllMemories: getAllMemories(deps),
   getRelevantMemories: getRelevantMemories(deps),
   updateMemories: updateMemories(deps),
+  removeStaleMemories: removeStaleMemories(deps),
   extractMemories,
   formatMemoriesForPrompt,
   formatCategorizedMemoriesForPrompt,
