@@ -131,13 +131,17 @@ export const openweatherPlugin: Plugin<OpenWeatherConfig> = {
           const { apiKey, location, units } = pluginConfig.config;
 
           return fetchForecast(apiKey, location, units)
-            .map((data) => formatForecast(data, units, config.TIMEZONE))
-            .andThen((text) => {
+            .andThen((data) => {
+              const text = formatForecast(data, units, config.TIMEZONE);
               const today = DateTime.now().setZone(config.TIMEZONE).toFormat("yyyy-MM-dd");
               return memory
                 .updateMemories(
                   {
-                    memories: [{ date: today, text }],
+                    memories: [{
+                      date: today,
+                      text,
+                      original: JSON.stringify(data),
+                    }],
                     editMemories: [],
                     deleteMemories: [],
                     response: "",

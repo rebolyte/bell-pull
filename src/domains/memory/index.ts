@@ -189,6 +189,8 @@ const updateMemories = ({ db, log }: MemoryDeps) =>
             text: m.text,
             source: pluginConfig?.pluginName ?? null,
             sourcePluginId: pluginConfig?.id ?? null,
+            externalId: m.externalId ?? null,
+            original: m.original ?? null,
           })))
           // NOTE: to avoid duplicates, this will silently ignore conflicts
           .onConflict((oc) => oc.columns(["source", "date", "text"]).doNothing())

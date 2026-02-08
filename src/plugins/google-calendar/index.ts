@@ -55,7 +55,10 @@ const fetchCalendarEvents = (
   accessToken: string,
   calendarId: string,
   log: Container["log"],
-): ResultAsync<{ summary: string; start: string; end: string }[], AppError> => {
+): ResultAsync<
+  { id: string; summary: string; start: string; end: string; _raw: Record<string, unknown> }[],
+  AppError
+> => {
   const now = DateTime.now();
   const params = new URLSearchParams({
     timeMin: now.toISO()!,
@@ -83,6 +86,7 @@ const fetchCalendarEvents = (
   ).map((
     data: {
       items?: Array<{
+        id?: string;
         summary?: string;
         start?: { dateTime?: string; date?: string };
         end?: { dateTime?: string; date?: string };
@@ -90,9 +94,11 @@ const fetchCalendarEvents = (
     },
   ) =>
     (data.items ?? []).map((event) => ({
+      id: event.id ?? "",
       summary: event.summary ?? "Untitled",
       start: event.start?.dateTime ?? event.start?.date ?? "",
       end: event.end?.dateTime ?? event.end?.date ?? "",
+      _raw: event as Record<string, unknown>,
     }))
   );
 };
@@ -146,6 +152,8 @@ export const googleCalendarPlugin: Plugin<GoogleCalendarConfig> = {
                       memories: [{
                         date: event.start.split("T")[0],
                         text: `Calendar: ${event.summary} (${timeStr})`,
+                        externalId: event.id || null,
+                        original: JSON.stringify(event._raw),
                       }],
                       editMemories: [],
                       deleteMemories: [],

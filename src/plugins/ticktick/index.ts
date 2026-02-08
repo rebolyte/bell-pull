@@ -168,7 +168,12 @@ export const ticktickPlugin: Plugin<TickTickConfig> = {
                       : null;
                     return memory.updateMemories(
                       {
-                        memories: [{ date, text: formatTask(task, projectName) }],
+                        memories: [{
+                          date,
+                          text: formatTask(task, projectName),
+                          externalId: task.id,
+                          original: JSON.stringify(task),
+                        }],
                         editMemories: [],
                         deleteMemories: [],
                         response: "",

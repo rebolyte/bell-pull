@@ -89,7 +89,11 @@ export const appleHealthPlugin: Plugin<AppleHealthConfig> = {
           return memory
             .updateMemories(
               {
-                memories: [{ date, text: summary }],
+                memories: [{
+                  date,
+                  text: summary,
+                  original: JSON.stringify(data),
+                }],
                 editMemories: [],
                 deleteMemories: [],
                 response: "",

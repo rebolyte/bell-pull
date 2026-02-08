@@ -11,6 +11,8 @@ export const MemorySchema = z.object({
   createdAt: z.string(),
   lastModified: z.string(),
   sourcePluginId: z.number().nullable(),
+  externalId: z.string().nullable(),
+  original: z.string().nullable(),
 });
 
 export const CreateMemoryInputSchema = z.object({
@@ -19,11 +21,15 @@ export const CreateMemoryInputSchema = z.object({
   source: z.string().nullable().optional(),
   sourcePluginId: z.number().nullable().optional(),
   tags: z.array(z.string()).optional(),
+  externalId: z.string().nullable().optional(),
+  original: z.string().nullable().optional(),
 });
 
 export const LLMCreateMemorySchema = z.object({
   date: z.string().nullable().optional(),
   text: z.string(),
+  externalId: z.string().nullable().optional(),
+  original: z.string().nullable().optional(),
 });
 
 export const LLMEditMemorySchema = z.object({
@@ -59,4 +65,6 @@ export const toInsert = (memory: z.output<typeof CreateMemoryInputSchema>) => ({
   source: memory.source ?? null,
   tags: memory.tags ? JSON.stringify(memory.tags) : null,
   sourcePluginId: memory.sourcePluginId ?? null,
+  externalId: memory.externalId ?? null,
+  original: memory.original ?? null,
 });

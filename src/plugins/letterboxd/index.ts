@@ -111,6 +111,8 @@ export const letterboxdPlugin: Plugin<LetterboxdConfig> = {
                         memories: [{
                           date: memoryDate,
                           text,
+                          externalId: entry.link || null,
+                          original: JSON.stringify(entry),
                         }],
                         editMemories: [],
                         deleteMemories: [],

@@ -17,6 +17,8 @@ export interface MemoriesTable {
   createdAt: Generated<string>;
   lastModified: Generated<string>;
   sourcePluginId: number | null;
+  externalId: string | null;
+  original: string | null;
 }
 
 export interface MessagesTable {
