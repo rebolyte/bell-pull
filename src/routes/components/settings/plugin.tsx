@@ -55,10 +55,14 @@ export const PluginSettings = ({
       )}
 
       {plugin.fields
-        .filter((f) => f.type !== "cron" && f.type !== "hidden")
+        .filter((f) => f.type !== "cron" && f.type !== "hidden" && f.type !== "textarea")
         .map((field) => <ConfigField key={field.key} field={field} value={config[field.key]} />)}
 
       <CronJobsSection plugin={plugin} />
+
+      {plugin.fields
+        .filter((f) => f.type === "textarea")
+        .map((field) => <TextareaField key={field.key} field={field} value={config[field.key]} />)}
 
       <div class="full-width">
         <button type="submit">Save Configuration</button>
@@ -206,6 +210,20 @@ const ConfigField = ({ field, value }: ConfigFieldProps) => (
         )}
     </div>
   </div>
+);
+
+const TextareaField = ({ field, value }: ConfigFieldProps) => (
+  <fieldset class="textarea-fieldset full-width">
+    <legend>{field.key}</legend>
+    <textarea
+      name={field.key}
+      rows={10}
+      placeholder={String(field.defaultValue ?? "")}
+    >
+      {(value as string) ?? ""}
+    </textarea>
+    {field.description && <p class="field-description">{field.description}</p>}
+  </fieldset>
 );
 
 type SecretFieldProps = {

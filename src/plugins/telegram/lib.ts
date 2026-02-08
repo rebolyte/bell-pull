@@ -7,7 +7,7 @@ import { type RetryFn, withRetry } from "../../utils/retry.ts";
 import { AppConfig } from "../../services/config.ts";
 import type { Logger } from "../../services/logger.ts";
 import { match } from "ts-pattern";
-import { APOLOGY } from "./prompt.ts";
+import { DEFAULT_APOLOGY } from "./prompt.ts";
 
 export const BOT_SENDER_ID = "MechMaidBot";
 export const BOT_SENDER_NAME = "Noelle";
@@ -52,11 +52,15 @@ export const handleBotError = (
     .with("unexpected", () => "Something quite unexpected has occurred.")
     .exhaustive();
 
-  sendAndStoreMessage({ msgCtx, content: `${APOLOGY} ${errorMessage}`, messagesDomain, retry })
-    .match(
-      () => {},
-      toAppError("unexpected", "Critical: Failed to send error message to user"),
-    );
+  sendAndStoreMessage({
+    msgCtx,
+    content: `${DEFAULT_APOLOGY} ${errorMessage}`,
+    messagesDomain,
+    retry,
+  }).match(
+    () => {},
+    toAppError("unexpected", "Critical: Failed to send error message to user"),
+  );
 };
 
 export const sendAndStoreMessage = (
