@@ -28,6 +28,7 @@ export const CreateMemoryInputSchema = z.object({
 export const LLMCreateMemorySchema = z.object({
   date: z.string().nullable().optional(),
   text: z.string(),
+  tags: z.array(z.string()).optional(),
   externalId: z.string().nullable().optional(),
   original: z.string().nullable().optional(),
 });

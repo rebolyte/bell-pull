@@ -158,13 +158,18 @@ const priorityLabel = (priority: number): string => {
   }
 };
 
-const formatTask = (task: TickTickTask, projectName: string): string => {
-  const parts = [`TickTick: ${task.title}`];
-  if (projectName) parts.push(`[${projectName}]`);
+const formatTask = (task: TickTickTask): string => {
+  const parts = [`To do: ${task.title}`];
   const pLabel = priorityLabel(task.priority);
   if (pLabel) parts.push(`(${pLabel} priority)`);
   return parts.join(" ");
 };
+
+const toTag = (projectName: string): string =>
+  projectName
+    .replace(/\p{Emoji_Presentation}|\p{Extended_Pictographic}/gu, "")
+    .trim()
+    .replace(/\s+/g, "-");
 
 export const ticktickPlugin: Plugin<TickTickConfig> = {
   name: NAME,
@@ -404,12 +409,14 @@ export const ticktickPlugin: Plugin<TickTickConfig> = {
                     const date = task.dueDate
                       ? (DateTime.fromISO(task.dueDate).toISODate() ?? null)
                       : null;
+                    const tag = projectName ? toTag(projectName) : null;
                     return memory.updateMemories(
                       {
                         memories: [
                           {
                             date,
-                            text: formatTask(task, projectName),
+                            text: formatTask(task),
+                            tags: tag ? [tag] : undefined,
                             externalId: task.id,
                             original: JSON.stringify(task),
                           },

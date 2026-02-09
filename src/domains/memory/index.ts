@@ -99,6 +99,8 @@ const getRelevantMemories = ({ db, config }: MemoryDeps) =>
     );
 };
 
+const tagSuffix = (m: Memory) => m.tags?.length ? ` (${m.tags.join(", ")})` : "";
+
 const formatMemoriesForPrompt = (memories: Memory[]) => {
   if (R.isEmpty(memories)) {
     return "No stored memories are available.";
@@ -107,9 +109,11 @@ const formatMemoriesForPrompt = (memories: Memory[]) => {
   const [dated, undated] = R.partition(memories, (m) => m.date !== null);
 
   const formatDated = (m: Memory) =>
-    `- ${DateTime.fromJSDate(m.date!, { zone: "utc" }).toFormat("yyyy-MM-dd")} - ${m.text}`;
+    `- ${DateTime.fromJSDate(m.date!, { zone: "utc" }).toFormat("yyyy-MM-dd")} - ${m.text}${
+      tagSuffix(m)
+    }`;
 
-  const formatUndated = (m: Memory) => `- ${m.text}`;
+  const formatUndated = (m: Memory) => `- ${m.text}${tagSuffix(m)}`;
 
   return R.pipe(
     [
@@ -129,9 +133,11 @@ const formatCategorizedMemoriesForPrompt = (categorized: CategorizedMemories) =>
   }
 
   const formatDated = (m: Memory) =>
-    `- ${DateTime.fromJSDate(m.date!, { zone: "utc" }).toFormat("yyyy-MM-dd")} - ${m.text}`;
+    `- ${DateTime.fromJSDate(m.date!, { zone: "utc" }).toFormat("yyyy-MM-dd")} - ${m.text}${
+      tagSuffix(m)
+    }`;
 
-  const formatUndated = (m: Memory) => `- ${m.text}`;
+  const formatUndated = (m: Memory) => `- ${m.text}${tagSuffix(m)}`;
 
   return R.pipe(
     [
@@ -186,6 +192,7 @@ const updateMemories = ({ db, log }: MemoryDeps) =>
         text: m.text,
         source: pluginConfig?.pluginName ?? null,
         sourcePluginId: pluginConfig?.id ?? null,
+        tags: m.tags ? JSON.stringify(m.tags) : null,
         externalId: m.externalId ?? null,
         original: m.original ?? null,
       });
@@ -205,6 +212,7 @@ const updateMemories = ({ db, log }: MemoryDeps) =>
               .doUpdateSet({
                 date: sql`excluded.date`,
                 text: sql`excluded.text`,
+                tags: sql`excluded.tags`,
                 original: sql`excluded.original`,
               })
           )
