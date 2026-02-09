@@ -4,7 +4,9 @@ import { makeContainer } from "./container.ts";
 import { run } from "./main.ts";
 
 const toBaseUrl = (server: Deno.HttpServer) => {
-  const { port, hostname } = server.addr;
+  const addr = server.addr;
+  if (addr.transport !== "tcp") throw new Error("test expects TCP server");
+  const { port, hostname } = addr;
   const host = hostname === "0.0.0.0" ? "localhost" : hostname;
   return `http://${host}:${port}`;
 };
@@ -59,6 +61,7 @@ Deno.test("Integration Test: Server Lifecycle", async (t) => {
   await t.step("Public 404 on admin routes", async () => {
     const res = await fetch(`${publicUrl}/api/rpc`, { method: "POST" });
     assertEquals(res.status, 404);
+    await res.body?.cancel();
   });
 
   abortController.abort();

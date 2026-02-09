@@ -143,9 +143,9 @@ Last line`;
       const result = formatMemoriesForPrompt(memories);
 
       expect(result).toContain("Dated memories:");
-      expect(result).toContain("2023-10-27 [ID: 1]: Dated memory");
+      expect(result).toContain("2023-10-27 - Dated memory");
       expect(result).toContain("General memories:");
-      expect(result).toContain("[ID: 2]: Undated memory");
+      expect(result).toContain("Undated memory");
     });
 
     it("should return fallback message when no memories", () => {
