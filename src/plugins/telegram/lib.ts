@@ -3,7 +3,7 @@ import { type Api, Bot, type CommandContext, type Context, type Filter } from "g
 import type { MessagesDomain } from "../../domains/messages/index.ts";
 import { AppError, appError, telegramError, toAppError } from "../../errors.ts";
 import { chunkByLines } from "../../utils/string.ts";
-import { withRetry, type RetryFn } from "../../utils/retry.ts";
+import { type RetryFn, withRetry } from "../../utils/retry.ts";
 import { AppConfig } from "../../services/config.ts";
 import type { Logger } from "../../services/logger.ts";
 import { match } from "ts-pattern";
@@ -52,10 +52,11 @@ export const handleBotError = (
     .with("unexpected", () => "Something quite unexpected has occurred.")
     .exhaustive();
 
-  sendAndStoreMessage({ msgCtx, content: `${APOLOGY} ${errorMessage}`, messagesDomain, retry }).match(
-    () => {},
-    toAppError("unexpected", "Critical: Failed to send error message to user"),
-  );
+  sendAndStoreMessage({ msgCtx, content: `${APOLOGY} ${errorMessage}`, messagesDomain, retry })
+    .match(
+      () => {},
+      toAppError("unexpected", "Critical: Failed to send error message to user"),
+    );
 };
 
 export const sendAndStoreMessage = (

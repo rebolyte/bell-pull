@@ -54,8 +54,10 @@ const filterTodayEntries = (
   timezone: string,
 ): ForecastEntry[] => {
   const today = DateTime.now().setZone(timezone).toFormat("yyyy-MM-dd");
-  return R.filter(entries, (entry) =>
-    DateTime.fromSeconds(entry.dt).setZone(timezone).toFormat("yyyy-MM-dd") === today);
+  return R.filter(
+    entries,
+    (entry) => DateTime.fromSeconds(entry.dt).setZone(timezone).toFormat("yyyy-MM-dd") === today,
+  );
 };
 
 const midDescription = (entries: ForecastEntry[]): string => {

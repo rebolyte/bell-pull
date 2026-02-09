@@ -1,17 +1,9 @@
 import { OAuth2Client } from "arctic";
 import { DateTime } from "luxon";
 import { errAsync, okAsync, ResultAsync } from "neverthrow";
-import type {
-  Container,
-  OAuthClient,
-  OAuthSetup,
-  Plugin,
-} from "../../types/index.ts";
+import type { Container, OAuthClient, OAuthSetup, Plugin } from "../../types/index.ts";
 import { type AppError, appError, pluginError } from "../../errors.ts";
-import {
-  refreshPluginToken,
-  registerOAuthRoutes,
-} from "../../services/oauth.ts";
+import { refreshPluginToken, registerOAuthRoutes } from "../../services/oauth.ts";
 import type { PluginConfig } from "../../domains/plugins/index.ts";
 import {
   configSchema,
@@ -133,9 +125,11 @@ const discoverInboxId = (
   ).andThen((task: { id: string; projectId: string }) =>
     ResultAsync.fromPromise(
       fetch(
-        `${API_BASE}/project/${encodeURIComponent(task.projectId)}/task/${encodeURIComponent(
-          task.id,
-        )}`,
+        `${API_BASE}/project/${encodeURIComponent(task.projectId)}/task/${
+          encodeURIComponent(
+            task.id,
+          )
+        }`,
         {
           method: "DELETE",
           headers: { Authorization: `Bearer ${accessToken}` },
@@ -148,7 +142,7 @@ const discoverInboxId = (
         }
       }),
       pluginError("TickTick delete test task failed"),
-    ).map(() => task.projectId),
+    ).map(() => task.projectId)
   );
 
 const priorityLabel = (priority: number): string => {
@@ -194,22 +188,21 @@ export const ticktickPlugin: Plugin<TickTickConfig> = {
               const maybeDiscover = pluginConfig.config.inboxProjectId
                 ? okAsync(pluginConfig.config.inboxProjectId)
                 : discoverInboxId(accessToken, log).andThen((inboxId) =>
-                    plugins
-                      .setConfig(NAME, { ...existing, inboxProjectId: inboxId })
-                      .map(() => inboxId),
-                  );
+                  plugins
+                    .setConfig(NAME, { ...existing, inboxProjectId: inboxId })
+                    .map(() => inboxId)
+                );
               return maybeDiscover.andThen((inboxProjectId) =>
                 fetchProjects(accessToken, log).map((allProjects) => ({
                   pluginConfig: {
                     ...pluginConfig,
                     config: {
                       ...pluginConfig.config,
-                      inboxProjectId:
-                        inboxProjectId ?? pluginConfig.config.inboxProjectId,
+                      inboxProjectId: inboxProjectId ?? pluginConfig.config.inboxProjectId,
                     },
                   } as PluginConfig<TickTickConfig>,
                   allProjects,
-                })),
+                }))
               );
             },
           );
@@ -226,17 +219,19 @@ export const ticktickPlugin: Plugin<TickTickConfig> = {
                   hx-target="#ticktick-projects"
                   hx-swap="innerHTML"
                 >
-                  {inboxId ? (
-                    <label style="display: block; margin: 0.5rem 0;">
-                      <input
-                        type="checkbox"
-                        name="projectId"
-                        value={inboxId}
-                        checked={selected.includes(inboxId)}
-                      />
-                      Inbox
-                    </label>
-                  ) : null}
+                  {inboxId
+                    ? (
+                      <label style="display: block; margin: 0.5rem 0;">
+                        <input
+                          type="checkbox"
+                          name="projectId"
+                          value={inboxId}
+                          checked={selected.includes(inboxId)}
+                        />
+                        Inbox
+                      </label>
+                    )
+                    : null}
                   {allProjects.map((project) => (
                     <label style="display: block; margin: 0.5rem 0;">
                       <input
@@ -305,17 +300,19 @@ export const ticktickPlugin: Plugin<TickTickConfig> = {
                   hx-target="#ticktick-projects"
                   hx-swap="innerHTML"
                 >
-                  {inboxId ? (
-                    <label style="display: block; margin: 0.5rem 0;">
-                      <input
-                        type="checkbox"
-                        name="projectId"
-                        value={inboxId}
-                        checked={selectedIds.includes(inboxId)}
-                      />
-                      Inbox
-                    </label>
-                  ) : null}
+                  {inboxId
+                    ? (
+                      <label style="display: block; margin: 0.5rem 0;">
+                        <input
+                          type="checkbox"
+                          name="projectId"
+                          value={inboxId}
+                          checked={selectedIds.includes(inboxId)}
+                        />
+                        Inbox
+                      </label>
+                    )
+                    : null}
                   {allProjects.map((project) => (
                     <label style="display: block; margin: 0.5rem 0;">
                       <input
@@ -345,17 +342,17 @@ export const ticktickPlugin: Plugin<TickTickConfig> = {
   },
   settingsUI: (config) => (
     <div class="custom-section" id="ticktick-projects">
-      {config.accessToken ? (
-        <div
-          hx-get={`/api/plugins/${NAME}/projects`}
-          hx-trigger="load"
-          hx-swap="innerHTML"
-        >
-          Loading projects...
-        </div>
-      ) : (
-        <p>Connect to TickTick first.</p>
-      )}
+      {config.accessToken
+        ? (
+          <div
+            hx-get={`/api/plugins/${NAME}/projects`}
+            hx-trigger="load"
+            hx-swap="innerHTML"
+          >
+            Loading projects...
+          </div>
+        )
+        : <p>Connect to TickTick first.</p>}
     </div>
   ),
   cronJobs: (config) => [
@@ -378,9 +375,7 @@ export const ticktickPlugin: Plugin<TickTickConfig> = {
                 fetchProjects(accessToken, log).andThen((allProjects) => {
                   const selected = pluginConfig.config.selectedProjects;
                   const inboxId = pluginConfig.config.inboxProjectId;
-                  const idsToFetch = selected?.length
-                    ? selected
-                    : allProjects.map((p) => p.id);
+                  const idsToFetch = selected?.length ? selected : allProjects.map((p) => p.id);
                   const projectMap = new Map(
                     allProjects.map((p) => [p.id, p.name]),
                   );
@@ -388,9 +383,7 @@ export const ticktickPlugin: Plugin<TickTickConfig> = {
                     projectMap.set(inboxId, "Inbox");
                   }
                   return ResultAsync.combine(
-                    idsToFetch.map((id) =>
-                      fetchProjectData(accessToken, id, log),
-                    ),
+                    idsToFetch.map((id) => fetchProjectData(accessToken, id, log)),
                   ).map((taskArrays) =>
                     taskArrays
                       .flat()
@@ -398,9 +391,9 @@ export const ticktickPlugin: Plugin<TickTickConfig> = {
                       .map((t) => ({
                         task: t,
                         projectName: projectMap.get(t.projectId) ?? "",
-                      })),
+                      }))
                   );
-                }),
+                })
               )
               .andTee((tasks) => {
                 log.info`[${job.name}] Fetched ${tasks.length} incomplete tasks`;
@@ -433,7 +426,7 @@ export const ticktickPlugin: Plugin<TickTickConfig> = {
                     const currentIds = tasks.map(({ task }) => task.id);
                     return memory.removeStaleMemories(NAME, currentIds);
                   })
-                  .map(() => ({ synced: tasks.length })),
+                  .map(() => ({ synced: tasks.length }))
               );
           });
       },

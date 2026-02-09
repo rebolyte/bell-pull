@@ -32,7 +32,8 @@ const buildItem = (item: DiaryItem) => {
 </item>`;
 };
 
-const buildFeed = (items: DiaryItem[]) => `<?xml version="1.0" encoding="UTF-8"?>
+const buildFeed = (items: DiaryItem[]) =>
+  `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:letterboxd="https://letterboxd.com">
 <channel>
   <title>Letterboxd</title>

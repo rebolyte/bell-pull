@@ -7,7 +7,7 @@ export function withRetry<T>(
   fnOrConfig?: (() => Promise<T>) | RetryConfig,
   maybeConfig?: RetryConfig,
 ): Promise<T> | RetryFn {
-  if (typeof fnOrConfig === 'function') {
+  if (typeof fnOrConfig === "function") {
     return execute(fnOrConfig, maybeConfig);
   }
   return <U>(fn: () => Promise<U>) => execute(fn, fnOrConfig);
