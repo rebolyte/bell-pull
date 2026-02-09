@@ -83,6 +83,12 @@ export async function down(db: Kysely<any>): Promise<void> {
     await sql`DROP TRIGGER IF EXISTS archive_memories_on_delete`.execute(trx);
     await sql`DROP INDEX IF EXISTS idx_memories_source_external_id`.execute(trx);
     await sql`DROP INDEX IF EXISTS idx_memories_source_date_text`.execute(trx);
+    // remove dupes that were allowed under the partial index before restoring the strict one
+    await sql`
+      DELETE FROM memories WHERE id NOT IN (
+        SELECT MIN(id) FROM memories GROUP BY source, date, text
+      )
+    `.execute(trx);
     await sql`
       CREATE UNIQUE INDEX idx_memories_source_date_text
       ON memories(source, date, text)
