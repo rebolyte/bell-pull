@@ -127,6 +127,8 @@ Last line`;
           createdAt: "2023-10-27T00:00:00.000Z",
           lastModified: "2023-10-27T00:00:00.000Z",
           sourcePluginId: null,
+          externalId: null,
+          original: null,
         },
         {
           id: 2,
@@ -137,6 +139,8 @@ Last line`;
           createdAt: "2023-10-27T00:00:00.000Z",
           lastModified: "2023-10-27T00:00:00.000Z",
           sourcePluginId: null,
+          externalId: null,
+          original: null,
         },
       ];
 
@@ -145,7 +149,7 @@ Last line`;
       expect(result).toContain("Dated memories:");
       expect(result).toContain("2023-10-27 - Dated memory");
       expect(result).toContain("General memories:");
-      expect(result).toContain("Undated memory");
+      expect(result).toContain("- Undated memory");
     });
 
     it("should return fallback message when no memories", () => {
@@ -168,6 +172,8 @@ Last line`;
       createdAt: "2024-01-01T00:00:00.000Z",
       lastModified: "2024-01-01T00:00:00.000Z",
       sourcePluginId: null,
+      externalId: null,
+      original: null,
       ...overrides,
     });
 

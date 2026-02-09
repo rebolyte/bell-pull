@@ -55,49 +55,49 @@ const getAllMemories = ({ db }: MemoryDeps) =>
     .andThen((rows) => Result.combine(rows.map(parseMemory)));
 };
 
-const getRelevantMemories =
-  ({ db, config }: MemoryDeps) => (
-    today?: DateTime,
-  ): ResultAsync<CategorizedMemories, AppError> => {
-    const t = today ?? DateTime.now().setZone(config.TIMEZONE).startOf("day");
-    const todayStr = t.toFormat("yyyy-MM-dd");
-    const weekAgoStr = t.minus({ days: 7 }).toFormat("yyyy-MM-dd");
-    const weekAheadStr = t.plus({ days: 7 }).toFormat("yyyy-MM-dd");
+const getRelevantMemories = ({ db, config }: MemoryDeps) =>
+(
+  today?: DateTime,
+): ResultAsync<CategorizedMemories, AppError> => {
+  const t = today ?? DateTime.now().setZone(config.TIMEZONE).startOf("day");
+  const todayStr = t.toFormat("yyyy-MM-dd");
+  const weekAgoStr = t.minus({ days: 7 }).toFormat("yyyy-MM-dd");
+  const weekAheadStr = t.plus({ days: 7 }).toFormat("yyyy-MM-dd");
 
-    const datedQuery = () =>
-      db.selectFrom("memories")
-        .selectAll()
-        .where("date", "is not", null)
-        .where("date", ">=", weekAgoStr)
-        .where("date", "<=", weekAheadStr)
-        .orderBy("date", "asc")
-        .execute();
+  const datedQuery = () =>
+    db.selectFrom("memories")
+      .selectAll()
+      .where("date", "is not", null)
+      .where("date", ">=", weekAgoStr)
+      .where("date", "<=", weekAheadStr)
+      .orderBy("date", "asc")
+      .execute();
 
-    const datelessQuery = () =>
-      db.selectFrom("memories").selectAll().where("date", "is", null).execute();
+  const datelessQuery = () =>
+    db.selectFrom("memories").selectAll().where("date", "is", null).execute();
 
-    return ResultAsync.combine([
-      ResultAsync.fromPromise(datedQuery(), dbError("Failed to fetch dated memories")),
-      ResultAsync.fromPromise(datelessQuery(), dbError("Failed to fetch dateless memories")),
-    ])
-      .andThen(([dated, dateless]) =>
-        Result.combine([...dated.map(parseMemory), ...dateless.map(parseMemory)])
-          .map((memories) => {
-            const [datedParsed, general] = R.partition(memories, (m) => m.date !== null);
-            const categorized = R.groupBy(datedParsed, (m) => {
-              const dateStr = DateTime.fromJSDate(m.date!, { zone: "utc" }).toFormat("yyyy-MM-dd");
-              if (dateStr === todayStr) return "today";
-              return DateTime.fromJSDate(m.date!, { zone: "utc" }) < t ? "lastWeek" : "nextWeek";
-            });
-            return {
-              today: categorized.today ?? [],
-              lastWeek: categorized.lastWeek ?? [],
-              nextWeek: categorized.nextWeek ?? [],
-              general,
-            };
-          })
-      );
-  };
+  return ResultAsync.combine([
+    ResultAsync.fromPromise(datedQuery(), dbError("Failed to fetch dated memories")),
+    ResultAsync.fromPromise(datelessQuery(), dbError("Failed to fetch dateless memories")),
+  ])
+    .andThen(([dated, dateless]) =>
+      Result.combine([...dated.map(parseMemory), ...dateless.map(parseMemory)])
+        .map((memories) => {
+          const [datedParsed, general] = R.partition(memories, (m) => m.date !== null);
+          const categorized = R.groupBy(datedParsed, (m) => {
+            const dateStr = DateTime.fromJSDate(m.date!, { zone: "utc" }).toFormat("yyyy-MM-dd");
+            if (dateStr === todayStr) return "today";
+            return DateTime.fromJSDate(m.date!, { zone: "utc" }) < t ? "lastWeek" : "nextWeek";
+          });
+          return {
+            today: categorized.today ?? [],
+            lastWeek: categorized.lastWeek ?? [],
+            nextWeek: categorized.nextWeek ?? [],
+            general,
+          };
+        })
+    );
+};
 
 const formatMemoriesForPrompt = (memories: Memory[]) => {
   if (R.isEmpty(memories)) {
@@ -200,11 +200,13 @@ const updateMemories = ({ db, log }: MemoryDeps) =>
           .insertInto("memories")
           .values(withExtId.map(toRow))
           .onConflict((oc) =>
-            oc.columns(["source", "externalId"]).doUpdateSet({
-              date: sql`excluded.date`,
-              text: sql`excluded.text`,
-              original: sql`excluded.original`,
-            })
+            oc.columns(["source", "externalId"])
+              .where("externalId", "is not", null)
+              .doUpdateSet({
+                date: sql`excluded.date`,
+                text: sql`excluded.text`,
+                original: sql`excluded.original`,
+              })
           )
           .execute();
       }
@@ -213,12 +215,13 @@ const updateMemories = ({ db, log }: MemoryDeps) =>
         await db
           .insertInto("memories")
           .values(withoutExtId.map(toRow))
+          // NOTE: to avoid duplicates, this will silently ignore conflicts
           .onConflict((oc) => oc.columns(["source", "date", "text"]).doNothing())
           .execute();
       }
 
       if (!R.isEmpty(analysis.memories)) {
-        log.info`Upserted ${analysis.memories.length} memories: ${{ memories: analysis.memories }}`;
+        log.info(`Upserted ${analysis.memories.length} memories`, { memories: analysis.memories });
       }
 
       for (const memory of analysis.editMemories) {
@@ -237,9 +240,9 @@ const updateMemories = ({ db, log }: MemoryDeps) =>
         await query.execute();
       }
       if (!R.isEmpty(analysis.editMemories)) {
-        log.info`Edited ${analysis.editMemories.length} memories: ${{
+        log.info(`Edited ${analysis.editMemories.length} memories`, {
           editMemories: analysis.editMemories,
-        }}`;
+        });
       }
 
       if (!R.isEmpty(analysis.deleteMemories)) {
@@ -248,7 +251,7 @@ const updateMemories = ({ db, log }: MemoryDeps) =>
         );
         if (!R.isEmpty(ids)) {
           await db.deleteFrom("memories").where("id", "in", ids).execute();
-          log.info`Deleted ${ids.length} memories: ${{ ids }}`;
+          log.info(`Deleted ${ids.length} memories`, { ids });
         }
       }
     })(),
