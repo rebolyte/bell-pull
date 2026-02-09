@@ -8,6 +8,9 @@ export const cron = <T extends z.ZodTypeAny>(schema: T): T => schema.describe("f
 export const managed = <T extends z.ZodTypeAny>(schema: T): T =>
   schema.describe("field:managed") as T;
 
+export const hidden = <T extends z.ZodTypeAny>(schema: T): T =>
+  schema.describe("field:hidden") as T;
+
 export type FieldType =
   | "text"
   | "secret"
@@ -15,7 +18,8 @@ export type FieldType =
   | "number"
   | "boolean"
   | "enum"
-  | "managed";
+  | "managed"
+  | "hidden";
 
 export type FieldInfo = {
   key: string;
@@ -43,6 +47,7 @@ const getFieldType = (prop: JsonSchemaProperty): FieldType => {
   if (desc.includes("field:secret")) return "secret";
   if (desc.includes("field:cron")) return "cron";
   if (desc.includes("field:managed")) return "managed";
+  if (desc.includes("field:hidden")) return "hidden";
 
   if (prop.type === "boolean") return "boolean";
   if (prop.type === "number" || prop.type === "integer") return "number";

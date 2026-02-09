@@ -39,6 +39,7 @@ describe("Letterboxd Cron Job", () => {
       await setupPlugin(h);
       const result = await runCronJob(h);
 
+      if (!result.isOk()) console.error("cron err", result.error);
       expect(result.isOk()).toBe(true);
 
       const memories = await h.container.db

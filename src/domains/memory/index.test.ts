@@ -7,6 +7,7 @@ import type { CategorizedMemories, Memory } from "./schema.ts";
 import { DateTime } from "luxon";
 import type { Database } from "../../services/database.ts";
 import { silentLogger } from "../../../tests/fixtures/mocks.ts";
+import type { PluginConfig } from "../plugins/index.ts";
 
 describe("Memory Domain", () => {
   describe("extractMemories", () => {
@@ -127,6 +128,8 @@ Last line`;
           createdAt: "2023-10-27T00:00:00.000Z",
           lastModified: "2023-10-27T00:00:00.000Z",
           sourcePluginId: null,
+          externalId: null,
+          original: null,
         },
         {
           id: 2,
@@ -137,6 +140,8 @@ Last line`;
           createdAt: "2023-10-27T00:00:00.000Z",
           lastModified: "2023-10-27T00:00:00.000Z",
           sourcePluginId: null,
+          externalId: null,
+          original: null,
         },
       ];
 
@@ -145,7 +150,46 @@ Last line`;
       expect(result).toContain("Dated memories:");
       expect(result).toContain("2023-10-27 - Dated memory");
       expect(result).toContain("General memories:");
-      expect(result).toContain("Undated memory");
+      expect(result).toContain("- Undated memory");
+    });
+
+    it("should include tags as parentheticals", () => {
+      const { formatMemoriesForPrompt } = makeMemoryDomain({
+        config: {} as AppConfig,
+        db: {} as Database,
+        log: silentLogger,
+      });
+
+      const memories: Memory[] = [
+        {
+          id: 1,
+          text: "To do: Buy milk",
+          date: new Date("2024-01-15T00:00:00.000Z"),
+          source: null,
+          tags: ["groceries"],
+          createdAt: "2024-01-15T00:00:00.000Z",
+          lastModified: "2024-01-15T00:00:00.000Z",
+          sourcePluginId: null,
+          externalId: null,
+          original: null,
+        },
+        {
+          id: 2,
+          text: "To do: Fix bug",
+          date: null,
+          source: null,
+          tags: ["Work", "urgent"],
+          createdAt: "2024-01-15T00:00:00.000Z",
+          lastModified: "2024-01-15T00:00:00.000Z",
+          sourcePluginId: null,
+          externalId: null,
+          original: null,
+        },
+      ];
+
+      const result = formatMemoriesForPrompt(memories);
+      expect(result).toContain("To do: Buy milk (groceries)");
+      expect(result).toContain("To do: Fix bug (Work, urgent)");
     });
 
     it("should return fallback message when no memories", () => {
@@ -168,6 +212,8 @@ Last line`;
       createdAt: "2024-01-01T00:00:00.000Z",
       lastModified: "2024-01-01T00:00:00.000Z",
       sourcePluginId: null,
+      externalId: null,
+      original: null,
       ...overrides,
     });
 
@@ -320,6 +366,113 @@ Last line`;
         const categorized = result._unsafeUnwrap();
 
         expect(categorized.general.map((m) => m.text)).toEqual(["Background 1", "Background 2"]);
+      });
+    });
+
+    describe("updateMemories", () => {
+      const pluginConfig = { pluginName: "test-plugin", id: 1 } as PluginConfig;
+
+      it("should upsert memories with externalId on repeated runs", async () => {
+        const analysis = {
+          memories: [{
+            date: "2024-06-15",
+            text: "Calendar: Standup (9:00 AM - 9:30 AM)",
+            externalId: "gcal-abc123",
+            original: '{"summary":"Standup"}',
+          }],
+          editMemories: [],
+          deleteMemories: [],
+          response: "",
+        };
+
+        const first = await memoryDomain.updateMemories(analysis, pluginConfig);
+        expect(first.isOk()).toBe(true);
+
+        const second = await memoryDomain.updateMemories(analysis, pluginConfig);
+        expect(second.isOk()).toBe(true);
+
+        const all = await memoryDomain.getAllMemories();
+        expect(all._unsafeUnwrap()).toHaveLength(1);
+      });
+
+      it("should update text/date when externalId matches", async () => {
+        const initial = {
+          memories: [{
+            date: "2024-06-15",
+            text: "Calendar: Standup (9:00 AM)",
+            externalId: "gcal-abc123",
+          }],
+          editMemories: [],
+          deleteMemories: [],
+          response: "",
+        };
+        await memoryDomain.updateMemories(initial, pluginConfig);
+
+        const updated = {
+          memories: [{
+            date: "2024-06-16",
+            text: "Calendar: Standup (10:00 AM)",
+            externalId: "gcal-abc123",
+          }],
+          editMemories: [],
+          deleteMemories: [],
+          response: "",
+        };
+        const result = await memoryDomain.updateMemories(updated, pluginConfig);
+        expect(result.isOk()).toBe(true);
+
+        const all = (await memoryDomain.getAllMemories())._unsafeUnwrap();
+        expect(all).toHaveLength(1);
+        expect(all[0].text).toBe("Calendar: Standup (10:00 AM)");
+      });
+
+      it("should upsert tags with externalId", async () => {
+        const analysis = {
+          memories: [{
+            date: "2024-06-15",
+            text: "To do: Buy milk",
+            tags: ["groceries"],
+            externalId: "tt-001",
+          }],
+          editMemories: [],
+          deleteMemories: [],
+          response: "",
+        };
+
+        await memoryDomain.updateMemories(analysis, pluginConfig);
+        const first = (await memoryDomain.getAllMemories())._unsafeUnwrap();
+        expect(first[0].tags).toEqual(["groceries"]);
+
+        const updated = {
+          memories: [{
+            date: "2024-06-15",
+            text: "To do: Buy milk",
+            tags: ["shopping"],
+            externalId: "tt-001",
+          }],
+          editMemories: [],
+          deleteMemories: [],
+          response: "",
+        };
+        await memoryDomain.updateMemories(updated, pluginConfig);
+        const second = (await memoryDomain.getAllMemories())._unsafeUnwrap();
+        expect(second).toHaveLength(1);
+        expect(second[0].tags).toEqual(["shopping"]);
+      });
+
+      it("should deduplicate memories without externalId by source/date/text", async () => {
+        const analysis = {
+          memories: [{ date: "2024-06-15", text: "Weather: Sunny" }],
+          editMemories: [],
+          deleteMemories: [],
+          response: "",
+        };
+
+        await memoryDomain.updateMemories(analysis, pluginConfig);
+        await memoryDomain.updateMemories(analysis, pluginConfig);
+
+        const all = (await memoryDomain.getAllMemories())._unsafeUnwrap();
+        expect(all).toHaveLength(1);
       });
     });
   });

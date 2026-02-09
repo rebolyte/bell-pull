@@ -25,8 +25,14 @@ const defaultForecast: ForecastResponse = {
     makeEntry(9),
     makeEntry(12, { main: { temp: 75, humidity: 45 } }),
     makeEntry(15, { main: { temp: 74, humidity: 48 } }),
-    makeEntry(18, { main: { temp: 68, humidity: 55 }, weather: [{ description: "partly cloudy" }] }),
-    makeEntry(21, { main: { temp: 65, humidity: 60 }, weather: [{ description: "partly cloudy" }] }),
+    makeEntry(18, {
+      main: { temp: 68, humidity: 55 },
+      weather: [{ description: "partly cloudy" }],
+    }),
+    makeEntry(21, {
+      main: { temp: 65, humidity: 60 },
+      weather: [{ description: "partly cloudy" }],
+    }),
   ],
   city: { name: "San Francisco" },
 };
@@ -56,6 +62,10 @@ export const forecastCold = () =>
       makeEntry(9, { main: { temp: 30, humidity: 78 }, weather: [{ description: "snow" }] }),
       makeEntry(12, { main: { temp: 32, humidity: 75 }, weather: [{ description: "light snow" }] }),
       makeEntry(15, { main: { temp: 31, humidity: 77 }, weather: [{ description: "snow" }] }),
-      makeEntry(18, { main: { temp: 27, humidity: 82 }, weather: [{ description: "snow" }], pop: 0.9 }),
+      makeEntry(18, {
+        main: { temp: 27, humidity: 82 },
+        weather: [{ description: "snow" }],
+        pop: 0.9,
+      }),
     ],
   });

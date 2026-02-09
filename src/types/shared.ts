@@ -11,7 +11,8 @@ export type FieldType =
   | "number"
   | "boolean"
   | "enum"
-  | "managed";
+  | "managed"
+  | "hidden";
 
 export type FieldInfo = {
   key: string;

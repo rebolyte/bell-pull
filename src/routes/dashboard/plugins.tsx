@@ -158,7 +158,12 @@ export const makePluginRoutes = (plugins: Plugin[]) => {
       }
     }
 
-    const result = await container.plugins.setConfig(name, config);
+    const existingResult = await container.plugins.getConfig(name);
+    const existing = existingResult.isOk() && existingResult.value
+      ? existingResult.value.config as Record<string, unknown>
+      : {};
+    const mergedConfig = { ...existing, ...config };
+    const result = await container.plugins.setConfig(name, mergedConfig);
     if (result.isErr()) {
       const errorMsg = encodeURIComponent(result.error.message);
       return c.redirect(
