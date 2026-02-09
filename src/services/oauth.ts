@@ -3,7 +3,7 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { generateCodeVerifier, generateState } from "arctic";
 import { DateTime } from "luxon";
 import { errAsync, ResultAsync } from "neverthrow";
-import type { Container, HonoEnv, OAuthSetup } from "../types/index.ts";
+import type { Container, HonoEnv, OAuthSetup, ServerApps } from "../types/index.ts";
 import { type AppError, appError } from "../errors.ts";
 
 const dateToISO = (date: Date | null | undefined): string | null =>
@@ -14,7 +14,7 @@ const getBaseUrl = (req: Request): string => {
   return `${url.protocol}//${url.host}`;
 };
 
-export const registerOAuthRoutes = (
+const mountOAuthRoutes = (
   app: Hono<HonoEnv>,
   pluginName: string,
   oauth: OAuthSetup,
@@ -136,6 +136,16 @@ export const registerOAuthRoutes = (
       return c.text("OAuth authorization failed", 400);
     }
   });
+};
+
+export const registerOAuthRoutes = (
+  apps: ServerApps,
+  pluginName: string,
+  oauth: OAuthSetup,
+  container: Container,
+): void => {
+  mountOAuthRoutes(apps.public, pluginName, oauth, container);
+  mountOAuthRoutes(apps.admin, pluginName, oauth, container);
 };
 
 export type OAuthTokens = {

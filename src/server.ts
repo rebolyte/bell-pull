@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { honoLogger } from "@logtape/hono";
 import { cors } from "hono/cors";
 import { serveStatic } from "hono/deno";
-import type { Container, HonoEnv } from "./types/index.ts";
+import type { Container, HonoEnv, ServerApps } from "./types/index.ts";
 import { makeApiRoutes } from "./routes/api.tsx";
 import { makeDashboardRoutes } from "./routes/dashboard/index.tsx";
 import { makePluginRoutes } from "./routes/dashboard/plugins.tsx";
@@ -13,23 +13,35 @@ export interface ServerOptions {
   enableCrons?: boolean;
 }
 
-export const makeServer = async (
-  container: Container,
-  opts: ServerOptions = { enableCrons: true },
-) => {
+const makeBaseApp = (container: Container): Hono<HonoEnv> => {
   const app = new Hono<HonoEnv>();
 
-  // Middleware
-  app.use(honoLogger({
-    category: ["app", "hono"],
-  }));
+  app.use(honoLogger({ category: ["app", "hono"] }));
   app.use("*", cors());
   app.use("*", async (c, next) => {
     c.set("container", container);
     await next();
   });
+
+  app.get("/health", (c) => c.json({ status: "healthy", timestamp: new Date().toISOString() }));
+
+  app.onError((err, c) => {
+    container.log.error`Error: ${err.message}`;
+    return c.json({ error: err.message }, 500);
+  });
+
+  return app;
+};
+
+export const makeServers = async (
+  container: Container,
+  opts: ServerOptions = { enableCrons: true },
+): Promise<ServerApps> => {
+  const publicApp = makeBaseApp(container);
+  const adminApp = makeBaseApp(container);
+
   const staticRoot = new URL("./static", import.meta.url).pathname;
-  app.use(
+  adminApp.use(
     "/static/*",
     serveStatic({
       root: staticRoot,
@@ -37,19 +49,7 @@ export const makeServer = async (
     }),
   );
 
-  const enableCrons = opts.enableCrons !== false;
-
-  // Register plugin routes and crons
-  for (const plugin of plugins) {
-    plugin.init?.(app, container);
-
-    if (enableCrons) {
-      await registerPluginCrons(plugin, container);
-    }
-  }
-
-  // Routes
-  app.get("/", (c) => {
+  adminApp.get("/", (c) => {
     return c.json({
       message: "Deno + Hono + CapnWeb API",
       version: "1.0.0",
@@ -72,43 +72,29 @@ export const makeServer = async (
       exampleCall: {
         url: "/api/rpc",
         method: "POST",
-        body: {
-          method: "getCounter",
-          params: [],
-        },
-        response: {
-          result: 0,
-        },
+        body: { method: "getCounter", params: [] },
+        response: { result: 0 },
       },
     });
   });
 
-  app.get("/health", (c) => {
-    return c.json({
-      status: "healthy",
-      timestamp: new Date().toISOString(),
-    });
-  });
+  adminApp.route("/api", makeApiRoutes(plugins));
+  adminApp.route("/dashboard", makeDashboardRoutes(plugins));
+  adminApp.route("/dashboard/plugins", makePluginRoutes(plugins));
 
-  // Mount API routes
-  app.route("/api", makeApiRoutes(plugins));
+  const enableCrons = opts.enableCrons !== false;
+  const apps: ServerApps = { public: publicApp, admin: adminApp };
 
-  // Mount dashboard routes
-  app.route("/dashboard", makeDashboardRoutes(plugins));
-  app.route("/dashboard/plugins", makePluginRoutes(plugins));
+  for (const plugin of plugins) {
+    plugin.init?.(apps, container);
 
-  // 404 handler
-  app.notFound((c) => {
-    return c.json({ error: "Not Found" }, 404);
-  });
+    if (enableCrons) {
+      await registerPluginCrons(plugin, container);
+    }
+  }
 
-  // Error handler
-  app.onError((err, c) => {
-    container.log.error`Error: ${err.message}`;
-    return c.json({
-      error: err.message,
-    }, 500);
-  });
+  publicApp.notFound((c) => c.json({ error: "Not Found" }, 404));
+  adminApp.notFound((c) => c.json({ error: "Not Found" }, 404));
 
-  return app;
+  return apps;
 };

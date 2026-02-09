@@ -12,6 +12,6 @@ COPY . .
 # Cache the main module
 RUN deno cache src/main.ts
 
-EXPOSE 8000
+EXPOSE 8000 8001
 
 CMD ["sh", "-c", "deno run --allow-net --allow-env --allow-read --allow-write --allow-import migrate.ts && deno run --allow-net --allow-env --allow-read --allow-write --allow-import src/main.ts"]

@@ -102,8 +102,8 @@ export const googleCalendarPlugin: Plugin<GoogleCalendarConfig> = {
   displayName: "Google Calendar",
   configSchema,
   oauth,
-  init: (app, container) => {
-    registerOAuthRoutes(app, NAME, oauth, container);
+  init: (apps, container) => {
+    registerOAuthRoutes(apps, NAME, oauth, container);
   },
   cronJobs: (config) => [
     {

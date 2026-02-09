@@ -1,26 +1,42 @@
-import { makeServer, ServerOptions } from "./server.ts";
+import { makeServers, ServerOptions } from "./server.ts";
 import { makeContainer } from "./container.ts";
 import { Container } from "./types/index.ts";
 
 export interface RunOptions extends ServerOptions {
-  port?: number;
+  publicPort?: number;
+  adminPort?: number;
   container?: Container;
   signal?: AbortSignal;
 }
 
-export const run = async (opts: RunOptions = {}) => {
+export type RunResult = {
+  public: Deno.HttpServer;
+  admin: Deno.HttpServer;
+};
+
+export const run = async (opts: RunOptions = {}): Promise<RunResult> => {
   const container = opts.container ?? await makeContainer();
-  const server = await makeServer(container, opts);
+  const apps = await makeServers(container, opts);
 
-  const { log } = container;
+  const { log, config } = container;
 
-  return Deno.serve({
-    port: opts.port !== undefined ? opts.port : container.config.PORT,
+  const publicServer = Deno.serve({
+    port: opts.publicPort ?? config.PUBLIC_PORT,
     signal: opts.signal,
     onListen: ({ port, hostname }) => {
-      log.info(`listening on http://${hostname}:${port}`);
+      log.info(`public server listening on http://${hostname}:${port}`);
     },
-  }, server.fetch);
+  }, apps.public.fetch);
+
+  const adminServer = Deno.serve({
+    port: opts.adminPort ?? config.ADMIN_PORT,
+    signal: opts.signal,
+    onListen: ({ port, hostname }) => {
+      log.info(`admin server listening on http://${hostname}:${port}`);
+    },
+  }, apps.admin.fetch);
+
+  return { public: publicServer, admin: adminServer };
 };
 
 if (import.meta.main) {

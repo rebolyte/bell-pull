@@ -73,12 +73,17 @@ export type OAuthSetup = {
   ) => URL;
 };
 
+export type ServerApps = {
+  public: Hono<HonoEnv>;
+  admin: Hono<HonoEnv>;
+};
+
 export interface Plugin<TConfig = unknown> {
   name: string;
   displayName?: string;
   configSchema?: z.ZodSchema<TConfig>;
   oauth?: OAuthSetup;
-  init?: (app: Hono<HonoEnv>, container: Container) => void;
+  init?: (apps: ServerApps, container: Container) => void;
   cronJobs?: CronJob[] | ((config: TConfig) => CronJob[]);
   onIngest?: (text: string) => Promise<string | null>;
   settingsUI?: (config: TConfig, container: Container) => unknown;

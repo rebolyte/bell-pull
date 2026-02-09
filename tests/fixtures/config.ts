@@ -1,7 +1,8 @@
 import type { AppConfig } from "../../src/services/config.ts";
 
 export const testConfig: AppConfig = {
-  PORT: 0,
+  PUBLIC_PORT: 0,
+  ADMIN_PORT: 0,
   HOST: "localhost",
   APP_ENV: "dev",
   LOG_LEVEL: "error",
