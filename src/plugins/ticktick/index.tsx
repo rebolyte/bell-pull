@@ -176,10 +176,10 @@ export const ticktickPlugin: Plugin<TickTickConfig> = {
   displayName: "TickTick",
   configSchema,
   oauth,
-  init: (app, container) => {
-    registerOAuthRoutes(app, NAME, oauth, container);
+  init: (apps, container) => {
+    registerOAuthRoutes(apps, NAME, oauth, container);
 
-    app.get(`/api/plugins/${NAME}/projects`, async (c) => {
+    apps.admin.get(`/api/plugins/${NAME}/projects`, async (c) => {
       const { plugins, log } = container;
       return plugins
         .getConfig<TickTickConfig>(NAME)
@@ -264,7 +264,7 @@ export const ticktickPlugin: Plugin<TickTickConfig> = {
         );
     });
 
-    app.post(`/api/plugins/${NAME}/projects`, async (c) => {
+    apps.admin.post(`/api/plugins/${NAME}/projects`, async (c) => {
       const { plugins, log } = container;
       const formData = await c.req.formData();
       const selectedIds = formData.getAll("projectId") as string[];
