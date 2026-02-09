@@ -216,7 +216,11 @@ const updateMemories = ({ db, log }: MemoryDeps) =>
           .insertInto("memories")
           .values(withoutExtId.map(toRow))
           // NOTE: to avoid duplicates, this will silently ignore conflicts
-          .onConflict((oc) => oc.columns(["source", "date", "text"]).doNothing())
+          .onConflict((oc) =>
+            oc.columns(["source", "date", "text"])
+              .where("externalId", "is", null)
+              .doNothing()
+          )
           .execute();
       }
 

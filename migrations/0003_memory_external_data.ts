@@ -12,6 +12,13 @@ export async function up(db: Kysely<any>): Promise<void> {
       await trx.schema.alterTable("memories").addColumn("original", "text").execute();
     }
 
+    await sql`DROP INDEX IF EXISTS idx_memories_source_date_text`.execute(trx);
+    await sql`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_memories_source_date_text
+      ON memories(source, date, text)
+      WHERE external_id IS NULL
+    `.execute(trx);
+
     await sql`
       CREATE UNIQUE INDEX IF NOT EXISTS idx_memories_source_external_id
       ON memories(source, external_id)
@@ -75,6 +82,11 @@ export async function down(db: Kysely<any>): Promise<void> {
   await db.transaction().execute(async (trx) => {
     await sql`DROP TRIGGER IF EXISTS archive_memories_on_delete`.execute(trx);
     await sql`DROP INDEX IF EXISTS idx_memories_source_external_id`.execute(trx);
+    await sql`DROP INDEX IF EXISTS idx_memories_source_date_text`.execute(trx);
+    await sql`
+      CREATE UNIQUE INDEX idx_memories_source_date_text
+      ON memories(source, date, text)
+    `.execute(trx);
     await trx.schema.dropTable("archive").ifExists().execute();
     await trx.schema.alterTable("memories").dropColumn("external_id").execute();
     await trx.schema.alterTable("memories").dropColumn("original").execute();

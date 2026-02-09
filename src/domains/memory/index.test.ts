@@ -7,6 +7,7 @@ import type { CategorizedMemories, Memory } from "./schema.ts";
 import { DateTime } from "luxon";
 import type { Database } from "../../services/database.ts";
 import { silentLogger } from "../../../tests/fixtures/mocks.ts";
+import type { PluginConfig } from "../plugins/index.ts";
 
 describe("Memory Domain", () => {
   describe("extractMemories", () => {
@@ -326,6 +327,79 @@ Last line`;
         const categorized = result._unsafeUnwrap();
 
         expect(categorized.general.map((m) => m.text)).toEqual(["Background 1", "Background 2"]);
+      });
+    });
+
+    describe("updateMemories", () => {
+      const pluginConfig = { pluginName: "test-plugin", id: 1 } as PluginConfig;
+
+      it("should upsert memories with externalId on repeated runs", async () => {
+        const analysis = {
+          memories: [{
+            date: "2024-06-15",
+            text: "Calendar: Standup (9:00 AM - 9:30 AM)",
+            externalId: "gcal-abc123",
+            original: '{"summary":"Standup"}',
+          }],
+          editMemories: [],
+          deleteMemories: [],
+          response: "",
+        };
+
+        const first = await memoryDomain.updateMemories(analysis, pluginConfig);
+        expect(first.isOk()).toBe(true);
+
+        const second = await memoryDomain.updateMemories(analysis, pluginConfig);
+        expect(second.isOk()).toBe(true);
+
+        const all = await memoryDomain.getAllMemories();
+        expect(all._unsafeUnwrap()).toHaveLength(1);
+      });
+
+      it("should update text/date when externalId matches", async () => {
+        const initial = {
+          memories: [{
+            date: "2024-06-15",
+            text: "Calendar: Standup (9:00 AM)",
+            externalId: "gcal-abc123",
+          }],
+          editMemories: [],
+          deleteMemories: [],
+          response: "",
+        };
+        await memoryDomain.updateMemories(initial, pluginConfig);
+
+        const updated = {
+          memories: [{
+            date: "2024-06-16",
+            text: "Calendar: Standup (10:00 AM)",
+            externalId: "gcal-abc123",
+          }],
+          editMemories: [],
+          deleteMemories: [],
+          response: "",
+        };
+        const result = await memoryDomain.updateMemories(updated, pluginConfig);
+        expect(result.isOk()).toBe(true);
+
+        const all = (await memoryDomain.getAllMemories())._unsafeUnwrap();
+        expect(all).toHaveLength(1);
+        expect(all[0].text).toBe("Calendar: Standup (10:00 AM)");
+      });
+
+      it("should deduplicate memories without externalId by source/date/text", async () => {
+        const analysis = {
+          memories: [{ date: "2024-06-15", text: "Weather: Sunny" }],
+          editMemories: [],
+          deleteMemories: [],
+          response: "",
+        };
+
+        await memoryDomain.updateMemories(analysis, pluginConfig);
+        await memoryDomain.updateMemories(analysis, pluginConfig);
+
+        const all = (await memoryDomain.getAllMemories())._unsafeUnwrap();
+        expect(all).toHaveLength(1);
       });
     });
   });
