@@ -55,8 +55,8 @@ export const PluginSettings = ({
       )}
 
       {plugin.fields
-        .filter((f) => f.type !== "cron")
-        .map((field) => <ConfigField field={field} value={config[field.key]} />)}
+        .filter((f) => f.type !== "cron" && f.type !== "hidden")
+        .map((field) => <ConfigField key={field.key} field={field} value={config[field.key]} />)}
 
       <CronJobsSection plugin={plugin} />
 

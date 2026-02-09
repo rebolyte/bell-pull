@@ -103,7 +103,9 @@ async function rebuildMemoriesTable(trx: Transaction<any>): Promise<void> {
 
   await sql
     .raw(
-      `INSERT INTO memories_new (${newCols.join(", ")}) SELECT ${selectExprs.join(", ")} FROM memories`,
+      `INSERT INTO memories_new (${newCols.join(", ")}) SELECT ${
+        selectExprs.join(", ")
+      } FROM memories`,
     )
     .execute(trx);
 
@@ -157,7 +159,9 @@ async function rebuildMessagesTable(trx: Transaction<any>): Promise<void> {
 
   await sql
     .raw(
-      `INSERT INTO messages_new (${newCols.join(", ")}) SELECT ${selectExprs.join(", ")} FROM messages`,
+      `INSERT INTO messages_new (${newCols.join(", ")}) SELECT ${
+        selectExprs.join(", ")
+      } FROM messages`,
     )
     .execute(trx);
 

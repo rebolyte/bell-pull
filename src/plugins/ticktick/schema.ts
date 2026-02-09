@@ -1,5 +1,5 @@
 import * as z from "@zod/zod";
-import { cron, managed, secret } from "../../services/config-schema.ts";
+import { cron, hidden, managed, secret } from "../../services/config-schema.ts";
 
 export const configSchema = z.object({
   clientId: z.string().min(1),
@@ -8,6 +8,8 @@ export const configSchema = z.object({
   accessToken: managed(z.string().optional()),
   refreshToken: managed(z.string().optional()),
   tokenExpiresAt: managed(z.string().optional()),
+  selectedProjects: hidden(z.array(z.string()).default([])),
+  inboxProjectId: hidden(z.string().optional()),
 });
 
 export type TickTickConfig = z.infer<typeof configSchema>;

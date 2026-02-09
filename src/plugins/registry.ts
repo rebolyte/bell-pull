@@ -4,7 +4,7 @@ import { googleCalendarPlugin } from "./google-calendar/index.ts";
 import { letterboxdPlugin } from "./letterboxd/index.ts";
 import { openweatherPlugin } from "./openweather/index.ts";
 import { telegramPlugin } from "./telegram/index.ts";
-import { ticktickPlugin } from "./ticktick/index.ts";
+import { ticktickPlugin } from "./ticktick/index.tsx";
 
 export const plugins: Plugin<any>[] = [
   telegramPlugin,
