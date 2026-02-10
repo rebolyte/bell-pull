@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    container:
+      image: denoland/deno:2.5.6
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint
+        run: deno lint
+
+      - name: Format
+        run: deno fmt --check
+
+      - name: Test
+        run: deno test --allow-net --allow-read --allow-env --unstable-broadcast-channel
