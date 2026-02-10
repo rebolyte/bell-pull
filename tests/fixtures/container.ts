@@ -1,4 +1,3 @@
-import type Anthropic from "@anthropic-ai/sdk";
 import type { Context, Filter } from "grammy";
 import { createTestDb } from "../../src/utils/harness.ts";
 import { bootstrap } from "../../src/container.ts";

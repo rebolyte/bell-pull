@@ -1,6 +1,6 @@
 import * as z from "@zod/zod";
 import { DateTime } from "luxon";
-import { errAsync, okAsync, ResultAsync } from "neverthrow";
+import { errAsync, okAsync } from "neverthrow";
 import type { Plugin } from "../../types/index.ts";
 import { appError } from "../../errors.ts";
 import { secret } from "../../services/config-schema.ts";
