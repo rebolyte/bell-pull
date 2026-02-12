@@ -30,9 +30,34 @@ export async function up(db: Kysely<any>): Promise<void> {
       .on("metrics")
       .columns(["metric", "date"])
       .execute();
+
+    await sql`
+      CREATE TRIGGER IF NOT EXISTS archive_metrics_on_delete
+      BEFORE DELETE ON metrics
+      FOR EACH ROW
+      BEGIN
+        INSERT INTO archive (table_name, record_id, data)
+        VALUES (
+          'metrics',
+          CAST(OLD.id AS TEXT),
+          json_object(
+            'id', OLD.id,
+            'date', OLD.date,
+            'metric', OLD.metric,
+            'value', OLD.value,
+            'unit', OLD.unit,
+            'source', OLD.source,
+            'created_at', OLD.created_at
+          )
+        );
+      END
+    `.execute(trx);
   });
 }
 
 export async function down(db: Kysely<any>): Promise<void> {
-  await db.schema.dropTable("metrics").execute();
+  await db.transaction().execute(async (trx) => {
+    await sql`DROP TRIGGER IF EXISTS archive_metrics_on_delete`.execute(trx);
+    await trx.schema.dropTable("metrics").execute();
+  });
 }
