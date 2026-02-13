@@ -49,7 +49,7 @@ body {
   display: grid;
   grid-template-columns: 220px 1fr;
   gap: var(--size-4);
-  max-width: var(--size-content-3);
+  max-width: calc(var(--size-content-3) + var(--size-4) + 270px);
   margin: 0 auto;
 }
 
@@ -167,6 +167,12 @@ body {
   max-width: var(--size-content-2);
 }
 
+@media (min-width: 768px) {
+  .settings-form {
+    min-width: var(--size-content-3);
+  }
+}
+
 .settings-form label {
   font-weight: var(--font-weight-6);
   color: var(--text-1);
@@ -218,6 +224,33 @@ body {
 
 .settings-form .field-only {
   grid-column: 2;
+}
+
+.settings-form .textarea-fieldset {
+  border: var(--border-size-1) solid var(--surface-3);
+  border-radius: var(--radius-2);
+  padding: var(--size-3);
+}
+
+.settings-form .textarea-fieldset legend {
+  font-weight: var(--font-weight-6);
+  color: var(--text-1);
+  padding-inline: var(--size-2);
+}
+
+.settings-form .textarea-fieldset textarea {
+  width: 100%;
+  min-height: 12rem;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-0);
+  resize: vertical;
+}
+
+.settings-form .field-description {
+  font-size: var(--font-size-0);
+  color: var(--text-2);
+  margin-top: var(--size-1);
+  margin-bottom: 0;
 }
 
 .container {

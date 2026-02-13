@@ -12,7 +12,8 @@ export type FieldType =
   | "boolean"
   | "enum"
   | "managed"
-  | "hidden";
+  | "hidden"
+  | "textarea";
 
 export type FieldInfo = {
   key: string;
@@ -20,6 +21,7 @@ export type FieldInfo = {
   required: boolean;
   defaultValue?: unknown;
   enumValues?: string[];
+  description?: string;
 };
 
 export type CronJobInfo = {

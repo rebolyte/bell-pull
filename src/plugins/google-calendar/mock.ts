@@ -1,5 +1,5 @@
-import { delay, http, HttpResponse } from "msw";
-import type { CalendarEvent, CalendarResponse } from "./schema.ts";
+import { http, HttpResponse } from "msw";
+import type { CalendarEvent } from "./schema.ts";
 
 const BASE_URL = "https://www.googleapis.com/calendar/v3/calendars/:calendarId/events";
 

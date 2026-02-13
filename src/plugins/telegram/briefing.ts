@@ -6,7 +6,16 @@ import { sendAndStoreMessage } from "./lib.ts";
 import type { AppConfig } from "../../services/config.ts";
 import type { LLMService } from "../../services/llm.ts";
 import type { MemoryDomain } from "../../domains/memory/index.ts";
-import { backstory, makeBriefingPrompt } from "./prompt.ts";
+import type { PluginsDomain } from "../../domains/plugins/index.ts";
+import {
+  DEFAULT_APOLOGY,
+  DEFAULT_BACKSTORY,
+  DEFAULT_BRIEFING_PROMPT,
+  DEFAULT_INTAKE_PROMPT,
+  DEFAULT_SYSTEM_PROMPT,
+  makeBriefingPrompt,
+  type TelegramPrompts,
+} from "./prompt.ts";
 import { AppError, appError } from "../../errors.ts";
 import type { CategorizedMemories } from "../../domains/memory/schema.ts";
 
@@ -15,7 +24,24 @@ type BriefingDeps = {
   llm: LLMService;
   memory: MemoryDomain;
   messages: MessagesDomain;
+  plugins: PluginsDomain;
 };
+
+type TelegramConfig = {
+  backstory?: string;
+  systemPrompt?: string;
+  intakePrompt?: string;
+  briefingPrompt?: string;
+  apology?: string;
+};
+
+const resolvePrompts = (config?: TelegramConfig): TelegramPrompts => ({
+  backstory: config?.backstory ?? DEFAULT_BACKSTORY,
+  systemPrompt: config?.systemPrompt ?? DEFAULT_SYSTEM_PROMPT,
+  intakePrompt: config?.intakePrompt ?? DEFAULT_INTAKE_PROMPT,
+  briefingPrompt: config?.briefingPrompt ?? DEFAULT_BRIEFING_PROMPT,
+  apology: config?.apology ?? DEFAULT_APOLOGY,
+});
 
 const weekDayCheatsheet = (today: DateTime): string =>
   Array.from({ length: 7 }, (_, i) => {
@@ -26,17 +52,18 @@ const weekDayCheatsheet = (today: DateTime): string =>
 
 const generateBriefingContent = (
   { llm, memory }: BriefingDeps,
+  prompts: TelegramPrompts,
   memories: CategorizedMemories,
   today: DateTime,
 ) => {
   const weekdaysHelp = weekDayCheatsheet(today);
   const memoriesString = memory.formatCategorizedMemoriesForPrompt(memories);
   const todayStr = today.toFormat("EEEE, MMMM d");
-  const briefingPrompt = makeBriefingPrompt(memoriesString, weekdaysHelp, todayStr);
+  const briefingPrompt = makeBriefingPrompt(prompts, memoriesString, weekdaysHelp, todayStr);
 
   return llm.generateText({
     messages: [{ role: "user", content: briefingPrompt }],
-    systemPrompt: backstory,
+    systemPrompt: prompts.backstory,
   });
 };
 
@@ -53,9 +80,16 @@ export const sendDailyBriefing = (
     return errAsync(appError("validation", "No chat ID provided or configured"));
   }
 
-  return deps.memory
-    .getRelevantMemories(finalToday)
-    .andThen((memories) => generateBriefingContent(deps, memories, finalToday))
+  return deps.plugins
+    .getConfig<TelegramConfig>("telegram")
+    .andThen((telegramPluginConfig) => {
+      const prompts = resolvePrompts(
+        telegramPluginConfig?.config as TelegramConfig | undefined,
+      );
+      return deps.memory
+        .getRelevantMemories(finalToday)
+        .andThen((memories) => generateBriefingContent(deps, prompts, memories, finalToday));
+    })
     .andThen((content) =>
       sendAndStoreMessage({
         msgCtx: { api: bot.api, chatId: finalChatId },

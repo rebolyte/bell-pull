@@ -8,22 +8,61 @@ import * as z from "@zod/zod";
 import { ResultAsync } from "neverthrow";
 import type { Plugin } from "../../types/index.ts";
 import type { AppConfig } from "../../services/config.ts";
-import { cron } from "../../services/config-schema.ts";
+import { cron, textarea } from "../../services/config-schema.ts";
 import type { Logger } from "../../services/logger.ts";
 
-const configSchema = z.object({
-  "telegram-send-daily-briefing-schedule": cron(z.string().default("0 9 * * *")),
-});
-
-type TelegramConfig = z.infer<typeof configSchema>;
 import type { LLMService } from "../../services/llm.ts";
 import type { MemoryDomain } from "../../domains/memory/index.ts";
-import { makeIntakePrompt, makeSystemPrompt } from "./prompt.ts";
+import {
+  DEFAULT_APOLOGY,
+  DEFAULT_BACKSTORY,
+  DEFAULT_BRIEFING_PROMPT,
+  DEFAULT_INTAKE_PROMPT,
+  DEFAULT_SYSTEM_PROMPT,
+  makeIntakePrompt,
+  makeSystemPrompt,
+  type TelegramPrompts,
+} from "./prompt.ts";
 import type { MessagesDomain } from "../../domains/messages/index.ts";
 import type { PluginsDomain } from "../../domains/plugins/index.ts";
 import { extractContext, handleBotError, makeBot, sendAndStoreMessage } from "./lib.ts";
 import { type RetryFn, withRetry } from "../../utils/retry.ts";
 import { sendDailyBriefing } from "./briefing.ts";
+import { DateTime } from "luxon";
+
+const configSchema = z.object({
+  "telegram-send-daily-briefing-schedule": cron(z.string().default("0 9 * * *")),
+  backstory: textarea(
+    z.string().default(DEFAULT_BACKSTORY),
+    "Variables: none (static character definition)",
+  ),
+  systemPrompt: textarea(
+    z.string().default(DEFAULT_SYSTEM_PROMPT),
+    "Variables: {{memories}}, {{date}}",
+  ),
+  intakePrompt: textarea(
+    z.string().default(DEFAULT_INTAKE_PROMPT),
+    "Variables: none (static prompt)",
+  ),
+  briefingPrompt: textarea(
+    z.string().default(DEFAULT_BRIEFING_PROMPT),
+    "Variables: {{memories}}, {{weekdays}}, {{today}}",
+  ),
+  apology: textarea(
+    z.string().default(DEFAULT_APOLOGY),
+    "Variables: none (static message)",
+  ),
+});
+
+type TelegramConfig = z.infer<typeof configSchema>;
+
+const resolvePrompts = (config?: TelegramConfig): TelegramPrompts => ({
+  backstory: config?.backstory ?? DEFAULT_BACKSTORY,
+  systemPrompt: config?.systemPrompt ?? DEFAULT_SYSTEM_PROMPT,
+  intakePrompt: config?.intakePrompt ?? DEFAULT_INTAKE_PROMPT,
+  briefingPrompt: config?.briefingPrompt ?? DEFAULT_BRIEFING_PROMPT,
+  apology: config?.apology ?? DEFAULT_APOLOGY,
+});
 
 export type BotDeps = {
   config: AppConfig;
@@ -105,16 +144,23 @@ export const handleMessage = async (
         // Retrieve chat history for this chat, which now includes the current message we just stored.
         // by default, we'll get the last 50 messages
         messagesDomain.getChatHistory({ chatId: msgCtx.chatId }),
+        plugins.getConfig<TelegramConfig>("telegram"),
       ])
     )
-    .andTee(([memories, _history]) => {
-      log.debug`memories: ${{ memories }}`;
+    .andTee(([_memories, _history]) => {
+      // log.debug`memories: ${{ memories }}`;
     })
-    .andThen(([memories, history]) => {
+    .andThen(([memories, history, telegramPluginConfig]) => {
+      const prompts = resolvePrompts(
+        telegramPluginConfig?.config as TelegramConfig | undefined,
+      );
       const formattedMemories = memory.formatMemoriesForPrompt(memories);
+      const todayStr = DateTime.now().setZone(config.TIMEZONE).toFormat("yyyy-MM-dd");
       const systemPrompt = memories.length < 25
-        ? `${makeSystemPrompt(config, formattedMemories)}\n\n${makeIntakePrompt()}`
-        : makeSystemPrompt(config, formattedMemories);
+        ? `${makeSystemPrompt(prompts, formattedMemories, todayStr)}\n\n${
+          makeIntakePrompt(prompts)
+        }`
+        : makeSystemPrompt(prompts, formattedMemories, todayStr);
 
       return llm.generateText({
         messages: messagesDomain.mapToLLM(history),

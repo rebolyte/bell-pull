@@ -1,4 +1,3 @@
-import * as R from "@remeda/remeda";
 import { ok, Result, ResultAsync } from "neverthrow";
 import { parsePluginConfigRow, type PluginConfigRow } from "./schema.ts";
 import { type AppError, dbError } from "../../errors.ts";

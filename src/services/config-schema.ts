@@ -11,6 +11,9 @@ export const managed = <T extends z.ZodTypeAny>(schema: T): T =>
 export const hidden = <T extends z.ZodTypeAny>(schema: T): T =>
   schema.describe("field:hidden") as T;
 
+export const textarea = <T extends z.ZodTypeAny>(schema: T, description?: string): T =>
+  schema.describe(`field:textarea${description ? `\n${description}` : ""}`) as T;
+
 export type FieldType =
   | "text"
   | "secret"
@@ -19,7 +22,8 @@ export type FieldType =
   | "boolean"
   | "enum"
   | "managed"
-  | "hidden";
+  | "hidden"
+  | "textarea";
 
 export type FieldInfo = {
   key: string;
@@ -27,6 +31,7 @@ export type FieldInfo = {
   required: boolean;
   defaultValue?: unknown;
   enumValues?: string[];
+  description?: string;
 };
 
 type JsonSchemaProperty = {
@@ -48,12 +53,20 @@ const getFieldType = (prop: JsonSchemaProperty): FieldType => {
   if (desc.includes("field:cron")) return "cron";
   if (desc.includes("field:managed")) return "managed";
   if (desc.includes("field:hidden")) return "hidden";
+  if (desc.includes("field:textarea")) return "textarea";
 
   if (prop.type === "boolean") return "boolean";
   if (prop.type === "number" || prop.type === "integer") return "number";
   if (prop.enum) return "enum";
 
   return "text";
+};
+
+const getFieldDescription = (prop: JsonSchemaProperty): string | undefined => {
+  const desc = prop.description ?? "";
+  const newlineIdx = desc.indexOf("\n");
+  if (newlineIdx > -1) return desc.substring(newlineIdx + 1);
+  return undefined;
 };
 
 export const extractFieldsFromSchema = (schema: z.ZodTypeAny): FieldInfo[] => {
@@ -68,5 +81,6 @@ export const extractFieldsFromSchema = (schema: z.ZodTypeAny): FieldInfo[] => {
     required: requiredFields.has(key),
     defaultValue: prop.default,
     enumValues: prop.enum,
+    description: getFieldDescription(prop),
   }));
 };
