@@ -179,7 +179,7 @@ export const ticktickPlugin: Plugin<TickTickConfig> = {
   init: (apps, container) => {
     registerOAuthRoutes(apps, NAME, oauth, container);
 
-    apps.admin.get(`/api/plugins/${NAME}/projects`, async (c) => {
+    apps.admin.get(`/api/plugins/${NAME}/projects`, (c) => {
       const { plugins, log } = container;
       return plugins
         .getConfig<TickTickConfig>(NAME)

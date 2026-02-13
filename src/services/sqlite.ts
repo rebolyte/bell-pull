@@ -23,6 +23,7 @@ export class DenoSqliteDriver implements Driver {
     // Native SQLite is synchronous and opens immediately in constructor
   }
 
+  // deno-lint-ignore require-await
   async acquireConnection(): Promise<DatabaseConnection> {
     return new DenoSqliteConnection(this.#db);
   }
@@ -43,6 +44,7 @@ export class DenoSqliteDriver implements Driver {
     // Single connection mode for SQLite, nothing to release back to pool
   }
 
+  // deno-lint-ignore require-await
   async destroy(): Promise<void> {
     this.#db.close();
   }
@@ -55,6 +57,7 @@ export class DenoSqliteConnection implements DatabaseConnection {
     this.#db = db;
   }
 
+  // deno-lint-ignore require-await
   async executeQuery<R>(compiledQuery: CompiledQuery<unknown>): Promise<QueryResult<R>> {
     const { sql, parameters } = compiledQuery;
     const stmt = this.#db.prepare(sql);
@@ -73,6 +76,7 @@ export class DenoSqliteConnection implements DatabaseConnection {
     }
   }
 
+  // deno-lint-ignore require-yield
   async *streamQuery<R>(
     _compiledQuery: unknown,
     _chunkSize: number,
