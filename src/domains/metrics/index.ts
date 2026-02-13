@@ -150,9 +150,10 @@ const deleteMetrics =
       (async () => {
         if (R.isEmpty(entries)) return;
         for (const e of entries) {
-          let q = db.deleteFrom("metrics").where("metric", "=", e.metric);
-          if (e.date) q = q.where("date", "=", e.date);
-          await q.execute();
+          await db.deleteFrom("metrics")
+            .where("metric", "=", e.metric)
+            .where("date", "=", e.date)
+            .execute();
         }
         log.info`Deleted metrics: ${entries.map((e) => e.metric).join(", ")}`;
       })(),

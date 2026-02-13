@@ -33,7 +33,7 @@ export const LLMMetricEntrySchema = z.object({
 
 export const LLMDeleteMetricSchema = z.object({
   metric: z.string(),
-  date: z.string().optional(),
+  date: z.string(),
 });
 
 export type LLMMetricEntry = z.infer<typeof LLMMetricEntrySchema>;

@@ -72,7 +72,7 @@ Metric guidelines:
 1. Use snake_case for metric names (e.g. "mood", "energy_level", "caffeine_cups").
 2. Each metric entry must have a "metric" name and numeric "value". "unit" and "date" are optional.
 3. If no date is given, today's date will be used automatically.
-4. To delete, specify the metric name and optionally a date. Omitting date deletes all entries for that metric.
+4. To delete, specify both the metric name and the date. Both fields are required.
 5. Record metrics when the user reports quantifiable personal data (mood, energy, pain level, caffeine intake, etc).
 6. Do not record metrics that are already being tracked automatically (steps, sleep, heart rate, screen time, etc from Apple Health).
 
