@@ -3,6 +3,7 @@ import { appleHealthPlugin } from "./apple-health/index.tsx";
 import { googleCalendarPlugin } from "./google-calendar/index.ts";
 import { letterboxdPlugin } from "./letterboxd/index.ts";
 import { openweatherPlugin } from "./openweather/index.ts";
+import { retrospectivePlugin } from "./retrospective/index.ts";
 import { telegramPlugin } from "./telegram/index.ts";
 import { ticktickPlugin } from "./ticktick/index.tsx";
 
@@ -13,4 +14,5 @@ export const plugins: Plugin<any>[] = [
   openweatherPlugin,
   appleHealthPlugin,
   ticktickPlugin,
+  retrospectivePlugin,
 ];

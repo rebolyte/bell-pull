@@ -146,7 +146,6 @@ export const openweatherPlugin: Plugin<OpenWeatherConfig> = {
                     }],
                     editMemories: [],
                     deleteMemories: [],
-                    response: "",
                   },
                   pluginConfig,
                 )

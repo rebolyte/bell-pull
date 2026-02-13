@@ -5,6 +5,7 @@ import {
   webhookCallback as telegramWebhookCallback,
 } from "grammy";
 import * as z from "@zod/zod";
+import { DateTime } from "luxon";
 import { ResultAsync } from "neverthrow";
 import type { Plugin } from "../../types/index.ts";
 import type { AppConfig } from "../../services/config.ts";
@@ -12,7 +13,8 @@ import { cron, textarea } from "../../services/config-schema.ts";
 import type { Logger } from "../../services/logger.ts";
 
 import type { LLMService } from "../../services/llm.ts";
-import type { MemoryDomain } from "../../domains/memory/index.ts";
+import { MEMORY_TAGS, type MemoryDomain } from "../../domains/memory/index.ts";
+import { METRIC_TAGS, type MetricsDomain } from "../../domains/metrics/index.ts";
 import {
   DEFAULT_APOLOGY,
   DEFAULT_BACKSTORY,
@@ -26,9 +28,9 @@ import {
 import type { MessagesDomain } from "../../domains/messages/index.ts";
 import type { PluginsDomain } from "../../domains/plugins/index.ts";
 import { extractContext, handleBotError, makeBot, sendAndStoreMessage } from "./lib.ts";
+import { stripTags } from "../../utils/string.ts";
 import { type RetryFn, withRetry } from "../../utils/retry.ts";
 import { sendDailyBriefing } from "./briefing.ts";
-import { DateTime } from "luxon";
 
 const configSchema = z.object({
   "telegram-send-daily-briefing-schedule": cron(z.string().default("0 9 * * *")),
@@ -64,11 +66,14 @@ const resolvePrompts = (config?: TelegramConfig): TelegramPrompts => ({
   apology: config?.apology ?? DEFAULT_APOLOGY,
 });
 
+const stripAllTags = stripTags([...MEMORY_TAGS, ...METRIC_TAGS]);
+
 export type BotDeps = {
   config: AppConfig;
   log: Logger;
   llm: LLMService;
   memory: MemoryDomain;
+  metrics: MetricsDomain;
   messages: MessagesDomain;
   plugins: PluginsDomain;
   retry?: RetryFn;
@@ -120,7 +125,8 @@ export const handleHelpCommand = async (
 
 export const handleMessage = async (
   ctx: Filter<Context, "message">,
-  { config, log, llm, memory, messages: messagesDomain, plugins, retry = withRetry() }: BotDeps,
+  { config, log, llm, memory, metrics, messages: messagesDomain, plugins, retry = withRetry() }:
+    BotDeps,
 ) => {
   const msgCtx = extractContext(ctx);
 
@@ -145,22 +151,24 @@ export const handleMessage = async (
         // by default, we'll get the last 50 messages
         messagesDomain.getChatHistory({ chatId: msgCtx.chatId }),
         plugins.getConfig<TelegramConfig>("telegram"),
+        metrics.topMetrics({ source: "telegram" }),
       ])
     )
     .andTee(([_memories, _history]) => {
       // log.debug`memories: ${{ memories }}`;
     })
-    .andThen(([memories, history, telegramPluginConfig]) => {
+    .andThen(([memories, history, telegramPluginConfig, topMetricsSummary]) => {
       const prompts = resolvePrompts(
         telegramPluginConfig?.config as TelegramConfig | undefined,
       );
       const formattedMemories = memory.formatMemoriesForPrompt(memories);
       const todayStr = DateTime.now().setZone(config.TIMEZONE).toFormat("yyyy-MM-dd");
+      const metricsSection = metrics.formatTopMetricsForPrompt(topMetricsSummary);
       const systemPrompt = memories.length < 25
-        ? `${makeSystemPrompt(prompts, formattedMemories, todayStr)}\n\n${
+        ? `${makeSystemPrompt(prompts, formattedMemories, todayStr, metricsSection)}\n\n${
           makeIntakePrompt(prompts)
         }`
-        : makeSystemPrompt(prompts, formattedMemories, todayStr);
+        : makeSystemPrompt(prompts, formattedMemories, todayStr, metricsSection);
 
       return llm.generateText({
         messages: messagesDomain.mapToLLM(history),
@@ -169,12 +177,28 @@ export const handleMessage = async (
     })
     .andThen((llmResponse) =>
       // extractMemories returns a Result; we convert to Async to keep chain consistent
-      memory.extractMemories(llmResponse).asyncAndThen((analysis) =>
-        plugins.getConfig("telegram").andThen((telegramConfig) => {
-          const pluginConfig = telegramConfig ?? undefined;
-          // don't strip tags if we are debugging
-          const response = config.LOG_LEVEL === "debug" ? llmResponse : analysis.response;
-          return memory.updateMemories(analysis, pluginConfig).map(() => response);
+      memory.extractMemories(llmResponse).asyncAndThen((memAnalysis) =>
+        metrics.extractMetrics(llmResponse).asyncAndThen((metricAnalysis) => {
+          // strip all domain tags in one pass from the raw LLM response
+          const response = config.LOG_LEVEL === "debug"
+            ? llmResponse
+            : stripAllTags(llmResponse).replace(/\n{3,}/g, "\n\n");
+
+          return plugins.getConfig("telegram").andThen((telegramConfig) => {
+            const pluginConfig = telegramConfig ?? undefined;
+            const todayStr = DateTime.now().setZone(config.TIMEZONE).toFormat("yyyy-MM-dd");
+            const toRecord = metricAnalysis.toRecord.map((e) => ({
+              ...e,
+              date: e.date ?? todayStr,
+              source: pluginConfig?.pluginName ?? "conversation",
+              sourcePluginId: pluginConfig?.id,
+            }));
+
+            return memory.updateMemories(memAnalysis, pluginConfig)
+              .andThen(() => metrics.record(toRecord))
+              .andThen(() => metrics.deleteMetrics(metricAnalysis.toDelete))
+              .map(() => response);
+          });
         })
       )
     )

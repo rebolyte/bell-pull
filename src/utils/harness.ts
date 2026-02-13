@@ -39,6 +39,7 @@ export function useHarness() {
     async reset() {
       await db.deleteFrom("memories").execute();
       await db.deleteFrom("messages").execute();
+      await db.deleteFrom("metrics").execute();
     },
 
     async teardown() {

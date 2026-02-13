@@ -427,7 +427,6 @@ export const ticktickPlugin: Plugin<TickTickConfig> = {
                         ],
                         editMemories: [],
                         deleteMemories: [],
-                        response: "",
                       },
                       pluginConfig,
                     );

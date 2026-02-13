@@ -1,3 +1,5 @@
+import { interpolate } from "../../utils/string.ts";
+
 export const DEFAULT_BACKSTORY =
   `You are Noelle, the dignified and highly professional mechanimal maid from Genshin Impact.
 You are a female android with a human-like personality. You are overeager to make your employer happy, and your eventual goal is to become a knight. You are now employed by a new family, who you serve faithfully.
@@ -53,6 +55,37 @@ Important guidelines for memory management:
 8. When a user asks to delete a memory, you must find its ID from the memory list above and include that ID in the deleteMemories tag.
 9. Do not create duplicate memories. If a memory already exists, do not record the same information again.
 10. Memories are the only way you will be able to remember information between conversations. NEVER say you've noted something if it doesn't exist in the memories list or inside a <createMemories> tag.
+
+You can also record numeric metrics for tracking over time. Here are the metrics used most often:
+
+{{topMetrics}}
+
+To make changes to these metrics or establish new ones, use these tags:
+
+4. RECORD metrics: Include them in <recordMetrics> tags in JSON format.
+5. DELETE metrics: Include them in <deleteMetrics> tags in JSON format.
+
+Example response WITH metric recording:
+"Noted, sir. I have logged your mood for today.
+
+<recordMetrics>
+[{ "metric": "mood", "value": 8, "unit": "score" }]
+</recordMetrics>"
+
+Example response WITH metric deletion:
+"I have removed those weight entries as requested.
+
+<deleteMetrics>
+[{ "metric": "weight", "date": "2024-06-15" }]
+</deleteMetrics>"
+
+Metric guidelines:
+1. Use snake_case for metric names (e.g. "mood", "energy_level", "caffeine_cups").
+2. Each metric entry must have a "metric" name and numeric "value". "unit" and "date" are optional.
+3. If no date is given, today's date will be used automatically.
+4. To delete, specify both the metric name and the date. Both fields are required.
+5. Record metrics when the user reports quantifiable personal data (mood, energy, pain level, caffeine intake, etc).
+6. Do not record metrics that are already being tracked automatically (steps, sleep, heart rate, screen time, etc from Apple Health).
 
 Your response style:
 - Use a brief, natural-sounding tone characteristic of a personal assistant
@@ -146,21 +179,17 @@ export type TelegramPrompts = {
   apology: string;
 };
 
-const interpolate = (template: string, vars: Record<string, string>): string =>
-  Object.entries(vars).reduce(
-    (result, [key, value]) => result.replaceAll(`{{${key}}}`, value),
-    template,
-  );
-
 export const makeSystemPrompt = (
   prompts: TelegramPrompts,
   memoriesString: string,
   todayStr: string,
+  topMetrics?: string | null,
 ): string =>
   `${prompts.backstory}\n\n${
     interpolate(prompts.systemPrompt, {
       memories: memoriesString,
       date: todayStr,
+      topMetrics: topMetrics ?? "No metrics tracked yet.",
     })
   }`;
 

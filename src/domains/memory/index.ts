@@ -12,7 +12,7 @@ import {
   type Memory,
   parseMemory,
 } from "./schema.ts";
-import { extractTag, stripTags } from "../../utils/string.ts";
+import { extractTag } from "../../utils/string.ts";
 import { type AppError, dbError } from "../../errors.ts";
 import type { AppConfig } from "../../services/config.ts";
 import type { Database } from "../../services/database.ts";
@@ -109,11 +109,11 @@ const formatMemoriesForPrompt = (memories: Memory[]) => {
   const [dated, undated] = R.partition(memories, (m) => m.date !== null);
 
   const formatDated = (m: Memory) =>
-    `- ${DateTime.fromJSDate(m.date!, { zone: "utc" }).toFormat("yyyy-MM-dd")} - ${m.text}${
-      tagSuffix(m)
-    }`;
+    `- ${
+      DateTime.fromJSDate(m.date!, { zone: "utc" }).toFormat("yyyy-MM-dd")
+    } [ID: ${m.id}] - ${m.text}${tagSuffix(m)}`;
 
-  const formatUndated = (m: Memory) => `- ${m.text}${tagSuffix(m)}`;
+  const formatUndated = (m: Memory) => `- [ID: ${m.id}] - ${m.text}${tagSuffix(m)}`;
 
   return R.pipe(
     [
@@ -133,11 +133,11 @@ const formatCategorizedMemoriesForPrompt = (categorized: CategorizedMemories) =>
   }
 
   const formatDated = (m: Memory) =>
-    `- ${DateTime.fromJSDate(m.date!, { zone: "utc" }).toFormat("yyyy-MM-dd")} - ${m.text}${
-      tagSuffix(m)
-    }`;
+    `- ${
+      DateTime.fromJSDate(m.date!, { zone: "utc" }).toFormat("yyyy-MM-dd")
+    } [ID: ${m.id}] - ${m.text}${tagSuffix(m)}`;
 
-  const formatUndated = (m: Memory) => `- ${m.text}${tagSuffix(m)}`;
+  const formatUndated = (m: Memory) => `- [ID: ${m.id}] - ${m.text}${tagSuffix(m)}`;
 
   return R.pipe(
     [
@@ -155,8 +155,9 @@ export type MemoryMessageAnalysis = {
   memories: LLMCreateMemory[];
   editMemories: LLMEditMemory[];
   deleteMemories: string[];
-  response: string;
 };
+
+export const MEMORY_TAGS = ["createMemories", "editMemories", "deleteMemories"] as const;
 
 const extractMemories = (
   messageText: string,
@@ -169,14 +170,10 @@ const extractMemories = (
   const toEdit = editJSON ? EditMemoriesSchema.safeParse(editJSON) : null;
   const toDelete = deleteJSON ? DeleteMemoriesSchema.safeParse(deleteJSON) : null;
 
-  const response = stripTags(["createMemories", "editMemories", "deleteMemories"])(messageText)
-    .replace(/\n{3,}/g, "\n\n");
-
   return ok({
     memories: toCreate?.success ? toCreate.data : [],
     editMemories: toEdit?.success ? toEdit.data : [],
     deleteMemories: toDelete?.success ? toDelete.data : [],
-    response,
   });
 };
 

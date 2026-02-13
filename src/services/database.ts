@@ -50,11 +50,25 @@ export interface ArchiveTable {
   causedById: string | null;
 }
 
+export interface MetricsTable {
+  id: Generated<number>;
+  date: string;
+  metric: string;
+  value: number;
+  unit: string | null;
+  description: string | null;
+  source: string;
+  sourcePluginId: number | null;
+  createdAt: Generated<string>;
+  lastModified: Generated<string>;
+}
+
 export interface DatabaseSchema {
   memories: MemoriesTable;
   messages: MessagesTable;
   pluginConfigs: PluginConfigsTable;
   archive: ArchiveTable;
+  metrics: MetricsTable;
 }
 
 export type Database = Kysely<DatabaseSchema>;

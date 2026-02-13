@@ -74,6 +74,62 @@ describe("Telegram Message Flow", () => {
       }
     });
 
+    it("extracts and records metrics from LLM response", async () => {
+      const h = await createTestHarness({
+        anthropic: {
+          responses: [
+            `Noted, your mood for today.\n<recordMetrics>[{"metric":"mood","value":8,"unit":"score"}]</recordMetrics>`,
+          ],
+        },
+      });
+
+      try {
+        await handleMessage(
+          h.createCtx({ text: "Feeling great today, 8 out of 10" }),
+          h.deps,
+        );
+
+        const rows = await h.container.db.selectFrom("metrics").selectAll().execute();
+        expect(rows).toHaveLength(1);
+        expect(rows[0].metric).toBe("mood");
+        expect(rows[0].value).toBe(8);
+        expect(rows[0].unit).toBe("score");
+        expect(rows[0].source).toBe("telegram");
+
+        expect(h.mockApi.sent[0].text).toBe("Noted, your mood for today.");
+      } finally {
+        await h.cleanup();
+      }
+    });
+
+    it("handles metrics and memories in same response", async () => {
+      const h = await createTestHarness({
+        anthropic: {
+          responses: [
+            `Understood.\n<createMemories>[{"text":"Had a good day","date":"2024-06-15"}]</createMemories>\n<recordMetrics>[{"metric":"mood","value":9}]</recordMetrics>`,
+          ],
+        },
+      });
+
+      try {
+        await handleMessage(
+          h.createCtx({ text: "Great day today, mood 9/10" }),
+          h.deps,
+        );
+
+        const memories = (await h.container.memory.getAllMemories())._unsafeUnwrap();
+        expect(memories).toHaveLength(1);
+
+        const metricsRows = await h.container.db.selectFrom("metrics").selectAll().execute();
+        expect(metricsRows).toHaveLength(1);
+        expect(metricsRows[0].metric).toBe("mood");
+
+        expect(h.mockApi.sent[0].text).toBe("Understood.");
+      } finally {
+        await h.cleanup();
+      }
+    });
+
     it("handles multiple memory operations in single response", async () => {
       const h = await createTestHarness({
         anthropic: {
@@ -150,6 +206,46 @@ describe("Telegram Message Flow", () => {
         const systemPrompt = (h.mockAnthropic.streamSpy.calls[0].args[0] as StreamArgs).system;
         expect(systemPrompt).toContain("Meeting with Bob");
         expect(systemPrompt).toContain("formal language");
+      } finally {
+        await h.cleanup();
+      }
+    });
+
+    it("includes top metrics in system prompt when metrics exist", async () => {
+      const h = await createTestHarness({
+        anthropic: { responses: ["Hello!"] },
+      });
+
+      try {
+        await h.container.metrics.record([
+          { date: "2024-06-10", metric: "mood", value: 8, unit: "score", source: "telegram" },
+          { date: "2024-06-11", metric: "mood", value: 7, unit: "score", source: "telegram" },
+          { date: "2024-06-10", metric: "energy", value: 6, unit: "score", source: "telegram" },
+        ]);
+
+        await handleMessage(h.createCtx({ text: "Hi" }), h.deps);
+
+        const systemPrompt = (h.mockAnthropic.streamSpy.calls[0].args[0] as StreamArgs)
+          .system as string;
+        expect(systemPrompt).toContain("mood (2 entries)");
+        expect(systemPrompt).toContain("energy (1 entries)");
+      } finally {
+        await h.cleanup();
+      }
+    });
+
+    it("shows fallback when no metrics exist", async () => {
+      const h = await createTestHarness({
+        anthropic: { responses: ["Hello!"] },
+      });
+
+      try {
+        await handleMessage(h.createCtx({ text: "Hi" }), h.deps);
+
+        const systemPrompt = (h.mockAnthropic.streamSpy.calls[0].args[0] as StreamArgs)
+          .system as string;
+        expect(systemPrompt).not.toContain("Existing tracked metrics");
+        expect(systemPrompt).toContain("No metrics tracked yet");
       } finally {
         await h.cleanup();
       }
@@ -332,7 +428,7 @@ describe("Telegram Message Flow", () => {
 
         const systemPrompt = (h.mockAnthropic.streamSpy.calls[0].args[0] as StreamArgs)
           .system as string;
-        expect(systemPrompt.toLowerCase()).not.toContain("intake");
+        expect(systemPrompt.toLowerCase()).not.toContain("intake interview");
       } finally {
         await h.cleanup();
       }
