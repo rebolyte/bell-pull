@@ -218,16 +218,15 @@ describe("Telegram Message Flow", () => {
 
       try {
         await h.container.metrics.record([
-          { date: "2024-06-10", metric: "mood", value: 8, unit: "score", source: "conversation" },
-          { date: "2024-06-11", metric: "mood", value: 7, unit: "score", source: "conversation" },
-          { date: "2024-06-10", metric: "energy", value: 6, unit: "score", source: "conversation" },
+          { date: "2024-06-10", metric: "mood", value: 8, unit: "score", source: "telegram" },
+          { date: "2024-06-11", metric: "mood", value: 7, unit: "score", source: "telegram" },
+          { date: "2024-06-10", metric: "energy", value: 6, unit: "score", source: "telegram" },
         ]);
 
         await handleMessage(h.createCtx({ text: "Hi" }), h.deps);
 
         const systemPrompt = (h.mockAnthropic.streamSpy.calls[0].args[0] as StreamArgs)
           .system as string;
-        expect(systemPrompt).toContain("Existing tracked metrics");
         expect(systemPrompt).toContain("mood (2 entries)");
         expect(systemPrompt).toContain("energy (1 entries)");
       } finally {

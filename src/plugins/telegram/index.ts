@@ -151,7 +151,7 @@ export const handleMessage = async (
         // by default, we'll get the last 50 messages
         messagesDomain.getChatHistory({ chatId: msgCtx.chatId }),
         plugins.getConfig<TelegramConfig>("telegram"),
-        metrics.topMetrics(),
+        metrics.topMetrics({ source: "telegram" }),
       ])
     )
     .andTee(([_memories, _history]) => {

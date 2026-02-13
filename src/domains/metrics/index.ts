@@ -194,16 +194,23 @@ const extractMetrics = ({ log }: MetricsDeps) =>
 
 export type MetricSummary = { metric: string; count: number };
 
-const topMetrics = ({ db }: MetricsDeps) => (limit = 5): ResultAsync<MetricSummary[], AppError> =>
-  ResultAsync.fromPromise(
-    db.selectFrom("metrics")
-      .select(["metric", sql<number>`count(*)`.as("count")])
-      .groupBy("metric")
-      .orderBy(sql`count(*)`, "desc")
-      .limit(limit)
-      .execute() as Promise<MetricSummary[]>,
-    dbError("Failed to fetch top metrics"),
-  );
+const topMetrics =
+  ({ db }: MetricsDeps) =>
+  ({ source, limit = 5 }: { source?: string; limit?: number } = {}): ResultAsync<
+    MetricSummary[],
+    AppError
+  > => {
+    let q = db.selectFrom("metrics")
+      .select(["metric", sql<number>`count(*)`.as("count")]);
+    if (source) q = q.where("source", "=", source);
+    return ResultAsync.fromPromise(
+      q.groupBy("metric")
+        .orderBy(sql`count(*)`, "desc")
+        .limit(limit)
+        .execute() as Promise<MetricSummary[]>,
+      dbError("Failed to fetch top metrics"),
+    );
+  };
 
 const formatTopMetricsForPrompt = (summaries: MetricSummary[]): string | null => {
   if (R.isEmpty(summaries)) return null;
