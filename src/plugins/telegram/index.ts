@@ -147,8 +147,8 @@ export const handleMessage = async (
         plugins.getConfig<TelegramConfig>("telegram"),
       ])
     )
-    .andTee(([memories, _history]) => {
-      log.debug`memories: ${{ memories }}`;
+    .andTee(([_memories, _history]) => {
+      // log.debug`memories: ${{ memories }}`;
     })
     .andThen(([memories, history, telegramPluginConfig]) => {
       const prompts = resolvePrompts(
