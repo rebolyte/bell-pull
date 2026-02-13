@@ -3,6 +3,7 @@ import { makeMessagesDomain } from "./domains/messages/index.ts";
 import { makeMemoryDomain } from "./domains/memory/index.ts";
 import { makeMetricsDomain } from "./domains/metrics/index.ts";
 import { makePluginsDomain } from "./domains/plugins/index.ts";
+import { makeCronLogDomain } from "./domains/cron-log/index.ts";
 import { createDatabase } from "./services/database.ts";
 import { makeLogger } from "./services/logger.ts";
 import { type AppConfig, createConfig } from "./services/config.ts";
@@ -22,6 +23,7 @@ export const bootstrap = (svcs: Services): Container => {
   context.memory = makeMemoryDomain({ config, db, log });
   context.metrics = makeMetricsDomain({ db, log });
   context.plugins = makePluginsDomain({ db, log });
+  context.cronLog = makeCronLogDomain({ db, log });
 
   return context;
 };

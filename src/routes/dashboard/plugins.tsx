@@ -6,6 +6,7 @@ import { CronJobRow, EnabledToggle, PluginSettings } from "../components/setting
 import { extractFieldsFromSchema } from "../../services/config-schema.ts";
 import { parseFormToConfig } from "../../utils/form.ts";
 import { registerPluginCrons } from "../../cron-runner.ts";
+import { CronLogState } from "../../domains/cron-log/schema.ts";
 
 type PluginRoutesEnv = HonoEnv & { Variables: { plugins: Plugin[] } };
 
@@ -28,7 +29,7 @@ const getPluginsList = async (
     const fields = plugin.configSchema ? extractFieldsFromSchema(plugin.configSchema) : [];
     const jobs = typeof plugin.cronJobs === "function"
       ? plugin.cronJobs(storedConfig)
-      : plugin.cronJobs ?? [];
+      : (plugin.cronJobs ?? []);
     const cronJobs = jobs.map((j) => ({
       name: j.name,
       scheduleField: `${j.name}-schedule`,
@@ -160,7 +161,7 @@ export const makePluginRoutes = (plugins: Plugin[]) => {
 
     const existingResult = await container.plugins.getConfig(name);
     const existing = existingResult.isOk() && existingResult.value
-      ? existingResult.value.config as Record<string, unknown>
+      ? (existingResult.value.config as Record<string, unknown>)
       : {};
     const mergedConfig = { ...existing, ...config };
     const result = await container.plugins.setConfig(name, mergedConfig);
@@ -216,7 +217,7 @@ export const makePluginRoutes = (plugins: Plugin[]) => {
 
     const jobs = typeof plugin.cronJobs === "function"
       ? plugin.cronJobs(config)
-      : plugin.cronJobs ?? [];
+      : (plugin.cronJobs ?? []);
     const job = jobs.find((j) => j.name === jobName);
 
     if (!job) {
@@ -231,12 +232,25 @@ export const makePluginRoutes = (plugins: Plugin[]) => {
     }
 
     const ctx = { name: job.name, schedule: job.schedule };
+    const start = performance.now();
     const result = await job.run(container, ctx);
+    const durationMs = Math.round(performance.now() - start);
 
     if (result.isErr()) {
       container.log.error(`Error running ${job.name} job`, {
         error: result.error,
       });
+      container.cronLog
+        .write({
+          jobName: job.name,
+          state: CronLogState.ERROR,
+          error: JSON.stringify(result.error),
+          durationMs,
+        })
+        .match(
+          () => {},
+          (e) => container.log.error(`Failed to write cron log`, { error: e }),
+        );
 
       return c.html(
         <CronJobRow
@@ -247,6 +261,18 @@ export const makePluginRoutes = (plugins: Plugin[]) => {
         />,
       );
     }
+
+    container.cronLog
+      .write({
+        jobName: job.name,
+        state: CronLogState.OK,
+        result: result.value ? JSON.stringify(result.value) : null,
+        durationMs,
+      })
+      .match(
+        () => {},
+        (e) => container.log.error(`Failed to write cron log`, { error: e }),
+      );
 
     return c.html(
       <CronJobRow pluginName={name} jobName={jobName} status="success" />,
