@@ -31,7 +31,7 @@ export const scheduleCron = (job: CronJob, container: Container) => {
           log.info(`${job.name} job completed successfully`, result ?? {});
           cronLog.write({
             jobName: job.name,
-            state: CronLogState.Ok,
+            state: CronLogState.OK,
             result: result ? JSON.stringify(result) : null,
             durationMs,
           }).match(() => {}, (e) => log.error(`Failed to write cron log`, { error: e }));
@@ -41,7 +41,7 @@ export const scheduleCron = (job: CronJob, container: Container) => {
           log.error(`Error running ${job.name} job`, { error });
           cronLog.write({
             jobName: job.name,
-            state: CronLogState.Error,
+            state: CronLogState.ERROR,
             error: JSON.stringify(error),
             durationMs,
           }).match(() => {}, (e) => log.error(`Failed to write cron log`, { error: e }));

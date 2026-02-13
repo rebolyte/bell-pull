@@ -67,6 +67,7 @@ const setEnabled =
       db.insertInto("pluginConfigs")
         .values({
           pluginName,
+          config: "{}",
           enabled: enabled ? 1 : 0,
         })
         .onConflict((oc) =>

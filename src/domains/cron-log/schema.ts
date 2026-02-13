@@ -1,7 +1,7 @@
 import * as z from "@zod/zod";
 import { parseToResult } from "../../utils/validate.ts";
 
-export const CronLogState = { Ok: 0, Error: 1 } as const;
+export const CronLogState = { OK: 0, ERROR: 1 } as const;
 
 export const CronLogRowSchema = z.object({
   id: z.number(),

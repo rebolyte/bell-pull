@@ -17,7 +17,7 @@ export async function up(db: Kysely<any>): Promise<void> {
       .ifNotExists()
       .addColumn("id", "integer", (col) => col.primaryKey().autoIncrement())
       .addColumn("job_name", "text", (col) => col.notNull())
-      .addColumn("state", "integer", (col) => col.notNull().check(sql`state IN (0, 1)`))
+      .addColumn("state", "integer", (col) => col.notNull())
       .addColumn("result", "text", (col) => col.check(sql`result IS NULL OR json_valid(result)`))
       .addColumn("error", "text")
       .addColumn("duration_ms", "integer")
