@@ -13,7 +13,7 @@ import {
 import { type AppError, dbError } from "../../errors.ts";
 import type { Database } from "../../services/database.ts";
 import type { Logger } from "../../services/logger.ts";
-import { extractTag, stripTags } from "../../utils/string.ts";
+import { extractTag } from "../../utils/string.ts";
 import { jsonParsed } from "../../utils/validate.ts";
 import { sql } from "kysely";
 
@@ -164,27 +164,36 @@ const deleteMetrics =
 const RecordMetricsSchema = jsonParsed(LLMMetricEntrySchema.array());
 const DeleteMetricsSchema = jsonParsed(LLMDeleteMetricSchema.array());
 
-const METRIC_TAGS = ["recordMetrics", "deleteMetrics"] as const;
+export const METRIC_TAGS = ["recordMetrics", "deleteMetrics"] as const;
 
 export type MetricMessageAnalysis = {
   toRecord: LLMMetricEntry[];
   toDelete: LLMDeleteMetric[];
 };
 
-const extractMetrics = (
-  messageText: string,
-): Result<MetricMessageAnalysis, never> => {
-  const recordJSON = extractTag("recordMetrics")(messageText ?? "");
-  const deleteJSON = extractTag("deleteMetrics")(messageText ?? "");
+const extractMetrics =
+  ({ log }: MetricsDeps) =>
+  (
+    messageText: string,
+  ): Result<MetricMessageAnalysis, never> => {
+    const recordJSON = extractTag("recordMetrics")(messageText ?? "");
+    const deleteJSON = extractTag("deleteMetrics")(messageText ?? "");
 
-  const toRecord = recordJSON ? RecordMetricsSchema.safeParse(recordJSON) : null;
-  const toDelete = deleteJSON ? DeleteMetricsSchema.safeParse(deleteJSON) : null;
+    const toRecord = recordJSON ? RecordMetricsSchema.safeParse(recordJSON) : null;
+    const toDelete = deleteJSON ? DeleteMetricsSchema.safeParse(deleteJSON) : null;
 
-  return ok({
-    toRecord: toRecord?.success ? toRecord.data : [],
-    toDelete: toDelete?.success ? toDelete.data : [],
-  });
-};
+    if (toRecord && !toRecord.success) {
+      log.warn`Failed to parse recordMetrics: ${toRecord.error.message}`;
+    }
+    if (toDelete && !toDelete.success) {
+      log.warn`Failed to parse deleteMetrics: ${toDelete.error.message}`;
+    }
+
+    return ok({
+      toRecord: toRecord?.success ? toRecord.data : [],
+      toDelete: toDelete?.success ? toDelete.data : [],
+    });
+  };
 
 export type MetricSummary = { metric: string; count: number };
 
@@ -207,15 +216,13 @@ const formatTopMetricsForPrompt = (summaries: MetricSummary[]): string | null =>
   return `Existing tracked metrics:\n${lines.join("\n")}`;
 };
 
-export const stripMetricTags = stripTags([...METRIC_TAGS]);
-
 export const makeMetricsDomain = (deps: MetricsDeps) => ({
   record: record(deps),
   query: query(deps),
   trends: trends(deps),
   deleteMetrics: deleteMetrics(deps),
   topMetrics: topMetrics(deps),
-  extractMetrics,
+  extractMetrics: extractMetrics(deps),
   formatTrendsForPrompt,
   formatTopMetricsForPrompt,
 });

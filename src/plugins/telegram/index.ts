@@ -13,9 +13,8 @@ import { cron, textarea } from "../../services/config-schema.ts";
 import type { Logger } from "../../services/logger.ts";
 
 import type { LLMService } from "../../services/llm.ts";
-import type { MemoryDomain } from "../../domains/memory/index.ts";
-import { stripMetricTags } from "../../domains/metrics/index.ts";
-import type { MetricsDomain } from "../../domains/metrics/index.ts";
+import { MEMORY_TAGS, type MemoryDomain } from "../../domains/memory/index.ts";
+import { METRIC_TAGS, type MetricsDomain } from "../../domains/metrics/index.ts";
 import {
   DEFAULT_APOLOGY,
   DEFAULT_BACKSTORY,
@@ -29,6 +28,7 @@ import {
 import type { MessagesDomain } from "../../domains/messages/index.ts";
 import type { PluginsDomain } from "../../domains/plugins/index.ts";
 import { extractContext, handleBotError, makeBot, sendAndStoreMessage } from "./lib.ts";
+import { stripTags } from "../../utils/string.ts";
 import { type RetryFn, withRetry } from "../../utils/retry.ts";
 import { sendDailyBriefing } from "./briefing.ts";
 
@@ -65,6 +65,9 @@ const resolvePrompts = (config?: TelegramConfig): TelegramPrompts => ({
   briefingPrompt: config?.briefingPrompt ?? DEFAULT_BRIEFING_PROMPT,
   apology: config?.apology ?? DEFAULT_APOLOGY,
 });
+
+const stripAllTags = stripTags([...MEMORY_TAGS, ...METRIC_TAGS]);
+
 
 export type BotDeps = {
   config: AppConfig;
@@ -185,12 +188,13 @@ export const handleMessage = async (
             source: "conversation",
           }));
 
+          // strip all domain tags in one pass from the raw LLM response
+          const response = config.LOG_LEVEL === "debug"
+            ? llmResponse
+            : stripAllTags(llmResponse).replace(/\n{3,}/g, "\n\n");
+
           return plugins.getConfig("telegram").andThen((telegramConfig) => {
             const pluginConfig = telegramConfig ?? undefined;
-            // don't strip tags if we are debugging
-            const response = config.LOG_LEVEL === "debug"
-              ? llmResponse
-              : stripMetricTags(memAnalysis.response);
             return memory.updateMemories(memAnalysis, pluginConfig)
               .andThen(() => metrics.record(toRecord))
               .andThen(() => metrics.deleteMetrics(metricAnalysis.toDelete))

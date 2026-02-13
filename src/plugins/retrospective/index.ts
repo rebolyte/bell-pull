@@ -73,7 +73,6 @@ export const sendWeeklyRetrospective = (
           memories: [{ date: to, text: `Weekly review: ${content.slice(0, 200)}...` }],
           editMemories: [],
           deleteMemories: [],
-          response: "",
         })
         .andThen(() =>
           sendAndStoreMessage({
