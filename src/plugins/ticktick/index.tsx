@@ -232,6 +232,7 @@ export const ticktickPlugin: Plugin<TickTickConfig> = {
                           name="projectId"
                           value={inboxId}
                           checked={selected.includes(inboxId)}
+                          style="margin-right: 0.5rem;"
                         />
                         Inbox
                       </label>
@@ -244,6 +245,7 @@ export const ticktickPlugin: Plugin<TickTickConfig> = {
                         name="projectId"
                         value={project.id}
                         checked={selected.includes(project.id)}
+                        style="margin-right: 0.5rem;"
                       />
                       {project.name}
                     </label>
@@ -313,6 +315,7 @@ export const ticktickPlugin: Plugin<TickTickConfig> = {
                           name="projectId"
                           value={inboxId}
                           checked={selectedIds.includes(inboxId)}
+                          style="margin-right: 0.5rem;"
                         />
                         Inbox
                       </label>
@@ -325,6 +328,7 @@ export const ticktickPlugin: Plugin<TickTickConfig> = {
                         name="projectId"
                         value={project.id}
                         checked={selectedIds.includes(project.id)}
+                        style="margin-right: 0.5rem;"
                       />
                       {project.name}
                     </label>

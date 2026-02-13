@@ -218,9 +218,8 @@ const TextareaField = ({ field, value }: ConfigFieldProps) => (
     <textarea
       name={field.key}
       rows={10}
-      placeholder={String(field.defaultValue ?? "")}
     >
-      {(value as string) ?? ""}
+      {(value as string) ?? String(field.defaultValue ?? "")}
     </textarea>
     {field.description && <p class="field-description">{field.description}</p>}
   </fieldset>
