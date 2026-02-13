@@ -46,7 +46,7 @@ export const sendWeeklyRetrospective = (
       const memoriesLines = weekMemories.length > 0
         ? weekMemories.map((m) => `- ${m.text}`).join("\n")
         : "No notable memories this week.";
-      const retroPrompt = makeRetroPrompt(trendsString, memoriesLines, weekRange);
+      const retroPrompt = makeRetroPrompt(trendsString, memoriesLines, weekRange, to);
 
       return llm.generateText({
         messages: [{ role: "user", content: retroPrompt }],
