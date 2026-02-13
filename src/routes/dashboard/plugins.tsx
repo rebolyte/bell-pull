@@ -82,7 +82,7 @@ export const makePluginRoutes = (plugins: Plugin[]) => {
     const flashMessage = c.req.query("message");
     const container = c.get("container");
     const pluginDefs = c.get("plugins");
-    const baseUrl = getBaseUrl(c.req.raw);
+    const baseUrl = container.config.PUBLIC_URL ?? getBaseUrl(c.req.raw);
 
     const plugin = pluginDefs.find((p) => p.name === name);
     if (!plugin) {

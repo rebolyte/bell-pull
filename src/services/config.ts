@@ -24,6 +24,8 @@ const ConfigSchema = z.object({
   ANTHROPIC_MODEL: z.string().default("claude-haiku-4-5-20251001"),
   ANTHROPIC_MAX_TOKENS: z.coerce.number().default(4196),
   TIMEZONE: z.string().default("America/Los_Angeles"),
+  PUBLIC_URL: z.url().optional(),
+  ADMIN_URL: z.url().optional(),
 });
 
 export type AppConfig = z.infer<typeof ConfigSchema>;
@@ -43,6 +45,8 @@ export const createConfig = (overrides: Partial<AppConfig> = {}): AppConfig => {
     ANTHROPIC_MODEL: Deno.env.get("ANTHROPIC_MODEL"),
     ANTHROPIC_MAX_TOKENS: Deno.env.get("ANTHROPIC_MAX_TOKENS"),
     TIMEZONE: Deno.env.get("TIMEZONE"),
+    PUBLIC_URL: Deno.env.get("PUBLIC_URL"),
+    ADMIN_URL: Deno.env.get("ADMIN_URL"),
     ...overrides,
   };
 
