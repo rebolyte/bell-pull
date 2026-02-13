@@ -20,8 +20,7 @@ import { sql } from "kysely";
 type MetricsDeps = { db: Database; log: Logger };
 
 const record =
-  ({ db, log }: MetricsDeps) =>
-  (entries: MetricEntry[]): ResultAsync<void, AppError> =>
+  ({ db, log }: MetricsDeps) => (entries: MetricEntry[]): ResultAsync<void, AppError> =>
     ResultAsync.fromPromise(
       (async () => {
         if (R.isEmpty(entries)) return;
@@ -48,29 +47,28 @@ const record =
       dbError("Failed to record metrics"),
     );
 
-const query =
-  ({ db }: MetricsDeps) =>
-  (
-    { metric, from, to, source }: {
-      metric?: string;
-      from: string;
-      to: string;
-      source?: string;
-    },
-  ): ResultAsync<Metric[], AppError> => {
-    let q = db
-      .selectFrom("metrics")
-      .selectAll()
-      .where("date", ">=", from)
-      .where("date", "<=", to)
-      .orderBy("date", "asc");
+const query = ({ db }: MetricsDeps) =>
+(
+  { metric, from, to, source }: {
+    metric?: string;
+    from: string;
+    to: string;
+    source?: string;
+  },
+): ResultAsync<Metric[], AppError> => {
+  let q = db
+    .selectFrom("metrics")
+    .selectAll()
+    .where("date", ">=", from)
+    .where("date", "<=", to)
+    .orderBy("date", "asc");
 
-    if (metric) q = q.where("metric", "=", metric);
-    if (source) q = q.where("source", "=", source);
+  if (metric) q = q.where("metric", "=", metric);
+  if (source) q = q.where("source", "=", source);
 
-    return ResultAsync.fromPromise(q.execute(), dbError("Failed to query metrics"))
-      .andThen((rows) => Result.combine(rows.map(parseMetric)));
-  };
+  return ResultAsync.fromPromise(q.execute(), dbError("Failed to query metrics"))
+    .andThen((rows) => Result.combine(rows.map(parseMetric)));
+};
 
 const computeStats = (rows: { value: number }[]): { avg: number; total: number; count: number } => {
   if (rows.length === 0) return { avg: 0, total: 0, count: 0 };
@@ -78,51 +76,49 @@ const computeStats = (rows: { value: number }[]): { avg: number; total: number; 
   return { avg: total / rows.length, total, count: rows.length };
 };
 
-const trends =
-  ({ db }: MetricsDeps) =>
-  (
-    { from, to, priorFrom, priorTo }: {
-      from: string;
-      to: string;
-      priorFrom: string;
-      priorTo: string;
-    },
-  ): ResultAsync<TrendSummary[], AppError> =>
-    ResultAsync.fromPromise(
-      Promise.all([
-        db.selectFrom("metrics").selectAll().where("date", ">=", from).where("date", "<=", to)
-          .execute(),
-        db.selectFrom("metrics").selectAll().where("date", ">=", priorFrom).where(
-          "date",
-          "<=",
-          priorTo,
-        ).execute(),
-      ]),
-      dbError("Failed to fetch metrics for trends"),
-    ).map(([currentRows, priorRows]) => {
-      const currentByMetric = R.groupBy(currentRows, (r) => r.metric);
-      const priorByMetric = R.groupBy(priorRows, (r) => r.metric);
-      const allMetrics = [...new Set([...Object.keys(currentByMetric), ...Object.keys(priorByMetric)])];
+const trends = ({ db }: MetricsDeps) =>
+(
+  { from, to, priorFrom, priorTo }: {
+    from: string;
+    to: string;
+    priorFrom: string;
+    priorTo: string;
+  },
+): ResultAsync<TrendSummary[], AppError> =>
+  ResultAsync.fromPromise(
+    Promise.all([
+      db.selectFrom("metrics").selectAll().where("date", ">=", from).where("date", "<=", to)
+        .execute(),
+      db.selectFrom("metrics").selectAll().where("date", ">=", priorFrom).where(
+        "date",
+        "<=",
+        priorTo,
+      ).execute(),
+    ]),
+    dbError("Failed to fetch metrics for trends"),
+  ).map(([currentRows, priorRows]) => {
+    const currentByMetric = R.groupBy(currentRows, (r) => r.metric);
+    const priorByMetric = R.groupBy(priorRows, (r) => r.metric);
+    const allMetrics = [
+      ...new Set([...Object.keys(currentByMetric), ...Object.keys(priorByMetric)]),
+    ];
 
-      return allMetrics.map((metric) => {
-        const current = computeStats(currentByMetric[metric] ?? []);
-        const prior = computeStats(priorByMetric[metric] ?? []);
-        const deltaPercent = prior.avg !== 0
-          ? ((current.avg - prior.avg) / prior.avg) * 100
-          : null;
+    return allMetrics.map((metric) => {
+      const current = computeStats(currentByMetric[metric] ?? []);
+      const prior = computeStats(priorByMetric[metric] ?? []);
+      const deltaPercent = prior.avg !== 0 ? ((current.avg - prior.avg) / prior.avg) * 100 : null;
 
-        return {
-          metric,
-          unit: (currentByMetric[metric] ?? priorByMetric[metric])?.[0]?.unit ?? null,
-          current,
-          prior,
-          deltaPercent,
-        };
-      });
+      return {
+        metric,
+        unit: (currentByMetric[metric] ?? priorByMetric[metric])?.[0]?.unit ?? null,
+        current,
+        prior,
+        deltaPercent,
+      };
     });
+  });
 
-const roundSmart = (n: number): string =>
-  Number.isInteger(n) ? n.toLocaleString() : n.toFixed(1);
+const roundSmart = (n: number): string => Number.isInteger(n) ? n.toLocaleString() : n.toFixed(1);
 
 const formatDelta = (pct: number): string => `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`;
 
@@ -145,8 +141,7 @@ const formatTrendsForPrompt = (trendSummaries: TrendSummary[]): string => {
 };
 
 const deleteMetrics =
-  ({ db, log }: MetricsDeps) =>
-  (entries: LLMDeleteMetric[]): ResultAsync<void, AppError> =>
+  ({ db, log }: MetricsDeps) => (entries: LLMDeleteMetric[]): ResultAsync<void, AppError> =>
     ResultAsync.fromPromise(
       (async () => {
         if (R.isEmpty(entries)) return;
@@ -171,44 +166,41 @@ export type MetricMessageAnalysis = {
   toDelete: LLMDeleteMetric[];
 };
 
-const extractMetrics =
-  ({ log }: MetricsDeps) =>
-  (
-    messageText: string,
-  ): Result<MetricMessageAnalysis, never> => {
-    const recordJSON = extractTag("recordMetrics")(messageText ?? "");
-    const deleteJSON = extractTag("deleteMetrics")(messageText ?? "");
+const extractMetrics = ({ log }: MetricsDeps) =>
+(
+  messageText: string,
+): Result<MetricMessageAnalysis, never> => {
+  const recordJSON = extractTag("recordMetrics")(messageText ?? "");
+  const deleteJSON = extractTag("deleteMetrics")(messageText ?? "");
 
-    const toRecord = recordJSON ? RecordMetricsSchema.safeParse(recordJSON) : null;
-    const toDelete = deleteJSON ? DeleteMetricsSchema.safeParse(deleteJSON) : null;
+  const toRecord = recordJSON ? RecordMetricsSchema.safeParse(recordJSON) : null;
+  const toDelete = deleteJSON ? DeleteMetricsSchema.safeParse(deleteJSON) : null;
 
-    if (toRecord && !toRecord.success) {
-      log.warn`Failed to parse recordMetrics: ${toRecord.error.message}`;
-    }
-    if (toDelete && !toDelete.success) {
-      log.warn`Failed to parse deleteMetrics: ${toDelete.error.message}`;
-    }
+  if (toRecord && !toRecord.success) {
+    log.warn`Failed to parse recordMetrics: ${toRecord.error.message}`;
+  }
+  if (toDelete && !toDelete.success) {
+    log.warn`Failed to parse deleteMetrics: ${toDelete.error.message}`;
+  }
 
-    return ok({
-      toRecord: toRecord?.success ? toRecord.data : [],
-      toDelete: toDelete?.success ? toDelete.data : [],
-    });
-  };
+  return ok({
+    toRecord: toRecord?.success ? toRecord.data : [],
+    toDelete: toDelete?.success ? toDelete.data : [],
+  });
+};
 
 export type MetricSummary = { metric: string; count: number };
 
-const topMetrics =
-  ({ db }: MetricsDeps) =>
-  (limit = 5): ResultAsync<MetricSummary[], AppError> =>
-    ResultAsync.fromPromise(
-      db.selectFrom("metrics")
-        .select(["metric", sql<number>`count(*)`.as("count")])
-        .groupBy("metric")
-        .orderBy(sql`count(*)`, "desc")
-        .limit(limit)
-        .execute() as Promise<MetricSummary[]>,
-      dbError("Failed to fetch top metrics"),
-    );
+const topMetrics = ({ db }: MetricsDeps) => (limit = 5): ResultAsync<MetricSummary[], AppError> =>
+  ResultAsync.fromPromise(
+    db.selectFrom("metrics")
+      .select(["metric", sql<number>`count(*)`.as("count")])
+      .groupBy("metric")
+      .orderBy(sql`count(*)`, "desc")
+      .limit(limit)
+      .execute() as Promise<MetricSummary[]>,
+    dbError("Failed to fetch top metrics"),
+  );
 
 const formatTopMetricsForPrompt = (summaries: MetricSummary[]): string | null => {
   if (R.isEmpty(summaries)) return null;

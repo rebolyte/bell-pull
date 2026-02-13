@@ -68,7 +68,6 @@ const resolvePrompts = (config?: TelegramConfig): TelegramPrompts => ({
 
 const stripAllTags = stripTags([...MEMORY_TAGS, ...METRIC_TAGS]);
 
-
 export type BotDeps = {
   config: AppConfig;
   log: Logger;

@@ -89,7 +89,6 @@ describe("Memory Domain", () => {
       const analysis = result._unsafeUnwrap();
       expect(analysis.memories).toEqual([]);
     });
-
   });
 
   describe("formatMemoriesForPrompt", () => {

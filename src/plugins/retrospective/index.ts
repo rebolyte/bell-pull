@@ -50,15 +50,20 @@ export const sendWeeklyRetrospective = (
     .andThen(([trendData, categorized, retroPluginConfig, telegramConfig]) => {
       const retroPromptTemplate =
         (retroPluginConfig?.config as RetroConfig | undefined)?.retroPrompt ?? DEFAULT_RETRO_PROMPT;
-      const backstory =
-        (telegramConfig?.config as { backstory?: string } | undefined)?.backstory ??
-          DEFAULT_BACKSTORY;
+      const backstory = (telegramConfig?.config as { backstory?: string } | undefined)?.backstory ??
+        DEFAULT_BACKSTORY;
       const trendsString = metrics.formatTrendsForPrompt(trendData);
       const weekMemories = [...categorized.today, ...categorized.lastWeek];
       const memoriesLines = weekMemories.length > 0
         ? weekMemories.map((m) => `- ${m.text}`).join("\n")
         : "No notable memories this week.";
-      const retroPrompt = makeRetroPrompt(retroPromptTemplate, trendsString, memoriesLines, weekRange, to);
+      const retroPrompt = makeRetroPrompt(
+        retroPromptTemplate,
+        trendsString,
+        memoriesLines,
+        weekRange,
+        to,
+      );
 
       return llm.generateText({
         messages: [{ role: "user", content: retroPrompt }],

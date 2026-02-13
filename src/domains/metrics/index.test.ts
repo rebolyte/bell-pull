@@ -25,7 +25,13 @@ describe("Metrics Domain", () => {
     it("inserts metric entries", async () => {
       const result = await metrics.record([
         { date: "2024-06-15", metric: "steps", value: 8500, unit: "count", source: "apple-health" },
-        { date: "2024-06-15", metric: "sleep_hours", value: 7.5, unit: "hours", source: "apple-health" },
+        {
+          date: "2024-06-15",
+          metric: "sleep_hours",
+          value: 7.5,
+          unit: "hours",
+          source: "apple-health",
+        },
       ]);
 
       expect(result.isOk()).toBe(true);
@@ -63,7 +69,13 @@ describe("Metrics Domain", () => {
         { date: "2024-06-10", metric: "steps", value: 7000, unit: "count", source: "apple-health" },
         { date: "2024-06-11", metric: "steps", value: 8000, unit: "count", source: "apple-health" },
         { date: "2024-06-12", metric: "steps", value: 9000, unit: "count", source: "apple-health" },
-        { date: "2024-06-12", metric: "sleep_hours", value: 7.5, unit: "hours", source: "apple-health" },
+        {
+          date: "2024-06-12",
+          metric: "sleep_hours",
+          value: 7.5,
+          unit: "hours",
+          source: "apple-health",
+        },
         { date: "2024-06-20", metric: "steps", value: 6000, unit: "count", source: "apple-health" },
       ]);
     });
@@ -108,7 +120,13 @@ describe("Metrics Domain", () => {
         { date: "2024-06-01", metric: "steps", value: 7000, unit: "count", source: "apple-health" },
         { date: "2024-06-02", metric: "steps", value: 8000, unit: "count", source: "apple-health" },
         { date: "2024-06-08", metric: "steps", value: 9000, unit: "count", source: "apple-health" },
-        { date: "2024-06-09", metric: "steps", value: 10000, unit: "count", source: "apple-health" },
+        {
+          date: "2024-06-09",
+          metric: "steps",
+          value: 10000,
+          unit: "count",
+          source: "apple-health",
+        },
       ]);
 
       const result = await metrics.trends({
@@ -194,21 +212,24 @@ describe("Metrics Domain", () => {
 
   describe("extractMetrics", () => {
     it("extracts recordMetrics tag", () => {
-      const text = `Noted.\n<recordMetrics>[{"metric":"mood","value":8,"unit":"score"}]</recordMetrics>`;
+      const text =
+        `Noted.\n<recordMetrics>[{"metric":"mood","value":8,"unit":"score"}]</recordMetrics>`;
       const result = metrics.extractMetrics(text)._unsafeUnwrap();
       expect(result.toRecord).toEqual([{ metric: "mood", value: 8, unit: "score" }]);
       expect(result.toDelete).toEqual([]);
     });
 
     it("extracts deleteMetrics tag", () => {
-      const text = `Done.\n<deleteMetrics>[{"metric":"weight","date":"2024-06-15"}]</deleteMetrics>`;
+      const text =
+        `Done.\n<deleteMetrics>[{"metric":"weight","date":"2024-06-15"}]</deleteMetrics>`;
       const result = metrics.extractMetrics(text)._unsafeUnwrap();
       expect(result.toRecord).toEqual([]);
       expect(result.toDelete).toEqual([{ metric: "weight", date: "2024-06-15" }]);
     });
 
     it("extracts both tags from same response", () => {
-      const text = `Updated.\n<recordMetrics>[{"metric":"mood","value":7}]</recordMetrics>\n<deleteMetrics>[{"metric":"old_metric","date":"2024-06-15"}]</deleteMetrics>`;
+      const text =
+        `Updated.\n<recordMetrics>[{"metric":"mood","value":7}]</recordMetrics>\n<deleteMetrics>[{"metric":"old_metric","date":"2024-06-15"}]</deleteMetrics>`;
       const result = metrics.extractMetrics(text)._unsafeUnwrap();
       expect(result.toRecord).toHaveLength(1);
       expect(result.toDelete).toHaveLength(1);
