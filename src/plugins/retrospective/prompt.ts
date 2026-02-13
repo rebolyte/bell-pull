@@ -4,8 +4,9 @@ export const makeRetroPrompt = (
   trendsString: string,
   memoriesString: string,
   weekRange: string,
+  todayStr: string,
 ): string =>
-  `Today you are providing a weekly retrospective for ${weekRange}. Review the past week's health metrics and notable events, and provide a concise summary.
+  `Today's date is ${todayStr}. You are providing a weekly retrospective for ${weekRange}. Review the past week's health metrics and notable events, and provide a concise summary.
 
 ${trendsString ? `Metrics trends (this week vs prior week):\n${trendsString}` : "No metrics data this week."}
 
