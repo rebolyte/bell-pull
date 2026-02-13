@@ -6,6 +6,7 @@ import type { MessagesDomain } from "../domains/messages/index.ts";
 import type { MemoryDomain } from "../domains/memory/index.ts";
 import type { MetricsDomain } from "../domains/metrics/index.ts";
 import type { PluginsDomain } from "../domains/plugins/index.ts";
+import type { CronLogDomain } from "../domains/cron-log/index.ts";
 import type { Database } from "../services/database.ts";
 import type { AppConfig } from "../services/config.ts";
 import type { LLMService } from "../services/llm.ts";
@@ -25,6 +26,7 @@ export type Domains = {
   memory: MemoryDomain;
   metrics: MetricsDomain;
   plugins: PluginsDomain;
+  cronLog: CronLogDomain;
 };
 
 export type Container = Services & Domains;

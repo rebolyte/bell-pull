@@ -63,12 +63,23 @@ export interface MetricsTable {
   lastModified: Generated<string>;
 }
 
+export interface CronLogTable {
+  id: Generated<number>;
+  jobName: string;
+  state: number;
+  result: string | null;
+  error: string | null;
+  durationMs: number | null;
+  createdAt: Generated<string>;
+}
+
 export interface DatabaseSchema {
   memories: MemoriesTable;
   messages: MessagesTable;
   pluginConfigs: PluginConfigsTable;
   archive: ArchiveTable;
   metrics: MetricsTable;
+  cronLog: CronLogTable;
 }
 
 export type Database = Kysely<DatabaseSchema>;

@@ -1,8 +1,9 @@
 import cron from "node-cron";
 import type { Container, CronJob, CronJobRunContext, Plugin } from "./types/index.ts";
+import { CronLogState } from "./domains/cron-log/schema.ts";
 
 export const scheduleCron = (job: CronJob, container: Container) => {
-  const { log } = container;
+  const { log, cronLog } = container;
 
   const schedule = job.schedule ?? "0 0 * * *";
 
@@ -23,12 +24,27 @@ export const scheduleCron = (job: CronJob, container: Container) => {
         schedule,
       };
 
+      const start = performance.now();
       await job.run(container, ctx).match(
         (result) => {
+          const durationMs = Math.round(performance.now() - start);
           log.info(`${job.name} job completed successfully`, result ?? {});
+          cronLog.write({
+            jobName: job.name,
+            state: CronLogState.Ok,
+            result: result ? JSON.stringify(result) : null,
+            durationMs,
+          }).match(() => {}, (e) => log.error(`Failed to write cron log`, { error: e }));
         },
         (error) => {
+          const durationMs = Math.round(performance.now() - start);
           log.error(`Error running ${job.name} job`, { error });
+          cronLog.write({
+            jobName: job.name,
+            state: CronLogState.Error,
+            error: JSON.stringify(error),
+            durationMs,
+          }).match(() => {}, (e) => log.error(`Failed to write cron log`, { error: e }));
         },
       );
     },
