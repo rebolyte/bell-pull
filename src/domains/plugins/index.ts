@@ -64,9 +64,16 @@ const setEnabled =
   ({ db, log }: PluginsDeps) =>
   (pluginName: string, enabled: boolean): ResultAsync<void, AppError> =>
     ResultAsync.fromPromise(
-      db.updateTable("pluginConfigs")
-        .set({ enabled: enabled ? 1 : 0 })
-        .where("pluginName", "=", pluginName)
+      db.insertInto("pluginConfigs")
+        .values({
+          pluginName,
+          enabled: enabled ? 1 : 0,
+        })
+        .onConflict((oc) =>
+          oc.column("pluginName").doUpdateSet({
+            enabled: enabled ? 1 : 0,
+          })
+        )
         .execute(),
       dbError("Failed to update plugin enabled state"),
     ).map(() => {
