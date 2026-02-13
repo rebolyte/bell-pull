@@ -29,6 +29,7 @@ const healthDataSchema = z.object({
     quality: z.string().optional(),
   }).optional(),
   weight: z.number().optional(),
+  screenTime: z.number().optional(),
   custom: z.record(z.string(), z.unknown()).optional(),
 });
 
@@ -44,6 +45,7 @@ const formatHealthSummary = (data: HealthData): string => {
   if (data.heartRate?.resting) parts.push(`${data.heartRate.resting} bpm resting HR`);
   if (data.sleep?.hours) parts.push(`${data.sleep.hours}h sleep`);
   if (data.weight) parts.push(`${data.weight} lbs`);
+  if (data.screenTime) parts.push(`${data.screenTime} min screen time`);
 
   if (data.custom) {
     for (const [key, value] of Object.entries(data.custom)) {
@@ -67,6 +69,7 @@ const toMetricEntries = (data: HealthData, date: string): MetricEntry[] => {
     e("avg_hr", data.heartRate?.average, "bpm"),
     e("sleep_hours", data.sleep?.hours, "hours"),
     e("weight", data.weight, "lbs"),
+    e("screen_time", data.screenTime, "min"),
   ].filter((x): x is MetricEntry => x !== null);
 };
 
@@ -151,7 +154,8 @@ export const appleHealthPlugin: Plugin<AppleHealthConfig> = {
   "exerciseMinutes": 30,
   "standHours": 10,
   "heartRate": { "resting": 58 },
-  "sleep": { "hours": 7.5 }
+  "sleep": { "hours": 7.5 },
+  "screenTime": 180
 }`}</pre>
       </details>
     </div>
