@@ -94,7 +94,7 @@ describe("Telegram Message Flow", () => {
         expect(rows[0].metric).toBe("mood");
         expect(rows[0].value).toBe(8);
         expect(rows[0].unit).toBe("score");
-        expect(rows[0].source).toBe("conversation");
+        expect(rows[0].source).toBe("telegram");
 
         expect(h.mockApi.sent[0].text).toBe("Noted, your mood for today.");
       } finally {

@@ -56,9 +56,9 @@ const formatHealthSummary = (data: HealthData): string => {
   return parts.length > 0 ? `Health: ${parts.join(", ")}` : "Health: no data";
 };
 
-const toMetricEntries = (data: HealthData, date: string): MetricEntry[] => {
+const toMetricEntries = (data: HealthData, date: string, pluginId?: number): MetricEntry[] => {
   const e = (metric: string, value: number | undefined, unit: string): MetricEntry | null =>
-    value != null ? { date, metric, value, unit, source: NAME } : null;
+    value != null ? { date, metric, value, unit, source: NAME, sourcePluginId: pluginId } : null;
 
   return [
     e("steps", data.steps, "count"),
@@ -106,7 +106,7 @@ export const appleHealthPlugin: Plugin<AppleHealthConfig> = {
           const date = data.date ?? DateTime.now().toISODate()!;
           const summary = formatHealthSummary(data);
 
-          const metricEntries = toMetricEntries(data, date);
+          const metricEntries = toMetricEntries(data, date, pluginConfig.id);
 
           return memory
             .updateMemories(

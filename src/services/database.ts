@@ -56,8 +56,11 @@ export interface MetricsTable {
   metric: string;
   value: number;
   unit: string | null;
+  description: string | null;
   source: string;
+  sourcePluginId: number | null;
   createdAt: Generated<string>;
+  lastModified: Generated<string>;
 }
 
 export interface DatabaseSchema {

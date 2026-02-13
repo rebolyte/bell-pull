@@ -32,12 +32,15 @@ const record =
               metric: e.metric,
               value: e.value,
               unit: e.unit ?? null,
+              description: e.description ?? null,
               source: e.source,
+              sourcePluginId: e.sourcePluginId ?? null,
             })
             .onConflict((oc) =>
               oc.columns(["date", "metric", "source"]).doUpdateSet({
                 value: e.value,
                 unit: e.unit ?? null,
+                description: e.description ?? null,
               })
             )
             .execute();

@@ -7,7 +7,9 @@ export const MetricSchema = z.object({
   metric: z.string(),
   value: z.number(),
   unit: z.string().nullable(),
+  description: z.string().nullable(),
   source: z.string(),
+  sourcePluginId: z.number().nullable(),
   createdAt: z.string(),
 });
 
@@ -19,7 +21,9 @@ export const MetricEntrySchema = z.object({
   metric: z.string(),
   value: z.number(),
   unit: z.string().optional(),
+  description: z.string().optional(),
   source: z.string(),
+  sourcePluginId: z.number().optional(),
 });
 
 export type MetricEntry = z.input<typeof MetricEntrySchema>;
@@ -29,6 +33,7 @@ export const LLMMetricEntrySchema = z.object({
   metric: z.string(),
   value: z.number(),
   unit: z.string().optional(),
+  description: z.string().optional(),
 });
 
 export const LLMDeleteMetricSchema = z.object({

@@ -180,13 +180,6 @@ export const handleMessage = async (
       // extractMemories returns a Result; we convert to Async to keep chain consistent
       memory.extractMemories(llmResponse).asyncAndThen((memAnalysis) =>
         metrics.extractMetrics(llmResponse).asyncAndThen((metricAnalysis) => {
-          const todayStr = DateTime.now().setZone(config.TIMEZONE).toFormat("yyyy-MM-dd");
-          const toRecord = metricAnalysis.toRecord.map((e) => ({
-            ...e,
-            date: e.date ?? todayStr,
-            source: "conversation",
-          }));
-
           // strip all domain tags in one pass from the raw LLM response
           const response = config.LOG_LEVEL === "debug"
             ? llmResponse
@@ -194,6 +187,14 @@ export const handleMessage = async (
 
           return plugins.getConfig("telegram").andThen((telegramConfig) => {
             const pluginConfig = telegramConfig ?? undefined;
+            const todayStr = DateTime.now().setZone(config.TIMEZONE).toFormat("yyyy-MM-dd");
+            const toRecord = metricAnalysis.toRecord.map((e) => ({
+              ...e,
+              date: e.date ?? todayStr,
+              source: pluginConfig?.pluginName ?? "conversation",
+              sourcePluginId: pluginConfig?.id,
+            }));
+
             return memory.updateMemories(memAnalysis, pluginConfig)
               .andThen(() => metrics.record(toRecord))
               .andThen(() => metrics.deleteMetrics(metricAnalysis.toDelete))
