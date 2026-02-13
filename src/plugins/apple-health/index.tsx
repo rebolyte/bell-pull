@@ -118,7 +118,6 @@ export const appleHealthPlugin: Plugin<AppleHealthConfig> = {
                 }],
                 editMemories: [],
                 deleteMemories: [],
-                response: "",
               },
               pluginConfig,
             )

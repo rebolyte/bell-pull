@@ -116,7 +116,6 @@ export const letterboxdPlugin: Plugin<LetterboxdConfig> = {
                         }],
                         editMemories: [],
                         deleteMemories: [],
-                        response: "",
                       },
                       pluginConfig,
                     );

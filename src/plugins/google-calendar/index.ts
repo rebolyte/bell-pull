@@ -157,7 +157,6 @@ export const googleCalendarPlugin: Plugin<GoogleCalendarConfig> = {
                       }],
                       editMemories: [],
                       deleteMemories: [],
-                      response: "",
                     },
                     pluginConfig,
                   );
