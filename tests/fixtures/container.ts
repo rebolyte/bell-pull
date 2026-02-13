@@ -62,6 +62,7 @@ export const createTestHarness = async (
     log: container.log,
     llm: container.llm,
     memory: container.memory,
+    metrics: container.metrics,
     messages: container.messages,
     plugins: container.plugins,
     retry: fastRetry,
