@@ -15,6 +15,7 @@ import type { Database } from "../../services/database.ts";
 import type { Logger } from "../../services/logger.ts";
 import { extractTag, stripTags } from "../../utils/string.ts";
 import { jsonParsed } from "../../utils/validate.ts";
+import { sql } from "kysely";
 
 type MetricsDeps = { db: Database; log: Logger };
 
@@ -185,6 +186,27 @@ const extractMetrics = (
   });
 };
 
+export type MetricSummary = { metric: string; count: number };
+
+const topMetrics =
+  ({ db }: MetricsDeps) =>
+  (limit = 5): ResultAsync<MetricSummary[], AppError> =>
+    ResultAsync.fromPromise(
+      db.selectFrom("metrics")
+        .select(["metric", sql<number>`count(*)`.as("count")])
+        .groupBy("metric")
+        .orderBy(sql`count(*)`, "desc")
+        .limit(limit)
+        .execute() as Promise<MetricSummary[]>,
+      dbError("Failed to fetch top metrics"),
+    );
+
+const formatTopMetricsForPrompt = (summaries: MetricSummary[]): string | null => {
+  if (R.isEmpty(summaries)) return null;
+  const lines = summaries.map((s) => `- ${s.metric} (${s.count} entries)`);
+  return `Existing tracked metrics:\n${lines.join("\n")}`;
+};
+
 export const stripMetricTags = stripTags([...METRIC_TAGS]);
 
 export const makeMetricsDomain = (deps: MetricsDeps) => ({
@@ -192,8 +214,10 @@ export const makeMetricsDomain = (deps: MetricsDeps) => ({
   query: query(deps),
   trends: trends(deps),
   deleteMetrics: deleteMetrics(deps),
+  topMetrics: topMetrics(deps),
   extractMetrics,
   formatTrendsForPrompt,
+  formatTopMetricsForPrompt,
 });
 
 export type MetricsDomain = ReturnType<typeof makeMetricsDomain>;

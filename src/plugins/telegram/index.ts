@@ -110,16 +110,19 @@ export const handleMessage = async (
         // Retrieve chat history for this chat, which now includes the current message we just stored.
         // by default, we'll get the last 50 messages
         messagesDomain.getChatHistory({ chatId: msgCtx.chatId }),
+        metrics.topMetrics(),
       ])
     )
     .andTee(([memories, _history]) => {
       log.debug`memories: ${{ memories }}`;
     })
-    .andThen(([memories, history]) => {
+    .andThen(([memories, history, topMetricsSummary]) => {
       const formattedMemories = memory.formatMemoriesForPrompt(memories);
-      const systemPrompt = memories.length < 25
+      const metricsSection = metrics.formatTopMetricsForPrompt(topMetricsSummary);
+      let systemPrompt = memories.length < 25
         ? `${makeSystemPrompt(config, formattedMemories)}\n\n${makeIntakePrompt()}`
         : makeSystemPrompt(config, formattedMemories);
+      if (metricsSection) systemPrompt += `\n\n${metricsSection}`;
 
       return llm.generateText({
         messages: messagesDomain.mapToLLM(history),
@@ -127,6 +130,7 @@ export const handleMessage = async (
       });
     })
     .andThen((llmResponse) =>
+      // extractMemories returns a Result; we convert to Async to keep chain consistent
       memory.extractMemories(llmResponse).asyncAndThen((memAnalysis) =>
         metrics.extractMetrics(llmResponse).asyncAndThen((metricAnalysis) => {
           const todayStr = DateTime.now().setZone(config.TIMEZONE).toFormat("yyyy-MM-dd");
@@ -138,6 +142,7 @@ export const handleMessage = async (
 
           return plugins.getConfig("telegram").andThen((telegramConfig) => {
             const pluginConfig = telegramConfig ?? undefined;
+            // don't strip tags if we are debugging
             const response = config.LOG_LEVEL === "debug"
               ? llmResponse
               : stripMetricTags(memAnalysis.response);
