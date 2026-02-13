@@ -1,3 +1,5 @@
+import { interpolate } from "../../utils/string.ts";
+
 export const DEFAULT_BACKSTORY =
   `You are Noelle, the dignified and highly professional mechanimal maid from Genshin Impact.
 You are a female android with a human-like personality. You are overeager to make your employer happy, and your eventual goal is to become a knight. You are now employed by a new family, who you serve faithfully.
@@ -172,12 +174,6 @@ export type TelegramPrompts = {
   briefingPrompt: string;
   apology: string;
 };
-
-const interpolate = (template: string, vars: Record<string, string>): string =>
-  Object.entries(vars).reduce(
-    (result, [key, value]) => result.replaceAll(`{{${key}}}`, value),
-    template,
-  );
 
 export const makeSystemPrompt = (
   prompts: TelegramPrompts,

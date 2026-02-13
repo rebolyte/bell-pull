@@ -1,17 +1,12 @@
-import { backstory } from "../telegram/prompt.ts";
+import { interpolate } from "../../utils/string.ts";
 
-export const makeRetroPrompt = (
-  trendsString: string,
-  memoriesString: string,
-  weekRange: string,
-  todayStr: string,
-): string =>
-  `Today's date is ${todayStr}. You are providing a weekly retrospective for ${weekRange}. Review the past week's health metrics and notable events, and provide a concise summary.
+export const DEFAULT_RETRO_PROMPT =
+  `Today's date is {{today}}. You are providing a weekly retrospective for {{weekRange}}. Review the past week's health metrics and notable events, and provide a concise summary.
 
-${trendsString ? `Metrics trends (this week vs prior week):\n${trendsString}` : "No metrics data this week."}
+{{trends}}
 
 Recent memories from the past week:
-${memoriesString}
+{{memories}}
 
 Generate a weekly review with these sections:
 
@@ -23,4 +18,18 @@ Generate a weekly review with these sections:
 
 Keep it concise: 2-3 sentences per section max. Use Telegram-friendly markdown (*bold*, _italic_). Do not use ## headings.`;
 
-export { backstory };
+export const makeRetroPrompt = (
+  template: string,
+  trendsString: string,
+  memoriesString: string,
+  weekRange: string,
+  todayStr: string,
+): string =>
+  interpolate(template, {
+    trends: trendsString
+      ? `Metrics trends (this week vs prior week):\n${trendsString}`
+      : "No metrics data this week.",
+    memories: memoriesString,
+    weekRange,
+    today: todayStr,
+  });

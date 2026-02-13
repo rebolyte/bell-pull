@@ -4,14 +4,19 @@ import { errAsync, ResultAsync } from "neverthrow";
 import type { Bot } from "grammy";
 import type { Container, Plugin } from "../../types/index.ts";
 import { type AppError, appError } from "../../errors.ts";
-import { cron } from "../../services/config-schema.ts";
+import { cron, textarea } from "../../services/config-schema.ts";
 import { makeBot, sendAndStoreMessage } from "../telegram/lib.ts";
-import { backstory, makeRetroPrompt } from "./prompt.ts";
+import { DEFAULT_BACKSTORY } from "../telegram/prompt.ts";
+import { DEFAULT_RETRO_PROMPT, makeRetroPrompt } from "./prompt.ts";
 
 const NAME = "retrospective";
 
 const configSchema = z.object({
   "retrospective-weekly-schedule": cron(z.string().default("0 18 * * 0")),
+  retroPrompt: textarea(
+    z.string().default(DEFAULT_RETRO_PROMPT),
+    "Variables: {{trends}}, {{memories}}, {{weekRange}}, {{today}}",
+  ),
 });
 
 type RetroConfig = z.infer<typeof configSchema>;
@@ -22,7 +27,7 @@ export const sendWeeklyRetrospective = (
   chatId?: string,
   today?: DateTime,
 ): ResultAsync<string[], AppError> => {
-  const { config, log, llm, memory, metrics, messages } = container;
+  const { config, log, llm, memory, metrics, messages, plugins } = container;
   const finalChatId = chatId || config.TELEGRAM_CHAT_ID;
   const finalToday = today || DateTime.now().setZone(config.TIMEZONE).startOf("day");
 
@@ -39,14 +44,21 @@ export const sendWeeklyRetrospective = (
   return ResultAsync.combine([
     metrics.trends({ from, to, priorFrom, priorTo }),
     memory.getRelevantMemories(finalToday),
+    plugins.getConfig<RetroConfig>(NAME),
+    plugins.getConfig("telegram"),
   ])
-    .andThen(([trendData, categorized]) => {
+    .andThen(([trendData, categorized, retroPluginConfig, telegramConfig]) => {
+      const retroPromptTemplate =
+        (retroPluginConfig?.config as RetroConfig | undefined)?.retroPrompt ?? DEFAULT_RETRO_PROMPT;
+      const backstory =
+        (telegramConfig?.config as { backstory?: string } | undefined)?.backstory ??
+          DEFAULT_BACKSTORY;
       const trendsString = metrics.formatTrendsForPrompt(trendData);
       const weekMemories = [...categorized.today, ...categorized.lastWeek];
       const memoriesLines = weekMemories.length > 0
         ? weekMemories.map((m) => `- ${m.text}`).join("\n")
         : "No notable memories this week.";
-      const retroPrompt = makeRetroPrompt(trendsString, memoriesLines, weekRange, to);
+      const retroPrompt = makeRetroPrompt(retroPromptTemplate, trendsString, memoriesLines, weekRange, to);
 
       return llm.generateText({
         messages: [{ role: "user", content: retroPrompt }],

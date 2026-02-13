@@ -13,6 +13,12 @@ export const stripTags = (tags: string[]) => (text: string): string =>
   tags.map(stripTag)
     .reduce((text, strip) => strip(text), text);
 
+export const interpolate = (template: string, vars: Record<string, string>): string =>
+  Object.entries(vars).reduce(
+    (result, [key, value]) => result.replaceAll(`{{${key}}}`, value),
+    template,
+  );
+
 /**
  * Chunk the string by lines into segments < max length, splitting long
  * lines if needed

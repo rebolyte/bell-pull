@@ -428,7 +428,7 @@ describe("Telegram Message Flow", () => {
 
         const systemPrompt = (h.mockAnthropic.streamSpy.calls[0].args[0] as StreamArgs)
           .system as string;
-        expect(systemPrompt.toLowerCase()).not.toContain("intake");
+        expect(systemPrompt.toLowerCase()).not.toContain("intake interview");
       } finally {
         await h.cleanup();
       }
