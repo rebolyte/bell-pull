@@ -109,11 +109,11 @@ const formatMemoriesForPrompt = (memories: Memory[]) => {
   const [dated, undated] = R.partition(memories, (m) => m.date !== null);
 
   const formatDated = (m: Memory) =>
-    `- ${DateTime.fromJSDate(m.date!, { zone: "utc" }).toFormat("yyyy-MM-dd")} - ${m.text}${
-      tagSuffix(m)
-    }`;
+    `- ${
+      DateTime.fromJSDate(m.date!, { zone: "utc" }).toFormat("yyyy-MM-dd")
+    } [ID: ${m.id}] - ${m.text}${tagSuffix(m)}`;
 
-  const formatUndated = (m: Memory) => `- ${m.text}${tagSuffix(m)}`;
+  const formatUndated = (m: Memory) => `- [ID: ${m.id}] - ${m.text}${tagSuffix(m)}`;
 
   return R.pipe(
     [
@@ -133,11 +133,11 @@ const formatCategorizedMemoriesForPrompt = (categorized: CategorizedMemories) =>
   }
 
   const formatDated = (m: Memory) =>
-    `- ${DateTime.fromJSDate(m.date!, { zone: "utc" }).toFormat("yyyy-MM-dd")} - ${m.text}${
-      tagSuffix(m)
-    }`;
+    `- ${
+      DateTime.fromJSDate(m.date!, { zone: "utc" }).toFormat("yyyy-MM-dd")
+    } [ID: ${m.id}] - ${m.text}${tagSuffix(m)}`;
 
-  const formatUndated = (m: Memory) => `- ${m.text}${tagSuffix(m)}`;
+  const formatUndated = (m: Memory) => `- [ID: ${m.id}] - ${m.text}${tagSuffix(m)}`;
 
   return R.pipe(
     [
