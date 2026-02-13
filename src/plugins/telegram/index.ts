@@ -149,22 +149,25 @@ export const handleMessage = async (
         // by default, we'll get the last 50 messages
         messagesDomain.getChatHistory({ chatId: msgCtx.chatId }),
         plugins.getConfig<TelegramConfig>("telegram"),
+        metrics.topMetrics(),
       ])
     )
     .andTee(([_memories, _history]) => {
       // log.debug`memories: ${{ memories }}`;
     })
-    .andThen(([memories, history, telegramPluginConfig]) => {
+    .andThen(([memories, history, telegramPluginConfig, topMetricsSummary]) => {
       const prompts = resolvePrompts(
         telegramPluginConfig?.config as TelegramConfig | undefined,
       );
       const formattedMemories = memory.formatMemoriesForPrompt(memories);
       const todayStr = DateTime.now().setZone(config.TIMEZONE).toFormat("yyyy-MM-dd");
-      const systemPrompt = memories.length < 25
+      const metricsSection = metrics.formatTopMetricsForPrompt(topMetricsSummary);
+      let systemPrompt = memories.length < 25
         ? `${makeSystemPrompt(prompts, formattedMemories, todayStr)}\n\n${
           makeIntakePrompt(prompts)
         }`
         : makeSystemPrompt(prompts, formattedMemories, todayStr);
+      if (metricsSection) systemPrompt += `\n\n${metricsSection}`;
 
       return llm.generateText({
         messages: messagesDomain.mapToLLM(history),
@@ -172,6 +175,7 @@ export const handleMessage = async (
       });
     })
     .andThen((llmResponse) =>
+      // extractMemories returns a Result; we convert to Async to keep chain consistent
       memory.extractMemories(llmResponse).asyncAndThen((memAnalysis) =>
         metrics.extractMetrics(llmResponse).asyncAndThen((metricAnalysis) => {
           const todayStr = DateTime.now().setZone(config.TIMEZONE).toFormat("yyyy-MM-dd");
@@ -183,6 +187,7 @@ export const handleMessage = async (
 
           return plugins.getConfig("telegram").andThen((telegramConfig) => {
             const pluginConfig = telegramConfig ?? undefined;
+            // don't strip tags if we are debugging
             const response = config.LOG_LEVEL === "debug"
               ? llmResponse
               : stripMetricTags(memAnalysis.response);

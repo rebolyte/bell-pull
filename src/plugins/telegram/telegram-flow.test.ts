@@ -210,6 +210,46 @@ describe("Telegram Message Flow", () => {
         await h.cleanup();
       }
     });
+
+    it("includes top metrics in system prompt when metrics exist", async () => {
+      const h = await createTestHarness({
+        anthropic: { responses: ["Hello!"] },
+      });
+
+      try {
+        await h.container.metrics.record([
+          { date: "2024-06-10", metric: "mood", value: 8, unit: "score", source: "conversation" },
+          { date: "2024-06-11", metric: "mood", value: 7, unit: "score", source: "conversation" },
+          { date: "2024-06-10", metric: "energy", value: 6, unit: "score", source: "conversation" },
+        ]);
+
+        await handleMessage(h.createCtx({ text: "Hi" }), h.deps);
+
+        const systemPrompt = (h.mockAnthropic.streamSpy.calls[0].args[0] as StreamArgs)
+          .system as string;
+        expect(systemPrompt).toContain("Existing tracked metrics");
+        expect(systemPrompt).toContain("mood (2 entries)");
+        expect(systemPrompt).toContain("energy (1 entries)");
+      } finally {
+        await h.cleanup();
+      }
+    });
+
+    it("omits metrics section when no metrics exist", async () => {
+      const h = await createTestHarness({
+        anthropic: { responses: ["Hello!"] },
+      });
+
+      try {
+        await handleMessage(h.createCtx({ text: "Hi" }), h.deps);
+
+        const systemPrompt = (h.mockAnthropic.streamSpy.calls[0].args[0] as StreamArgs)
+          .system as string;
+        expect(systemPrompt).not.toContain("Existing tracked metrics");
+      } finally {
+        await h.cleanup();
+      }
+    });
   });
 
   describe("error handling", () => {
