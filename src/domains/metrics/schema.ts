@@ -24,6 +24,21 @@ export const MetricEntrySchema = z.object({
 
 export type MetricEntry = z.input<typeof MetricEntrySchema>;
 
+export const LLMMetricEntrySchema = z.object({
+  date: z.string().optional(),
+  metric: z.string(),
+  value: z.number(),
+  unit: z.string().optional(),
+});
+
+export const LLMDeleteMetricSchema = z.object({
+  metric: z.string(),
+  date: z.string().optional(),
+});
+
+export type LLMMetricEntry = z.infer<typeof LLMMetricEntrySchema>;
+export type LLMDeleteMetric = z.infer<typeof LLMDeleteMetricSchema>;
+
 export type PeriodStats = {
   avg: number;
   total: number;

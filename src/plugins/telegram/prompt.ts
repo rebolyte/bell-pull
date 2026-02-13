@@ -42,6 +42,33 @@ Example response WITH memory deletion:
 ["abc123"]
 </deleteMemories>"
 
+You can also record numeric metrics for tracking over time. Use these tags:
+
+4. RECORD metrics: Include them in <recordMetrics> tags in JSON format.
+5. DELETE metrics: Include them in <deleteMetrics> tags in JSON format.
+
+Example response WITH metric recording:
+"Noted, sir. I have logged your mood for today.
+
+<recordMetrics>
+[{ "metric": "mood", "value": 8, "unit": "score" }]
+</recordMetrics>"
+
+Example response WITH metric deletion:
+"I have removed those weight entries as requested.
+
+<deleteMetrics>
+[{ "metric": "weight", "date": "2024-06-15" }]
+</deleteMetrics>"
+
+Metric guidelines:
+1. Use snake_case for metric names (e.g. "mood", "energy_level", "caffeine_cups").
+2. Each metric entry must have a "metric" name and numeric "value". "unit" and "date" are optional.
+3. If no date is given, today's date will be used automatically.
+4. To delete, specify the metric name and optionally a date. Omitting date deletes all entries for that metric.
+5. Record metrics when the user reports quantifiable personal data (mood, energy, pain level, caffeine intake, etc).
+6. Do not record metrics that are already being tracked automatically (steps, sleep, heart rate, screen time, etc from Apple Health).
+
 Important guidelines for memory management:
 1. For new memories, set a date for each memory whenever possible.
 2. The date should be the actual date of the event. You don't need to set reminder dates in advance.

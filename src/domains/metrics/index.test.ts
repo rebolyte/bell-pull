@@ -191,4 +191,65 @@ describe("Metrics Domain", () => {
       expect(metrics.formatTrendsForPrompt([])).toBe("No metrics data available.");
     });
   });
+
+  describe("extractMetrics", () => {
+    it("extracts recordMetrics tag", () => {
+      const text = `Noted.\n<recordMetrics>[{"metric":"mood","value":8,"unit":"score"}]</recordMetrics>`;
+      const result = metrics.extractMetrics(text)._unsafeUnwrap();
+      expect(result.toRecord).toEqual([{ metric: "mood", value: 8, unit: "score" }]);
+      expect(result.toDelete).toEqual([]);
+    });
+
+    it("extracts deleteMetrics tag", () => {
+      const text = `Done.\n<deleteMetrics>[{"metric":"weight","date":"2024-06-15"}]</deleteMetrics>`;
+      const result = metrics.extractMetrics(text)._unsafeUnwrap();
+      expect(result.toRecord).toEqual([]);
+      expect(result.toDelete).toEqual([{ metric: "weight", date: "2024-06-15" }]);
+    });
+
+    it("extracts both tags from same response", () => {
+      const text = `Updated.\n<recordMetrics>[{"metric":"mood","value":7}]</recordMetrics>\n<deleteMetrics>[{"metric":"old_metric"}]</deleteMetrics>`;
+      const result = metrics.extractMetrics(text)._unsafeUnwrap();
+      expect(result.toRecord).toHaveLength(1);
+      expect(result.toDelete).toHaveLength(1);
+    });
+
+    it("returns empty arrays when no tags present", () => {
+      const result = metrics.extractMetrics("Just a normal response.")._unsafeUnwrap();
+      expect(result.toRecord).toEqual([]);
+      expect(result.toDelete).toEqual([]);
+    });
+  });
+
+  describe("deleteMetrics", () => {
+    it("deletes by metric name and date", async () => {
+      await metrics.record([
+        { date: "2024-06-15", metric: "mood", value: 8, unit: "score", source: "conversation" },
+        { date: "2024-06-16", metric: "mood", value: 7, unit: "score", source: "conversation" },
+      ]);
+
+      await metrics.deleteMetrics([{ metric: "mood", date: "2024-06-15" }]);
+
+      const rows = await harness.db.selectFrom("metrics").selectAll().execute();
+      expect(rows).toHaveLength(1);
+      expect(rows[0].date).toBe("2024-06-16");
+    });
+
+    it("deletes all entries for metric when no date given", async () => {
+      await metrics.record([
+        { date: "2024-06-15", metric: "mood", value: 8, unit: "score", source: "conversation" },
+        { date: "2024-06-16", metric: "mood", value: 7, unit: "score", source: "conversation" },
+      ]);
+
+      await metrics.deleteMetrics([{ metric: "mood" }]);
+
+      const rows = await harness.db.selectFrom("metrics").selectAll().execute();
+      expect(rows).toHaveLength(0);
+    });
+
+    it("handles empty array", async () => {
+      const result = await metrics.deleteMetrics([]);
+      expect(result.isOk()).toBe(true);
+    });
+  });
 });

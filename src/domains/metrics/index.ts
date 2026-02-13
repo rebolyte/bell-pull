@@ -1,9 +1,20 @@
 import * as R from "@remeda/remeda";
-import { Result, ResultAsync } from "neverthrow";
-import { type Metric, type MetricEntry, parseMetric, type TrendSummary } from "./schema.ts";
+import { ok, Result, ResultAsync } from "neverthrow";
+import {
+  type LLMDeleteMetric,
+  LLMDeleteMetricSchema,
+  type LLMMetricEntry,
+  LLMMetricEntrySchema,
+  type Metric,
+  type MetricEntry,
+  parseMetric,
+  type TrendSummary,
+} from "./schema.ts";
 import { type AppError, dbError } from "../../errors.ts";
 import type { Database } from "../../services/database.ts";
 import type { Logger } from "../../services/logger.ts";
+import { extractTag, stripTags } from "../../utils/string.ts";
+import { jsonParsed } from "../../utils/validate.ts";
 
 type MetricsDeps = { db: Database; log: Logger };
 
@@ -132,10 +143,55 @@ const formatTrendsForPrompt = (trendSummaries: TrendSummary[]): string => {
     .join("\n");
 };
 
+const deleteMetrics =
+  ({ db, log }: MetricsDeps) =>
+  (entries: LLMDeleteMetric[]): ResultAsync<void, AppError> =>
+    ResultAsync.fromPromise(
+      (async () => {
+        if (R.isEmpty(entries)) return;
+        for (const e of entries) {
+          let q = db.deleteFrom("metrics").where("metric", "=", e.metric);
+          if (e.date) q = q.where("date", "=", e.date);
+          await q.execute();
+        }
+        log.info`Deleted metrics: ${entries.map((e) => e.metric).join(", ")}`;
+      })(),
+      dbError("Failed to delete metrics"),
+    );
+
+const RecordMetricsSchema = jsonParsed(LLMMetricEntrySchema.array());
+const DeleteMetricsSchema = jsonParsed(LLMDeleteMetricSchema.array());
+
+const METRIC_TAGS = ["recordMetrics", "deleteMetrics"] as const;
+
+export type MetricMessageAnalysis = {
+  toRecord: LLMMetricEntry[];
+  toDelete: LLMDeleteMetric[];
+};
+
+const extractMetrics = (
+  messageText: string,
+): Result<MetricMessageAnalysis, never> => {
+  const recordJSON = extractTag("recordMetrics")(messageText ?? "");
+  const deleteJSON = extractTag("deleteMetrics")(messageText ?? "");
+
+  const toRecord = recordJSON ? RecordMetricsSchema.safeParse(recordJSON) : null;
+  const toDelete = deleteJSON ? DeleteMetricsSchema.safeParse(deleteJSON) : null;
+
+  return ok({
+    toRecord: toRecord?.success ? toRecord.data : [],
+    toDelete: toDelete?.success ? toDelete.data : [],
+  });
+};
+
+export const stripMetricTags = stripTags([...METRIC_TAGS]);
+
 export const makeMetricsDomain = (deps: MetricsDeps) => ({
   record: record(deps),
   query: query(deps),
   trends: trends(deps),
+  deleteMetrics: deleteMetrics(deps),
+  extractMetrics,
   formatTrendsForPrompt,
 });
 
