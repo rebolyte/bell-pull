@@ -21,7 +21,6 @@ describe("Memory Domain", () => {
       expect(analysis.memories).toHaveLength(1);
       expect(analysis.memories[0].text).toBe("Remember to buy milk");
       expect(analysis.memories[0].date).toBe("2024-01-15");
-      expect(analysis.response).toBe("Here's my response");
     });
 
     it("should extract editMemories from message", () => {
@@ -58,7 +57,6 @@ describe("Memory Domain", () => {
       expect(analysis.memories).toHaveLength(1);
       expect(analysis.editMemories).toHaveLength(1);
       expect(analysis.deleteMemories).toHaveLength(1);
-      expect(analysis.response).toBe("Done!");
     });
 
     it("should return empty arrays for no memory tags", () => {
@@ -70,7 +68,6 @@ describe("Memory Domain", () => {
       expect(analysis.memories).toEqual([]);
       expect(analysis.editMemories).toEqual([]);
       expect(analysis.deleteMemories).toEqual([]);
-      expect(analysis.response).toBe(message);
     });
 
     it("should handle invalid JSON gracefully", () => {
@@ -81,7 +78,6 @@ describe("Memory Domain", () => {
       expect(result.isOk()).toBe(true);
       const analysis = result._unsafeUnwrap();
       expect(analysis.memories).toEqual([]);
-      expect(analysis.response).toBe("Response");
     });
 
     it("should validate schema and reject invalid memory objects", () => {
@@ -94,20 +90,6 @@ describe("Memory Domain", () => {
       expect(analysis.memories).toEqual([]);
     });
 
-    it("should collapse excessive newlines in response", () => {
-      const message = `First line
-
-
-<createMemories>[{"text": "test"}]</createMemories>
-
-
-Last line`;
-
-      const result = extractMemories(message);
-      expect(result.isOk()).toBe(true);
-      const analysis = result._unsafeUnwrap();
-      expect(analysis.response).not.toContain("\n\n\n");
-    });
   });
 
   describe("formatMemoriesForPrompt", () => {
@@ -382,7 +364,6 @@ Last line`;
           }],
           editMemories: [],
           deleteMemories: [],
-          response: "",
         };
 
         const first = await memoryDomain.updateMemories(analysis, pluginConfig);
@@ -404,7 +385,6 @@ Last line`;
           }],
           editMemories: [],
           deleteMemories: [],
-          response: "",
         };
         await memoryDomain.updateMemories(initial, pluginConfig);
 
@@ -416,7 +396,6 @@ Last line`;
           }],
           editMemories: [],
           deleteMemories: [],
-          response: "",
         };
         const result = await memoryDomain.updateMemories(updated, pluginConfig);
         expect(result.isOk()).toBe(true);
@@ -436,7 +415,6 @@ Last line`;
           }],
           editMemories: [],
           deleteMemories: [],
-          response: "",
         };
 
         await memoryDomain.updateMemories(analysis, pluginConfig);
@@ -452,7 +430,6 @@ Last line`;
           }],
           editMemories: [],
           deleteMemories: [],
-          response: "",
         };
         await memoryDomain.updateMemories(updated, pluginConfig);
         const second = (await memoryDomain.getAllMemories())._unsafeUnwrap();
@@ -465,7 +442,6 @@ Last line`;
           memories: [{ date: "2024-06-15", text: "Weather: Sunny" }],
           editMemories: [],
           deleteMemories: [],
-          response: "",
         };
 
         await memoryDomain.updateMemories(analysis, pluginConfig);
