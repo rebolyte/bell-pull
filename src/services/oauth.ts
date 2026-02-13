@@ -44,7 +44,9 @@ const mountOAuthRoutes = (
       return c.text("Missing clientId or clientSecret", 400);
     }
 
-    const redirectUri = `${container.config.PUBLIC_URL ?? getBaseUrl(c.req.raw)}${basePath}/callback`;
+    const redirectUri = `${
+      container.config.PUBLIC_URL ?? getBaseUrl(c.req.raw)
+    }${basePath}/callback`;
     const oauthClient = createClient(clientId, clientSecret, redirectUri);
 
     const state = generateState();
@@ -103,7 +105,9 @@ const mountOAuthRoutes = (
     const existingConfig = configResult.value.config;
     const { clientId, clientSecret } = existingConfig;
 
-    const redirectUri = `${container.config.PUBLIC_URL ?? getBaseUrl(c.req.raw)}${basePath}/callback`;
+    const redirectUri = `${
+      container.config.PUBLIC_URL ?? getBaseUrl(c.req.raw)
+    }${basePath}/callback`;
     const oauthClient = createClient(clientId, clientSecret, redirectUri);
 
     try {
@@ -130,7 +134,7 @@ const mountOAuthRoutes = (
       }
 
       container.log.info`OAuth connected for plugin ${pluginName}`;
-      const adminBase = container.config.ADMIN_URL ?? '';
+      const adminBase = container.config.ADMIN_URL ?? "";
       return c.redirect(`${adminBase}/dashboard/plugins/${pluginName}?flash=connected`);
     } catch (e) {
       container.log.error`OAuth token exchange failed: ${e}`;
