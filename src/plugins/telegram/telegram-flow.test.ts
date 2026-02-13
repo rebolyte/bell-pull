@@ -235,7 +235,7 @@ describe("Telegram Message Flow", () => {
       }
     });
 
-    it("omits metrics section when no metrics exist", async () => {
+    it("shows fallback when no metrics exist", async () => {
       const h = await createTestHarness({
         anthropic: { responses: ["Hello!"] },
       });
@@ -246,6 +246,7 @@ describe("Telegram Message Flow", () => {
         const systemPrompt = (h.mockAnthropic.streamSpy.calls[0].args[0] as StreamArgs)
           .system as string;
         expect(systemPrompt).not.toContain("Existing tracked metrics");
+        expect(systemPrompt).toContain("No metrics tracked yet");
       } finally {
         await h.cleanup();
       }

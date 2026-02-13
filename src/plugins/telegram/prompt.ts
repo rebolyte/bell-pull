@@ -56,7 +56,11 @@ Important guidelines for memory management:
 9. Do not create duplicate memories. If a memory already exists, do not record the same information again.
 10. Memories are the only way you will be able to remember information between conversations. NEVER say you've noted something if it doesn't exist in the memories list or inside a <createMemories> tag.
 
-You can also record numeric metrics for tracking over time. Use these tags:
+You can also record numeric metrics for tracking over time. Here are the metrics used most often:
+
+{{topMetrics}}
+
+To make changes to these metrics or establish new ones, use these tags:
 
 4. RECORD metrics: Include them in <recordMetrics> tags in JSON format.
 5. DELETE metrics: Include them in <deleteMetrics> tags in JSON format.
@@ -179,11 +183,13 @@ export const makeSystemPrompt = (
   prompts: TelegramPrompts,
   memoriesString: string,
   todayStr: string,
+  topMetrics?: string | null,
 ): string =>
   `${prompts.backstory}\n\n${
     interpolate(prompts.systemPrompt, {
       memories: memoriesString,
       date: todayStr,
+      topMetrics: topMetrics ?? "No metrics tracked yet.",
     })
   }`;
 

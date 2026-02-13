@@ -208,7 +208,7 @@ const topMetrics = ({ db }: MetricsDeps) => (limit = 5): ResultAsync<MetricSumma
 const formatTopMetricsForPrompt = (summaries: MetricSummary[]): string | null => {
   if (R.isEmpty(summaries)) return null;
   const lines = summaries.map((s) => `- ${s.metric} (${s.count} entries)`);
-  return `Existing tracked metrics:\n${lines.join("\n")}`;
+  return lines.join("\n");
 };
 
 export const makeMetricsDomain = (deps: MetricsDeps) => ({

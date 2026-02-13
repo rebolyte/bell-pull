@@ -164,12 +164,11 @@ export const handleMessage = async (
       const formattedMemories = memory.formatMemoriesForPrompt(memories);
       const todayStr = DateTime.now().setZone(config.TIMEZONE).toFormat("yyyy-MM-dd");
       const metricsSection = metrics.formatTopMetricsForPrompt(topMetricsSummary);
-      let systemPrompt = memories.length < 25
-        ? `${makeSystemPrompt(prompts, formattedMemories, todayStr)}\n\n${
+      const systemPrompt = memories.length < 25
+        ? `${makeSystemPrompt(prompts, formattedMemories, todayStr, metricsSection)}\n\n${
           makeIntakePrompt(prompts)
         }`
-        : makeSystemPrompt(prompts, formattedMemories, todayStr);
-      if (metricsSection) systemPrompt += `\n\n${metricsSection}`;
+        : makeSystemPrompt(prompts, formattedMemories, todayStr, metricsSection);
 
       return llm.generateText({
         messages: messagesDomain.mapToLLM(history),
