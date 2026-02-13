@@ -208,7 +208,7 @@ describe("Metrics Domain", () => {
     });
 
     it("extracts both tags from same response", () => {
-      const text = `Updated.\n<recordMetrics>[{"metric":"mood","value":7}]</recordMetrics>\n<deleteMetrics>[{"metric":"old_metric"}]</deleteMetrics>`;
+      const text = `Updated.\n<recordMetrics>[{"metric":"mood","value":7}]</recordMetrics>\n<deleteMetrics>[{"metric":"old_metric","date":"2024-06-15"}]</deleteMetrics>`;
       const result = metrics.extractMetrics(text)._unsafeUnwrap();
       expect(result.toRecord).toHaveLength(1);
       expect(result.toDelete).toHaveLength(1);
@@ -235,16 +235,17 @@ describe("Metrics Domain", () => {
       expect(rows[0].date).toBe("2024-06-16");
     });
 
-    it("deletes all entries for metric when no date given", async () => {
+    it("only deletes matching date, not all entries", async () => {
       await metrics.record([
         { date: "2024-06-15", metric: "mood", value: 8, unit: "score", source: "conversation" },
         { date: "2024-06-16", metric: "mood", value: 7, unit: "score", source: "conversation" },
       ]);
 
-      await metrics.deleteMetrics([{ metric: "mood" }]);
+      await metrics.deleteMetrics([{ metric: "mood", date: "2024-06-16" }]);
 
       const rows = await harness.db.selectFrom("metrics").selectAll().execute();
-      expect(rows).toHaveLength(0);
+      expect(rows).toHaveLength(1);
+      expect(rows[0].date).toBe("2024-06-15");
     });
 
     it("handles empty array", async () => {
