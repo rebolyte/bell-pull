@@ -4,7 +4,11 @@ import type { CalendarEvent } from "./schema.ts";
 const BASE_URL = "https://www.googleapis.com/calendar/v3/calendars/:calendarId/events";
 
 const defaultEvents: CalendarEvent[] = [
-  { summary: "Test Event", start: { dateTime: "2024-01-15T10:00:00" } },
+  {
+    summary: "Test Event",
+    start: { dateTime: "2024-01-15T10:00:00-08:00" },
+    end: { dateTime: "2024-01-15T11:00:00-08:00" },
+  },
 ];
 
 export const calendarSuccess = (events: CalendarEvent[] = defaultEvents) =>

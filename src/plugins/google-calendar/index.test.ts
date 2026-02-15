@@ -117,6 +117,30 @@ describe("Google Calendar Cron Job", () => {
     }
   });
 
+  it("converts event times from source timezone to configured timezone", async () => {
+    // Event at 9:00 PM Eastern (UTC-5) = 6:00 PM Pacific (test harness TIMEZONE)
+    withHandlers(calendarWithEvents(
+      {
+        summary: "East Coast Call",
+        start: { dateTime: "2026-02-19T21:00:00-05:00" },
+        end: { dateTime: "2026-02-19T22:00:00-05:00" },
+      },
+    ));
+    const h = await createTestHarness();
+    try {
+      await setupPlugin(h);
+      const result = await runCronJob(h);
+      expect(result.isOk()).toBe(true);
+
+      const memories = await h.container.db.selectFrom("memories").selectAll().execute();
+      expect(memories).toHaveLength(1);
+      expect(memories[0].text).toBe("Calendar: East Coast Call (6:00 PM - 7:00 PM)");
+      expect(memories[0].date).toBe("2026-02-19");
+    } finally {
+      await h.cleanup();
+    }
+  });
+
   it("does not create duplicate memories when same events synced twice", async () => {
     const h = await createTestHarness();
     try {

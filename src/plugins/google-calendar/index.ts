@@ -142,15 +142,16 @@ export const googleCalendarPlugin: Plugin<GoogleCalendarConfig> = {
             .andThen((events) =>
               ResultAsync.combine(
                 events.map((event) => {
+                  const tz = container.config.TIMEZONE;
+                  const start = DateTime.fromISO(event.start, { setZone: true }).setZone(tz);
+                  const end = DateTime.fromISO(event.end, { setZone: true }).setZone(tz);
                   const timeStr = event.start.includes("T")
-                    ? `${DateTime.fromISO(event.start).toFormat("h:mm a")} - ${
-                      DateTime.fromISO(event.end).toFormat("h:mm a")
-                    }`
+                    ? `${start.toFormat("h:mm a")} - ${end.toFormat("h:mm a")}`
                     : "all day";
                   return memory.updateMemories(
                     {
                       memories: [{
-                        date: event.start.split("T")[0],
+                        date: start.toFormat("yyyy-MM-dd"),
                         text: `Calendar: ${event.summary} (${timeStr})`,
                         externalId: event.id || null,
                         original: JSON.stringify(event._raw),
