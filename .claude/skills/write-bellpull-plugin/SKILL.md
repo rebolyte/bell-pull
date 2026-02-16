@@ -19,26 +19,83 @@ interface Plugin<TConfig = unknown> {
   displayName?: string;
   configSchema?: z.ZodSchema<TConfig>;
   oauth?: OAuthSetup;
-  init?: (app: Hono<HonoEnv>, container: Container) => void;
+  init?: (apps: ServerApps, container: Container) => void;
   cronJobs?: CronJob[] | ((config: TConfig) => CronJob[]);
+  onIngest?: (text: string) => Promise<string | null>;
   settingsUI?: (config: TConfig, container: Container) => unknown;
 }
+
+type CronJob = {
+  name: string;
+  schedule: string;
+  fields?: string[]; // config field keys rendered inside this cron's fieldset
+  run: (container: Container, job: CronJobRunContext) =>
+    ResultAsync<Record<string, unknown> | null, AppError>;
+};
+
+// init receives both public and admin Hono apps
+type ServerApps = {
+  public: Hono<HonoEnv>;  // public-facing routes (webhooks, ingest endpoints)
+  admin: Hono<HonoEnv>;   // dashboard routes
+};
 ```
 
 ## Config Schema Annotations
 
 ```typescript
-import { cron, managed, secret } from "../../services/config-schema.ts";
+import { cron, hidden, managed, secret, textarea } from "../../services/config-schema.ts";
 
 // secret: renders as password field in UI
 apiKey: secret(z.string().min(1));
 
-// cron: marks as cron schedule field
-syncSchedule: cron(z.string().default("0 8 * * *"));
+// cron: marks as cron schedule field, rendered inside cron fieldset
+"my-plugin-sync-schedule": cron(z.string().default("0 8 * * *"));
 
 // managed: hidden from UI, set programmatically (e.g., OAuth tokens)
 accessToken: managed(z.string().optional());
+
+// hidden: stored but not shown in UI
+selectedItems: hidden(z.array(z.string()).default([]));
+
+// textarea: large text input, optional description shown below
+briefingPrompt: textarea(
+  z.string().default("default prompt"),
+  "Variables: {{memories}}, {{date}}",
+);
 ```
+
+## Cron Schedule Field Naming Convention
+
+Cron schedule keys MUST follow the pattern `"${jobName}-schedule"`:
+
+```typescript
+const configSchema = z.object({
+  "my-plugin-sync-schedule": cron(z.string().default("0 8 * * *")),
+});
+
+cronJobs: (config) => [{
+  name: "my-plugin-sync",
+  schedule: config?.["my-plugin-sync-schedule"] ?? "0 8 * * *",
+  run: ...
+}]
+```
+
+The cron runner resolves schedules via `config["${jobName}-schedule"]`. Each cron job also gets a per-cron enabled toggle in the admin UI, stored as `config["${jobName}-enabled"]` (boolean, defaults to `true`).
+
+## Associating Config Fields with Cron Jobs
+
+Use `fields` on a cron job to render config fields (especially textareas) inside the cron's fieldset in the admin UI:
+
+```typescript
+cronJobs: (config) => [{
+  name: "my-plugin-sync",
+  schedule: config?.["my-plugin-sync-schedule"] ?? "0 8 * * *",
+  fields: ["syncPrompt"],  // these fields render inside the cron fieldset
+  run: ...
+}]
+```
+
+Fields listed in `fields` are removed from the top-level form and placed inside the cron's fieldset. They are also disabled when the cron is toggled off.
 
 ---
 
@@ -47,7 +104,7 @@ accessToken: managed(z.string().optional());
 For services with public feeds or simple API keys. Uses cron jobs to fetch periodically.
 
 ```typescript
-// src/plugins/letterboxd/index.ts
+// src/plugins/my-plugin/index.ts
 import * as z from "@zod/zod";
 import { DateTime } from "luxon";
 import { errAsync, okAsync, ResultAsync } from "neverthrow";
@@ -59,7 +116,7 @@ const NAME = "my-plugin";
 
 const configSchema = z.object({
   username: z.string().min(1),
-  syncSchedule: cron(z.string().default("0 8 * * *")),
+  "my-plugin-sync-schedule": cron(z.string().default("0 8 * * *")),
 });
 
 type MyConfig = z.infer<typeof configSchema>;
@@ -71,7 +128,7 @@ export const myPlugin: Plugin<MyConfig> = {
   cronJobs: (config) => [
     {
       name: `${NAME}-sync`,
-      schedule: config?.syncSchedule ?? "0 8 * * *",
+      schedule: config?.["my-plugin-sync-schedule"] ?? "0 8 * * *",
       run: (container, job) => {
         const { log, memory, plugins } = container;
 
@@ -84,7 +141,6 @@ export const myPlugin: Plugin<MyConfig> = {
             return okAsync(pluginConfig);
           })
           .andThen((pluginConfig) => {
-            // Fetch data from external source
             return fetchData(pluginConfig.config.username)
               .andTee((items) => log.info`[${job.name}] Fetched ${items.length} items`)
               .andThen((items) =>
@@ -94,7 +150,6 @@ export const myPlugin: Plugin<MyConfig> = {
                       memories: [{ date: item.date, text: item.text }],
                       editMemories: [],
                       deleteMemories: [],
-                      response: "",
                     }, pluginConfig)
                   ),
                 ).map(() => ({ synced: items.length }))
@@ -113,22 +168,22 @@ export const myPlugin: Plugin<MyConfig> = {
 For services requiring OAuth (Google, Spotify, etc.). Uses Arctic.js library.
 
 ```typescript
-// src/plugins/google-calendar/index.ts
+// src/plugins/my-oauth-plugin/index.ts
 import { Google } from "arctic";
 import { DateTime } from "luxon";
 import { errAsync, okAsync, ResultAsync } from "neverthrow";
-import type { Container, Plugin } from "../../types/index.ts";
-import { appError } from "../../errors.ts";
+import type { Container, OAuthClient, OAuthSetup, Plugin } from "../../types/index.ts";
+import { type AppError, appError } from "../../errors.ts";
 import { refreshPluginToken, registerOAuthRoutes } from "../../services/oauth.ts";
 import { cron, managed, secret } from "../../services/config-schema.ts";
+import type { PluginConfig } from "../../domains/plugins/index.ts";
 
-const NAME = "google-calendar";
+const NAME = "my-oauth-plugin";
 
 const configSchema = z.object({
   clientId: z.string().min(1),
   clientSecret: secret(z.string().min(1)),
-  syncSchedule: cron(z.string().default("0 */6 * * *")),
-  // Managed fields (readonly in UI, set by OAuth flow)
+  "my-oauth-plugin-sync-schedule": cron(z.string().default("0 */6 * * *")),
   accessToken: managed(z.string().optional()),
   refreshToken: managed(z.string().optional()),
   tokenExpiresAt: managed(z.string().optional()),
@@ -136,9 +191,8 @@ const configSchema = z.object({
 
 type MyOAuthConfig = z.infer<typeof configSchema>;
 
-// Extract OAuth setup as const for reuse in init and token refresh
-const oauth: OauthSetup = {
-  createProvider: (clientId: string, clientSecret: string, redirectUri: string) =>
+const oauth: OAuthSetup = {
+  createClient: (clientId: string, clientSecret: string, redirectUri: string) =>
     new Google(clientId, clientSecret, redirectUri),
   scopes: ["https://www.googleapis.com/auth/calendar.readonly"],
   // Optional: customize authorization URL (e.g., for refresh tokens)
@@ -148,7 +202,7 @@ const oauth: OauthSetup = {
     url.searchParams.set("prompt", "consent");
     return url;
   },
-} as const;
+};
 
 const isTokenExpired = (expiresAt: string | undefined): boolean => {
   if (!expiresAt) return true;
@@ -174,17 +228,16 @@ const getValidToken = (
 
 export const myOAuthPlugin: Plugin<MyOAuthConfig> = {
   name: NAME,
-  displayName: "Google Calendar",
+  displayName: "My OAuth Plugin",
   configSchema,
   oauth,
-  init: (app, container) => {
-    // Register OAuth routes: /oauth/{name}/authorize and /oauth/{name}/callback
-    registerOAuthRoutes(app, NAME, oauth, container);
+  init: (apps, container) => {
+    registerOAuthRoutes(apps, NAME, oauth, container);
   },
   cronJobs: (config) => [
     {
       name: `${NAME}-sync`,
-      schedule: config?.syncSchedule ?? "0 */6 * * *",
+      schedule: config?.["my-oauth-plugin-sync-schedule"] ?? "0 */6 * * *",
       run: (container, job) => {
         return container.plugins
           .getConfig<MyOAuthConfig>(NAME)
@@ -206,7 +259,7 @@ export const myOAuthPlugin: Plugin<MyOAuthConfig> = {
 
 ## Type 3: Ingest Endpoint Plugin
 
-For receiving data via HTTP POST (iOS Shortcuts, webhooks, etc.). Uses API key auth.
+For receiving data via HTTP POST (iOS Shortcuts, webhooks, etc.). Uses API key auth. Ingest endpoints go on `apps.public` so they're accessible without dashboard auth.
 
 ```typescript
 // src/plugins/apple-health/index.ts
@@ -234,10 +287,10 @@ export const ingestPlugin: Plugin<IngestConfig> = {
   name: NAME,
   displayName: "Apple Health",
   configSchema,
-  init: (app, container) => {
+  init: (apps, container) => {
     const { log, memory, plugins } = container;
 
-    app.post(`/api/plugins/${NAME}/ingest`, async (c) => {
+    apps.public.post(`/api/plugins/${NAME}/ingest`, async (c) => {
       const apiKey = c.req.header("x-api-key");
       const body = await c.req.json();
 
@@ -268,7 +321,6 @@ export const ingestPlugin: Plugin<IngestConfig> = {
               memories: [{ date, text }],
               editMemories: [],
               deleteMemories: [],
-              response: "",
             }, pluginConfig)
             .map(() => ({ date, text }));
         })
@@ -285,7 +337,6 @@ export const ingestPlugin: Plugin<IngestConfig> = {
         );
     });
   },
-  // Optional: show setup instructions in dashboard
   settingsUI: () => (
     <div class="custom-section">
       <h3>Setup</h3>
@@ -319,6 +370,9 @@ export const plugins: Plugin<any>[] = [
 1. **Always use neverthrow chains** - No throwing errors, use `errAsync`/`okAsync` and `.andThen()`. The returned ok/err Result will be logged.
 2. **Use Luxon for dates** - `DateTime.now()`, `DateTime.fromISO()`, `.plus()`, `.minus()`
 3. **Config via plugins domain** - `container.plugins.getConfig<T>(NAME)`
-4. **Store via memory domain** - `container.memory.updateMemories()`
+4. **Store via memory domain** - `container.memory.updateMemories({ memories, editMemories, deleteMemories }, pluginConfig)`
 5. **Status codes in errors** - `appError("type", "message", statusCode)` for HTTP responses
 6. **Cron as function** - `cronJobs: (config) => [...]` to use config values in schedule
+7. **Cron field naming** - Schedule keys: `"${jobName}-schedule"`, enabled stored as `"${jobName}-enabled"`
+8. **Cron field association** - Use `fields: ["myPrompt"]` on CronJob to render config fields inside the cron's admin fieldset
+9. **Public vs admin apps** - `apps.public` for external endpoints (webhooks, ingest), `apps.admin` for dashboard routes
