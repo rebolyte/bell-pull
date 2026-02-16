@@ -42,6 +42,7 @@ export type CronJobRunContext = { name: string; schedule: string };
 export type CronJob = {
   name: string;
   schedule: string; // e.g., "0 9 * * *"
+  fields?: string[]; // config field keys that belong to this cron job
   run: (
     container: Container,
     job: CronJobRunContext,

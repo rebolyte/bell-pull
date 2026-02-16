@@ -44,8 +44,6 @@ export const PluginSettings = ({
       action={`/dashboard/plugins/${plugin.name}/config`}
       class="settings-form"
     >
-      <EnabledToggle plugin={plugin} />
-
       {plugin.hasOAuth && (
         <OAuthSection
           plugin={plugin}
@@ -58,7 +56,7 @@ export const PluginSettings = ({
         .filter((f) => f.type !== "cron" && f.type !== "hidden" && f.type !== "textarea")
         .map((field) => <ConfigField key={field.key} field={field} value={config[field.key]} />)}
 
-      <CronJobsSection plugin={plugin} />
+      <CronJobsSection plugin={plugin} config={config} />
 
       {plugin.fields
         .filter((f) => f.type === "textarea")
@@ -72,64 +70,6 @@ export const PluginSettings = ({
     {customUI}
   </div>
 );
-
-type EnabledToggleProps = {
-  plugin: PluginInfo;
-};
-
-export const EnabledToggle = ({ plugin }: EnabledToggleProps) => {
-  const needsConfirm = plugin.name === "telegram" && plugin.enabled;
-  const dialogId = `disable-${plugin.name}-confirm`;
-
-  return (
-    <div class="form-row" id="enabled-toggle">
-      <label>Enabled</label>
-      <div class="field">
-        <input
-          type="checkbox"
-          name="enabled"
-          checked={plugin.enabled}
-          {...(needsConfirm
-            ? {
-              onclick: `event.preventDefault(); document.getElementById('${dialogId}').showModal()`,
-            }
-            : {
-              "hx-post": `/dashboard/plugins/${plugin.name}/toggle`,
-              "hx-target": "#enabled-toggle",
-              "hx-swap": "outerHTML",
-              "hx-vals": JSON.stringify({ enabled: String(!plugin.enabled) }),
-            })}
-        />
-      </div>
-      {needsConfirm && (
-        <dialog id={dialogId}>
-          <p>Are you sure? Your bot will not respond to messages.</p>
-          <div class="dialog-actions">
-            <button
-              type="button"
-              onclick={`document.getElementById('${dialogId}').close()`}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onclick={`
-                document.getElementById('${dialogId}').close();
-                htmx.ajax('POST', '/dashboard/plugins/${plugin.name}/toggle', {
-                  target: '#enabled-toggle',
-                  swap: 'outerHTML',
-                  values: { enabled: 'false' }
-                })
-              `}
-            >
-              Disable
-            </button>
-          </div>
-        </dialog>
-      )}
-    </div>
-  );
-};
 
 type OAuthSectionProps = {
   plugin: PluginInfo;
@@ -257,13 +197,20 @@ const SecretField = ({ fieldKey, value }: SecretFieldProps) => {
   );
 };
 
-const CronJobsSection = ({ plugin }: { plugin: PluginInfo }) => {
+const CronJobsSection = (
+  { plugin, config }: { plugin: PluginInfo; config: Record<string, unknown> },
+) => {
   if (!plugin.cronJobs?.length) return null;
 
   return (
     <div class="cron-jobs-section">
       {plugin.cronJobs.map((job) => (
-        <CronJobFieldset key={job.name} pluginName={plugin.name} job={job} />
+        <CronJobFieldset
+          key={job.name}
+          pluginName={plugin.name}
+          job={job}
+          config={config}
+        />
       ))}
     </div>
   );
@@ -272,29 +219,78 @@ const CronJobsSection = ({ plugin }: { plugin: PluginInfo }) => {
 type CronJobFieldsetProps = {
   pluginName: string;
   job: CronJobInfo;
+  config: Record<string, unknown>;
 };
 
-const CronJobFieldset = ({ pluginName, job }: CronJobFieldsetProps) => (
-  <fieldset class="cron-job-fieldset full-width">
-    <legend>{job.name}</legend>
-    <label>Schedule</label>
-    <div class="field cron-job-field">
-      <input
-        type="text"
-        name={job.scheduleField}
-        value={job.schedule}
-        placeholder="0 * * * *"
-      />
-      <CronJobRow pluginName={pluginName} jobName={job.name} />
-    </div>
-  </fieldset>
-);
+const CronJobFieldset = ({ pluginName, job, config }: CronJobFieldsetProps) => {
+  const enabledName = `${job.name}-enabled`;
+  const fieldsetId = `cron-fieldset-${job.name}`;
+
+  return (
+    <fieldset class="cron-job-fieldset full-width" id={fieldsetId}>
+      <legend>
+        <label class="cron-enabled-toggle">
+          <input
+            type="checkbox"
+            name={enabledName}
+            checked={job.enabled}
+            onclick={`
+              const body = document.querySelector('#${fieldsetId} .cron-body');
+              const disabled = !this.checked;
+              body.querySelectorAll('input, select, textarea, button').forEach(el => el.disabled = disabled);
+              body.classList.toggle('cron-disabled', disabled);
+            `}
+          />
+          {job.name}
+        </label>
+      </legend>
+      <div class={`cron-body${job.enabled ? "" : " cron-disabled"}`}>
+        <label>Schedule</label>
+        <div class="field cron-job-field">
+          <input
+            type="text"
+            name={job.scheduleField}
+            value={job.schedule}
+            placeholder="0 * * * *"
+            disabled={!job.enabled}
+          />
+          <CronJobRow pluginName={pluginName} jobName={job.name} disabled={!job.enabled} />
+        </div>
+
+        {job.fields
+          .filter((f) => f.type === "textarea")
+          .map((field) => (
+            <div class="cron-textarea-wrapper" key={field.key}>
+              <label>{field.key}</label>
+              <div class="field">
+                <textarea
+                  name={field.key}
+                  rows={10}
+                  disabled={!job.enabled}
+                >
+                  {(config[field.key] as string) ?? String(field.defaultValue ?? "")}
+                </textarea>
+              </div>
+              {field.description && <p class="field-description">{field.description}</p>}
+            </div>
+          ))}
+
+        {job.fields
+          .filter((f) => f.type !== "textarea")
+          .map((field) => (
+            <ConfigField key={field.key} field={field} value={config[field.key]} />
+          ))}
+      </div>
+    </fieldset>
+  );
+};
 
 type CronJobRowProps = {
   pluginName: string;
   jobName: string;
   status?: "success" | "error";
   message?: string;
+  disabled?: boolean;
 };
 
 export const CronJobRow = ({
@@ -302,6 +298,7 @@ export const CronJobRow = ({
   jobName,
   status,
   message,
+  disabled,
 }: CronJobRowProps) => {
   const rowId = `cron-run-${pluginName}-${jobName}`;
 
@@ -320,6 +317,7 @@ export const CronJobRow = ({
         hx-target={`#${rowId}`}
         hx-swap="outerHTML"
         hx-indicator={`#${rowId}`}
+        disabled={disabled}
       >
         Run
       </button>

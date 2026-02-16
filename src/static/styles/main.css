@@ -216,6 +216,54 @@ body {
   grid-column: 1 / -1;
 }
 
+.cron-enabled-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--size-2);
+  cursor: pointer;
+  font-weight: var(--font-weight-6);
+}
+
+.settings-form .cron-job-fieldset .cron-body {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-column: 1 / -1;
+  gap: var(--size-3) var(--size-4);
+  align-items: start;
+}
+
+.settings-form .cron-job-fieldset .cron-body.cron-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.settings-form .cron-job-fieldset .cron-body.cron-disabled input,
+.settings-form .cron-job-fieldset .cron-body.cron-disabled select,
+.settings-form .cron-job-fieldset .cron-body.cron-disabled textarea,
+.settings-form .cron-job-fieldset .cron-body.cron-disabled button {
+  cursor: not-allowed;
+}
+
+.settings-form .cron-textarea-wrapper {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--size-2);
+}
+
+.settings-form .cron-textarea-wrapper label {
+  font-weight: var(--font-weight-6);
+  color: var(--text-1);
+}
+
+.settings-form .cron-textarea-wrapper textarea {
+  width: 100%;
+  min-height: 12rem;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-0);
+  resize: vertical;
+}
+
 .settings-form .cron-job-field {
   flex-direction: column;
   align-items: flex-start;

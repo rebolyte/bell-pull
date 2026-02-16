@@ -80,7 +80,21 @@ export const registerPluginCrons = async (
     jobs = plugin.cronJobs ?? [];
   }
 
+  const destroyTask = (name: string) => {
+    cron.getTasks().forEach((task) => {
+      if (task.name === name) {
+        log.info(`Destroying disabled cron task: ${task.name}`);
+        task.destroy();
+      }
+    });
+  };
+
   jobs.forEach((job) => {
+    const enabledKey = `${job.name}-enabled`;
+    if (config[enabledKey] === false) {
+      destroyTask(job.name);
+      return;
+    }
     const scheduleKey = `${job.name}-schedule`;
     if (!(scheduleKey in config)) {
       log.warn(

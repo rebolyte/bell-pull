@@ -25,7 +25,6 @@ export class PluginsRpcService extends ExampleRpcService implements PluginRpcMet
         name: plugin.name,
         displayName: plugin.displayName ?? plugin.name,
         hasOAuth: !!plugin.oauth,
-        enabled: stored?.enabled ?? false,
         configured: !!stored,
         fields,
         jsonSchema: plugin.configSchema ? z.toJSONSchema(plugin.configSchema) : null,
