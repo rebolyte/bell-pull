@@ -7,6 +7,8 @@ description: Use when authoring new plugins for Bell Pull, which pull/accept dat
 
 Plugins extend Bell Pull by pulling data from external sources and storing as memories. All plugins live in `src/plugins/<name>/index.ts` and are registered in `src/plugins/registry.ts`.
 
+Community plugins can import types and helpers from the SDK barrel: `import { type Plugin, cron, appError } from "bell-pull/plugin-sdk";`. In-tree plugins use relative imports.
+
 - Each plugin has a `configSchema` Zod object which defines what goes in its `config` column in the DB.
   - This is used to to parse/validate what gets peristed and also auto-generate the admin UI. This is done by annotating certain properties in Zod so the string representation can be differentiated. The annotated config is converted to JSON schema for serialization.
 - Each plugin has optional `oauth` property. As each plugin is initialized it should use our helper to register routes for actual flow endpoints.
