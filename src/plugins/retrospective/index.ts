@@ -98,6 +98,7 @@ export const retrospectivePlugin: Plugin<RetroConfig> = {
     {
       name: "retrospective-weekly",
       schedule: config?.["retrospective-weekly-schedule"] ?? "0 18 * * 0",
+      fields: ["retroPrompt"],
       run: (container, _job) => {
         const bot = makeBot({ config: container.config });
         return sendWeeklyRetrospective(bot, container).map((chunks) => ({

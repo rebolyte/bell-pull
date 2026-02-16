@@ -28,13 +28,14 @@ export type CronJobInfo = {
   name: string;
   scheduleField: string;
   schedule: string;
+  enabled: boolean;
+  fields: FieldInfo[];
 };
 
 export type PluginInfo = {
   name: string;
   displayName: string;
   hasOAuth: boolean;
-  enabled: boolean;
   configured: boolean;
   fields: FieldInfo[];
   jsonSchema: unknown;

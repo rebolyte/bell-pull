@@ -8,7 +8,9 @@
     "type": "git",
     "url": "https://github.com/rebolyte/bell-pull"
   },
-  "exports": {},
+  "exports": {
+    "./plugin-sdk": "./src/plugin-sdk.ts"
+  },
   "imports": {
     "@anthropic-ai/sdk": "npm:@anthropic-ai/sdk@^0.70.1",
     "@logtape/hono": "jsr:@logtape/hono@^1.3.5",

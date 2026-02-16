@@ -24,7 +24,7 @@ export const Sidebar = ({ plugins, currentPath }: SidebarProps) => (
         <NavLink
           href={`/dashboard/plugins/${plugin.name}`}
           currentPath={currentPath}
-          disabled={!plugin.enabled}
+          disabled={!plugin.configured}
         >
           {plugin.displayName}
         </NavLink>

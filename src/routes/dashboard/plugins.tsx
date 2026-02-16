@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import type { HonoEnv, Plugin } from "../../types/index.ts";
-import type { PluginInfo } from "../../types/shared.ts";
+import type { FieldInfo, PluginInfo } from "../../types/shared.ts";
 import { DashboardShell, Layout } from "../components/layout.tsx";
-import { CronJobRow, EnabledToggle, PluginSettings } from "../components/settings/plugin.tsx";
+import { CronJobRow, PluginSettings } from "../components/settings/plugin.tsx";
 import { extractFieldsFromSchema } from "../../services/config-schema.ts";
 import { parseFormToConfig } from "../../utils/form.ts";
 import { registerPluginCrons } from "../../cron-runner.ts";
@@ -26,21 +26,35 @@ const getPluginsList = async (
   return plugins.map((plugin) => {
     const stored = configs.find((c) => c.pluginName === plugin.name);
     const storedConfig = storedConfigs?.get(plugin.name) ?? {};
-    const fields = plugin.configSchema ? extractFieldsFromSchema(plugin.configSchema) : [];
+    const allFields = plugin.configSchema ? extractFieldsFromSchema(plugin.configSchema) : [];
     const jobs = typeof plugin.cronJobs === "function"
       ? plugin.cronJobs(storedConfig)
       : (plugin.cronJobs ?? []);
-    const cronJobs = jobs.map((j) => ({
-      name: j.name,
-      scheduleField: `${j.name}-schedule`,
-      schedule: (storedConfig[`${j.name}-schedule`] as string) ?? j.schedule,
-    }));
+
+    const cronFieldKeys = new Set<string>();
+    const cronJobs = jobs.map((j) => {
+      const associatedFieldKeys = new Set(j.fields ?? []);
+      associatedFieldKeys.forEach((k) => cronFieldKeys.add(k));
+      const associatedFields: FieldInfo[] = allFields.filter((f) =>
+        associatedFieldKeys.has(f.key)
+      );
+      return {
+        name: j.name,
+        scheduleField: `${j.name}-schedule`,
+        schedule: (storedConfig[`${j.name}-schedule`] as string) ?? j.schedule,
+        enabled: storedConfig[`${j.name}-enabled`] !== false,
+        fields: associatedFields,
+      };
+    });
+
+    const fields = allFields.filter((f) =>
+      f.type !== "cron" && !cronFieldKeys.has(f.key)
+    );
 
     return {
       name: plugin.name,
       displayName: plugin.displayName ?? plugin.name,
       hasOAuth: !!plugin.oauth,
-      enabled: stored?.enabled ?? false,
       configured: !!stored,
       fields,
       jsonSchema: null,
@@ -163,7 +177,17 @@ export const makePluginRoutes = (plugins: Plugin[]) => {
     const existing = existingResult.isOk() && existingResult.value
       ? (existingResult.value.config as Record<string, unknown>)
       : {};
-    const mergedConfig = { ...existing, ...config };
+
+    const jobs = typeof plugin.cronJobs === "function"
+      ? plugin.cronJobs(existing)
+      : (plugin.cronJobs ?? []);
+    const cronEnabledFields: Record<string, boolean> = {};
+    for (const job of jobs) {
+      const key = `${job.name}-enabled`;
+      cronEnabledFields[key] = formData[key] === "on";
+    }
+
+    const mergedConfig = { ...existing, ...config, ...cronEnabledFields };
     const result = await container.plugins.setConfig(name, mergedConfig);
     if (result.isErr()) {
       const errorMsg = encodeURIComponent(result.error.message);
@@ -175,21 +199,6 @@ export const makePluginRoutes = (plugins: Plugin[]) => {
     await registerPluginCrons(plugin, container);
 
     return c.redirect(`/dashboard/plugins/${name}?flash=saved`);
-  });
-
-  pluginRoutes.post("/:name/toggle", async (c) => {
-    const name = c.req.param("name");
-    const container = c.get("container");
-    const pluginDefs = c.get("plugins");
-    const body = await c.req.parseBody();
-
-    const enabled = body.enabled === "true";
-    await container.plugins.setEnabled(name, enabled);
-
-    const pluginsList = await getPluginsList(container, pluginDefs);
-    const pluginInfo = pluginsList.find((p) => p.name === name)!;
-
-    return c.html(<EnabledToggle plugin={pluginInfo} />);
   });
 
   pluginRoutes.post("/:name/cron/:jobName/run", async (c) => {
